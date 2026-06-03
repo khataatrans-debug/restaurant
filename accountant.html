@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>📒 Accountant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<style>
+:root{--navy:#0d2248;--accent:#1d6ef5;--green:#0d9f6e;--red:#e03131;--amber:#e67700;--border:#e2e8f5;--muted:#64748b;--bg:#eef1f8;--white:#ffffff;--text:#0f172a;--alt:#f7f9ff;--shadow:0 1px 3px rgba(13,34,72,.08);--r:6px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);font-size:13px;min-height:100vh;}
+.nav{background:var(--navy);display:flex;align-items:center;padding:0 18px;height:46px;gap:2px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(13,34,72,.3);}
+.nav a{color:rgba(255,255,255,.6);text-decoration:none;font-size:12.5px;font-weight:500;padding:5px 12px;border-radius:5px;transition:.15s;white-space:nowrap;}
+.nav a:hover{background:rgba(255,255,255,.1);color:#fff;}
+.nav a.active{background:rgba(29,110,245,.5);color:#fff;font-weight:600;}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.nav-user{color:rgba(255,255,255,.75);font-size:12px;font-weight:500;}
+.btn-logout{background:rgba(255,255,255,.1);color:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.15);border-radius:5px;padding:4px 11px;font-size:12px;font-family:inherit;cursor:pointer;}
+.toolbar{background:var(--white);border-bottom:1px solid var(--border);padding:8px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.toolbar-title{font-size:13px;font-weight:700;color:var(--navy);display:flex;align-items:center;gap:8px;}
+.toolbar-title::before{content:'';width:3px;height:15px;background:var(--accent);border-radius:2px;display:inline-block;}
+.btn{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border:none;border-radius:5px;font-size:12px;font-family:inherit;font-weight:600;cursor:pointer;transition:.15s;white-space:nowrap;}
+.btn:hover{filter:brightness(1.08);}
+.btn-excel{background:#f1f5f9;color:#475569;border:1px solid var(--border);}
+.btn-sm{padding:3px 9px;font-size:11.5px;}
+.btn-cost{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;}
+.btn-auto{background:#f0fdf4;color:#166534;border:1px solid #86efac;font-size:11px;padding:2px 8px;}
+/* FILTER BAR */
+.filter-wrap{background:var(--white);border-bottom:1px solid var(--border);padding:8px 18px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.filter-wrap input[type="text"]{height:28px;font-size:12px;font-family:inherit;border:1px solid var(--border);border-radius:5px;padding:0 8px;width:220px;}
+.filter-wrap input[type="date"]{height:28px;font-size:12px;font-family:inherit;border:1px solid var(--border);border-radius:5px;padding:0 8px;width:130px;}
+.filter-wrap input:focus{outline:none;border-color:var(--accent);}
+.chk{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--navy);cursor:pointer;margin-left:8px;}
+.chk input{width:14px;height:14px;accent-color:var(--accent);}
+.pill{background:var(--alt);color:var(--navy);border:1px solid #c7d4f0;border-radius:20px;padding:3px 14px;font-size:12px;font-weight:600;margin-left:auto;}
+.pill strong{color:var(--accent);}
+/* SUMMARY */
+.summary-row{display:flex;gap:10px;padding:12px 16px 0;flex-wrap:wrap;}
+.sum-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:10px 16px;flex:1;min-width:150px;box-shadow:var(--shadow);}
+.sum-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+.sum-val{font-size:18px;font-weight:700;margin-top:2px;}
+/* TABLE */
+.tbl-wrap{margin:8px 16px 16px;background:var(--white);border-radius:var(--r);border:1px solid var(--border);overflow:auto;box-shadow:var(--shadow);}
+table{border-collapse:collapse;width:100%;font-size:11.5px;}
+thead th{background:var(--navy);color:rgba(255,255,255,.88);padding:7px 6px;font-weight:600;font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;position:sticky;top:0;z-index:5;}
+thead th.cost-col{background:#1e3a5f;}
+td{border-bottom:1px solid var(--border);padding:5px 6px;text-align:center;vertical-align:middle;}
+td.tl{text-align:left;}
+td.num{text-align:right;font-weight:600;}
+td.cost-cell{background:#f8faff;}
+tr:last-child td{border-bottom:none;}
+tr:nth-child(even) td{background:var(--alt);}
+tr:nth-child(even) td.cost-cell{background:#f0f4ff;}
+tr:hover td{background:#e8eeff!important;}
+/* MODAL */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center;}
+.modal-bg.show{display:flex;}
+.modal{background:var(--white);padding:22px 24px;border-radius:10px;width:600px;max-width:95vw;box-shadow:0 8px 32px rgba(13,34,72,.2);max-height:90vh;overflow-y:auto;}
+.modal h4{margin:0 0 14px;color:var(--navy);font-size:15px;font-weight:700;}
+.modal-info{background:var(--alt);border-radius:6px;padding:10px 14px;margin-bottom:10px;font-size:12px;line-height:1.8;}
+.modal-info span{font-weight:600;color:var(--navy);}
+/* Fuel auto banner */
+.fuel-banner{background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:11.5px;color:#166534;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+.fuel-banner strong{font-weight:700;}
+.fuel-banner .fuel-formula{color:#4b7c59;font-size:11px;}
+.m-section{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:10px 0 6px;border-bottom:1px solid var(--border);padding-bottom:4px;}
+.m-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px;}
+.m-field label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:2px;}
+.m-field input{height:28px;font-size:12px;font-family:inherit;border:1px solid var(--border);border-radius:5px;padding:0 7px;width:100%;}
+.m-field input:focus{outline:none;border-color:var(--accent);}
+.m-field input[readonly]{background:#f8fafc;color:var(--muted);}
+.m-field input.auto-filled{background:#f0fdf4;border-color:#86efac;color:#166534;}
+.m-total{background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;margin-top:8px;}
+.m-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;}
+.btn-primary{background:var(--accent);color:#fff;padding:7px 18px;font-size:13px;}
+.btn-gray{background:#6b7280;color:#fff;padding:7px 14px;font-size:13px;}
+.btn-recalc{background:#f0fdf4;color:#166534;border:1px solid #86efac;padding:7px 14px;font-size:12px;}
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:#22c55e;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.15);opacity:0;transition:opacity .3s;pointer-events:none;z-index:999;}
+.toast.show{opacity:1;}
+.toast.error{background:#ef4444;}
+@media(max-width:768px){.m-grid{grid-template-columns:repeat(2,1fr);}}
+</style>
+</head>
+<body>
+<script>
+(function(){
+  const raw=localStorage.getItem("LOGIN_USER");
+  if(!raw){navigate("login.html");return;}
+  const s=JSON.parse(raw);
+  if(s.role!=="admin"&&!(s.pages||[]).includes("accountant.html"))
+    navigate((s.pages&&s.pages[0])||"login.html");
+})();
+</script>
+<script src="app-config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
+<nav class="nav" id="mainNav">
+  <div class="nav-right">
+    <span class="nav-user" id="userInfo"></span>
+    <button class="btn-logout" id="btnLogout">↩ Đăng xuất</button>
+  </div>
+</nav>
+
+<div class="toolbar">
+  <div class="toolbar-title">📒 KẾ TOÁN / CHI PHÍ</div>
+  <div style="display:flex;gap:6px;">
+    <button class="btn btn-excel" onclick="exportExcel()">↓ Excel</button>
+  </div>
+</div>
+
+<!-- FILTER -->
+<div class="filter-wrap">
+  <input type="text" id="searchKw" placeholder="🔍 Tìm khách, xe, container, kho...">
+  <input type="date" id="fromDate">
+  <span style="color:var(--muted);font-size:11px">→</span>
+  <input type="date" id="toDate">
+  <button class="btn btn-cost btn-sm" onclick="doSearch()">Lọc</button>
+  <button class="btn btn-excel btn-sm" onclick="clearSearch()">Reset</button>
+  <label class="chk"><input type="checkbox" id="filterHasCost"> Đã nhập chi phí</label>
+  <label class="chk"><input type="checkbox" id="filterNoCost"> Chưa nhập</label>
+  <div class="pill">Tổng: <strong id="totalRows">0</strong> chuyến</div>
+</div>
+
+<!-- SUMMARY -->
+<div class="summary-row">
+  <div class="sum-card"><div class="sum-label">Tổng doanh thu</div><div class="sum-val" id="sumRev" style="color:var(--accent)">0</div></div>
+  <div class="sum-card"><div class="sum-label">Tổng chi hộ</div><div class="sum-val" id="sumChiHo" style="color:var(--accent)">0</div></div>
+  <div class="sum-card"><div class="sum-label">Tổng chi phí</div><div class="sum-val" id="sumCost" style="color:var(--red)">0</div></div>
+  <div class="sum-card"><div class="sum-label">Lợi nhuận</div><div class="sum-val" id="sumProfit" style="color:var(--green)">0</div></div>
+  <div class="sum-card"><div class="sum-label">Đã nhập CP</div><div class="sum-val" id="sumDone" style="color:var(--navy)">0 / 0</div></div>
+</div>
+
+<!-- TABLE -->
+<div class="tbl-wrap">
+  <table>
+    <thead><tr>
+      <th>#</th><th>Ngày KH</th><th>Khách hàng</th><th>Mã KH</th>
+      <th>Kho / Nhà máy</th><th>KM</th><th>Số xe</th><th>Lái xe</th>
+      <th>Container</th><th>Booking</th><th>Nơi lấy</th><th>Nơi hạ</th>
+      <th>Đơn giá TK</th>
+      <th class="cost-col">Phí nâng</th>
+      <th class="cost-col">Phí hạ</th>
+      <th class="cost-col">Cược cont</th>
+      <th class="cost-col" style="background:#7e3af2">Tổng chi hộ</th>
+      <th class="cost-col">Tổng DT</th>
+      <th class="cost-col">Cầu đường</th>
+      <th class="cost-col">Nhiên liệu</th>
+      <th class="cost-col">Lương LX</th>
+      <th class="cost-col">Sửa chữa</th>
+      <th class="cost-col">Phí khác</th>
+      <th class="cost-col">Tổng CP</th>
+      <th class="cost-col">Lợi nhuận</th>
+      <th class="cost-col">Diễn giải</th>
+      <th class="cost-col">Chi phí</th>
+    </tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<!-- MODAL nhập chi phí -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h4>💰 Nhập chi phí chuyến</h4>
+    <div class="modal-info" id="modalInfo"></div>
+
+    <!-- Banner tính NL tự động -->
+    <div class="fuel-banner" id="fuelBanner" style="display:none">
+      <div>
+        ⛽ <strong>Nhiên liệu tự động:</strong>
+        <span id="fuelBannerText"></span>
+      </div>
+      <button class="btn-auto" onclick="applyAutoFuel()">✅ Áp dụng</button>
+    </div>
+
+    <!-- DOANH THU -->
+    <div class="m-section">💵 Doanh thu</div>
+    <div class="m-grid">
+      <div class="m-field"><label>Loại DV</label><input id="mService" placeholder="Loại dịch vụ..."></div>
+      <div class="m-field"><label>Đơn giá TK</label><input id="mTruckPrice" type="number" placeholder="0" oninput="calcModal()"></div>
+      <div class="m-field"><label>Phí nâng</label><input id="mLift" type="number" placeholder="0" oninput="calcModal()"></div>
+      <div class="m-field"><label>Phí hạ</label><input id="mDrop" type="number" placeholder="0" oninput="calcModal()"></div>
+      <div class="m-field"><label>Phí cược cont</label><input id="mDeposit" type="number" placeholder="0" oninput="calcModal()"></div>
+      <div class="m-field"><label>Tổng doanh thu</label><input id="mRevenue" type="number" readonly></div>
+    </div>
+
+    <!-- CHI PHÍ -->
+    <div class="m-section">💸 Chi phí</div>
+    <div class="m-grid">
+      <div class="m-field"><label>Cầu đường / Vé cổng</label><input id="mToll" type="number" placeholder="0" oninput="calcModal()"></div>
+      <div class="m-field">
+        <label>Nhiên liệu <span id="fuelAutoLabel" style="color:#16a34a;font-size:10px;font-weight:700;text-transform:none"></span></label>
+        <input id="mFuel" type="number" placeholder="0" oninput="calcModal()">
+      </div>
+      <div class="m-field">
+        <label>Lương chuyến <span id="wageAutoLabel" style="color:#16a34a;font-size:10px;font-weight:700;text-transform:none"></span></label>
+        <input id="mWage" type="number" placeholder="0" oninput="calcModal()">
+      </div>
+      <div class="m-field"><label>Phí sửa chữa</label><input id="mRepair" type="number" placeholder="0" oninput="calcModal()"></div>
+      <div class="m-field"><label>Phí khác</label><input id="mOther" type="number" placeholder="0" oninput="calcModal()"></div>
+      <div class="m-field"><label>Tổng chi phí</label><input id="mCost" type="number" readonly></div>
+    </div>
+    <div class="m-field" style="margin-bottom:8px"><label>Diễn giải</label><input id="mNote" placeholder="Ghi chú..."></div>
+
+    <div class="m-total">
+      <span style="font-size:12px;font-weight:600;color:var(--muted)">Lợi nhuận</span>
+      <span id="mProfit" style="font-size:18px;font-weight:700;color:var(--green)">0</span>
+    </div>
+    <div class="m-actions">
+      <button class="btn btn-recalc" onclick="recalcFuel()">⛽ Tính lại NL</button>
+      <button class="btn btn-gray" onclick="closeModal()">Hủy</button>
+      <button class="btn btn-primary" onclick="saveCost()">💾 Lưu chi phí</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const CURRENT_KEY="LOGIN_USER";
+const ALL_NAV=[
+  {page:"index.html",       label:"🚚 Trucking"},
+  {page:"accountant.html",  label:"📒 Accountant"},
+  {page:"performance.html", label:"📈 Performance"},
+  {page:"overview.html",    label:"📊 Overview"},
+  {page:"master.html",      label:"📂 Master",      adminOnly:true},
+  {page:"maintenance.html", label:"🔧 Bảo dưỡng",  adminOnly:true},
+  {page:"users.html",       label:"👑 Users",        adminOnly:true},
+];
+(function(){
+  const session=JSON.parse(localStorage.getItem(CURRENT_KEY)||"{}");
+  const nav=document.getElementById("mainNav"),nr=nav.querySelector(".nav-right");
+  ALL_NAV.forEach(item=>{
+    if(session.role==="admin"){/* hiện tất cả */}
+    else if(session.role==="viceadmin"){
+      // Phó admin thấy tất cả trừ không có gì bị ẩn — users.html vẫn hiện
+      /* hiện tất cả 6 tab */
+    }
+    else{if(!(session.pages||[]).includes(item.page)) return;}
+    const a=document.createElement("a");a.href=item.page;a.textContent=item.label;
+    if(location.pathname.endsWith(item.page)) a.classList.add("active");
+    nav.insertBefore(a,nr);
+  });
+  document.getElementById("userInfo").textContent=session.username?`👤 ${session.username} (${session.role})`:"";
+  document.getElementById("btnLogout").onclick=()=>{localStorage.removeItem(CURRENT_KEY);navigate("login.html");};
+})();
+
+function showToast(msg,err=false){
+  const t=document.getElementById("toast");
+  t.textContent=msg;t.className="toast show"+(err?" error":"");
+  clearTimeout(t._t);t._t=setTimeout(()=>{t.className="toast";},2500);
+}
+
+/* RENDER */
+firebase.initializeApp({
+  apiKey:"AIzaSyAPmHlNgx-w5KfK4LF490pvdYA_mGgcX_k",
+  authDomain:"transportation-6d6f5.firebaseapp.com",
+  databaseURL:"https://transportation-6d6f5-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:"transportation-6d6f5",
+  storageBucket:"transportation-6d6f5.firebasestorage.app",
+  messagingSenderId:"1097685849973",
+  appId:"1:1097685849973:web:79ad636e3dfd0b12f7653c"
+});
+const db=firebase.firestore();
+const rtdb=firebase.database();
+// APP_ID từ app-config.js → window.APP_ID
+const COL_TRK=`trucking_plan_${APP_ID}`;
+const COL_COST=`acc_costs_${APP_ID}`;
+
+let trkStore=[], costStore={}, currentTrkId=null;
+let _autoFuelCost = 0;
+
+// ── Master data từ RTDB (real-time, thay thế localStorage) ──
+let _masterTrucks=[];    // [{truck, fuel, driver, ...}]
+let _masterFuels=[];     // [{date, price}] sorted desc
+let _masterCustomers=[]; // [{name, factory, wage, factory2, wage2, ...}]
+
+rtdb.ref(`master_data_${APP_ID}`).on("value", snap=>{
+  if(snap.exists()){
+    const d=snap.val();
+    _masterTrucks    = Array.isArray(d.trucks)    ? d.trucks    : Object.values(d.trucks||{});
+    _masterFuels     = Array.isArray(d.fuels)     ? d.fuels     : Object.values(d.fuels||{});
+    _masterCustomers = Array.isArray(d.customers) ? d.customers : Object.values(d.customers||{});
+    // sort fuels desc by date
+    _masterFuels.sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  } else {
+    // fallback localStorage nếu RTDB chưa có
+    try {
+      const m=JSON.parse(localStorage.getItem(`MASTER_ALL_V4_${APP_ID}`)||"{}");
+      _masterTrucks    = m.trucks    || [];
+      _masterFuels     = m.fuels     || [];
+      _masterCustomers = m.customers || [];
+    } catch(e){}
+  }
+  render();
+});
+
+function getTruckFuelRate(vehicleNo) {
+  const trk=_masterTrucks.find(t=>(t.truck||"").trim()===(vehicleNo||"").trim());
+  return trk ? parseFloat(trk.fuel||0) : 0;
+}
+
+function getFuelPrice(planDate) {
+  if(!_masterFuels.length) return 0;
+  if(!planDate) return parseFloat(_masterFuels[0].price||0);
+  const applicable=_masterFuels.filter(f=>f.date<=planDate);
+  if(applicable.length) return parseFloat(applicable[0].price||0);
+  return parseFloat(_masterFuels[_masterFuels.length-1].price||0);
+}
+
+function getWageFromMaster(customerName, factoryName) {
+  const cusName=(customerName||"").trim();
+  const facName=(factoryName||"").trim();
+  if(!cusName||!facName) return 0;
+  const khoKeys=[
+    {factory:"factory", wage:"wage"},
+    {factory:"factory2",wage:"wage2"},
+    {factory:"factory3",wage:"wage3"},
+    {factory:"factory4",wage:"wage4"},
+  ];
+  for(const c of _masterCustomers){
+    if((c.name||"").trim()!==cusName) continue;
+    for(const k of khoKeys){
+      if((c[k.factory]||"").trim()===facName)
+        return parseFloat(c[k.wage]||0);
+    }
+  }
+  return 0;
+}
+
+function calcAutoFuelCost(vehicleNo, km, planDate) {
+  const fuelRate=getTruckFuelRate(vehicleNo);
+  const pricePerLiter=getFuelPrice(planDate);
+  const kmNum=parseFloat(km||0);
+  if(!fuelRate||!pricePerLiter||!kmNum)
+    return {cost:0,liters:0,rate:fuelRate,pricePerLiter,hasData:false};
+  const liters=kmNum*fuelRate/100;
+  const cost=Math.round(liters*pricePerLiter);
+  return {cost,liters:+liters.toFixed(1),rate:fuelRate,pricePerLiter,hasData:true};
+}
+
+/* Load trucking real-time — dữ liệu km luôn mới nhất từ Firestore */
+db.collection(COL_TRK).orderBy("planDate","desc").onSnapshot(snap=>{
+  trkStore=snap.docs.map(d=>({id:d.id,...d.data()}));
+  render();
+});
+
+/* Load costs real-time */
+db.collection(COL_COST).onSnapshot(snap=>{
+  costStore={};
+  snap.docs.forEach(d=>{costStore[d.id]=d.data();});
+  render();
+});
+
+/* RENDER */
+function fmt(n){return Number(n||0).toLocaleString("vi-VN");}
+function render(data){
+  const hasCost=document.getElementById("filterHasCost").checked;
+  const noCost=document.getElementById("filterNoCost").checked;
+  const kw=(document.getElementById("searchKw").value||"").toLowerCase().trim();
+  const from=document.getElementById("fromDate").value;
+  const to=document.getElementById("toDate").value;
+
+  let rows=data||[...trkStore];
+  if(kw) rows=rows.filter(r=>
+    (r.customer||"").toLowerCase().includes(kw)||
+    (r.containerNo||"").toLowerCase().includes(kw)||
+    (r.factory||"").toLowerCase().includes(kw)||
+    (r.vehicleNo||"").toLowerCase().includes(kw)||
+    (r.driver||"").toLowerCase().includes(kw)||
+    (r.cusCode||"").toLowerCase().includes(kw)||
+    (r.booking||"").toLowerCase().includes(kw)||
+    (r.depot||"").toLowerCase().includes(kw)||
+    (r.port||"").toLowerCase().includes(kw)
+  );
+  if(from) rows=rows.filter(r=>r.planDate>=from);
+  if(to)   rows=rows.filter(r=>r.planDate<=to);
+  if(hasCost&&!noCost) rows=rows.filter(r=>costStore[r.id]);
+  if(noCost&&!hasCost) rows=rows.filter(r=>!costStore[r.id]);
+
+  const tbody=document.getElementById("tbody");
+  tbody.innerHTML="";
+  let sumRev=0,sumCost=0,sumChiHo=0,doneCnt=0;
+
+  rows.forEach((r,i)=>{
+    const c=costStore[r.id]||{};
+    const hasCostData=!!costStore[r.id];
+    const rev=+c.revenue||0, cost=+c.cost||0, profit=rev-cost;
+    const chiHo=(+c.lift||0)+(+c.dropFee||0)+(+c.deposit||0);
+    sumRev+=rev; sumCost+=cost; sumChiHo+=chiHo;
+    if(hasCostData) doneCnt++;
+
+    // Tính NL tự động để hiển thị gợi ý trong bảng
+    const autoNL = calcAutoFuelCost(r.vehicleNo, r.km, r.planDate);
+    const fuelDisplay = hasCostData
+      ? fmt(c.fuel)
+      : (autoNL.hasData ? `<span style="color:#16a34a;font-size:10.5px">~${fmt(autoNL.cost)}</span>` : "");
+
+    // ── Lương chuyến tự động từ master ──
+    const masterWage = getWageFromMaster(r.customer, r.factory);
+    const wageDisplay = (()=>{
+      if(hasCostData && c.wage) return fmt(c.wage);           // đã nhập → hiển thị số đã lưu
+      if(masterWage) return `<span style="color:#7c3aed;font-size:10.5px">~${fmt(masterWage)}</span>`; // chưa nhập → gợi ý từ master
+      return "";
+    })();
+
+    const tr=document.createElement("tr");
+    tr.innerHTML=`
+      <td>${i+1}</td>
+      <td>${r.planDate||""}</td>
+      <td class="tl" style="font-weight:600">${r.customer||""}</td>
+      <td>${r.cusCode||""}</td>
+      <td class="tl" style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.factory||""}">${r.factory||""}</td>
+      <td>${r.km||""}</td>
+      <td>${r.vehicleNo||""}</td>
+      <td class="tl">${r.driver||""}</td>
+      <td style="font-family:monospace">${r.containerNo||""}</td>
+      <td>${r.booking||""}</td>
+      <td>${r.depot||""}</td>
+      <td>${r.port||""}</td>
+      <td class="num">${fmt(r.price)}</td>
+      <td class="num cost-cell">${hasCostData?fmt(c.lift):""}</td>
+      <td class="num cost-cell">${hasCostData?fmt(c.dropFee):""}</td>
+      <td class="num cost-cell">${hasCostData?fmt(c.deposit):""}</td>
+      <td class="num cost-cell" style="color:#7e3af2;font-weight:700">${hasCostData?fmt(chiHo):""}</td>
+      <td class="num cost-cell" style="color:var(--accent)">${hasCostData?fmt(rev):""}</td>
+      <td class="num cost-cell">${hasCostData?fmt(c.toll):""}</td>
+      <td class="num cost-cell">${fuelDisplay}</td>
+      <td class="num cost-cell">${wageDisplay}</td>
+      <td class="num cost-cell">${hasCostData?fmt(c.repair):""}</td>
+      <td class="num cost-cell">${hasCostData?fmt(c.other):""}</td>
+      <td class="num cost-cell" style="color:var(--red)">${hasCostData?fmt(cost):""}</td>
+      <td class="num cost-cell" style="color:${profit>=0?"var(--green)":"var(--red)"};font-weight:700">${hasCostData?fmt(profit):""}</td>
+      <td class="tl cost-cell" style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.note||""}</td>
+      <td class="cost-cell">
+        <button class="btn btn-cost btn-sm" onclick="openModal('${r.id}')">
+          ${hasCostData?"✏️ Sửa CP":"➕ Nhập CP"}
+        </button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+
+  const profit=sumRev-sumCost;
+  document.getElementById("sumRev").textContent=fmt(sumRev);
+  document.getElementById("sumChiHo").textContent=fmt(sumChiHo);
+  document.getElementById("sumCost").textContent=fmt(sumCost);
+  document.getElementById("sumProfit").textContent=fmt(profit);
+  document.getElementById("sumProfit").style.color=profit>=0?"var(--green)":"var(--red)";
+  document.getElementById("sumDone").textContent=`${doneCnt} / ${rows.length}`;
+  document.getElementById("totalRows").textContent=rows.length;
+}
+
+document.getElementById("filterHasCost").onchange=render;
+document.getElementById("filterNoCost").onchange=render;
+
+/* ============================================================
+   MODAL
+   ============================================================ */
+function openModal(trkId){
+  currentTrkId=trkId;
+  const r=trkStore.find(x=>x.id===trkId)||{};
+  const c=costStore[trkId]||{};
+
+  // Info banner
+  document.getElementById("modalInfo").innerHTML=`
+    <div><span>📅 Ngày:</span> ${r.planDate||""} &nbsp;|&nbsp; <span>👤 Khách:</span> ${r.customer||""} &nbsp;|&nbsp; <span>🔑 Mã KH:</span> ${r.cusCode||""}</div>
+    <div><span>🏭 Kho:</span> ${r.factory||""} &nbsp;|&nbsp; <span>🚛 Xe:</span> ${r.vehicleNo||""} &nbsp;|&nbsp; <span>📏 KM:</span> ${r.km||"?"} km</div>
+    <div><span>📦 Container:</span> ${r.containerNo||"(chưa có)"} &nbsp;|&nbsp; <span>📍 Tuyến:</span> ${r.depot||""} → ${r.port||""}</div>`;
+
+  // Điền form
+  mTruckPrice.value = c.truckPrice!==undefined ? c.truckPrice : (r.price||0);
+  mService.value    = c.service||"";
+  mLift.value       = c.lift||0;
+  mDrop.value       = c.dropFee||0;
+  mDeposit.value    = c.deposit||0;
+  mToll.value       = c.toll||0;
+  mRepair.value     = c.repair||0;
+  mOther.value      = c.other||0;
+  mNote.value       = c.note||"";
+
+  // ── Lương chuyến tự động từ master ──
+  const masterWage = getWageFromMaster(r.customer, r.factory);
+  const wageVal    = c.wage !== undefined ? c.wage   // đã lưu → giữ nguyên
+                   : r.wage               ? r.wage   // trucking có → dùng
+                   : masterWage;                     // tra master theo kho
+  mWage.value = wageVal || 0;
+  const wageAutoLbl = document.getElementById("wageAutoLabel");
+  if (!c.wage && masterWage) {
+    mWage.classList.add("auto-filled");
+    wageAutoLbl.textContent = `(master: ${fmt(masterWage)}đ)`;
+  } else {
+    mWage.classList.remove("auto-filled");
+    wageAutoLbl.textContent = masterWage ? `(master: ${fmt(masterWage)}đ)` : "";
+  }
+
+  // ── Tính NL tự động ──
+  const auto = calcAutoFuelCost(r.vehicleNo, r.km, r.planDate);
+  _autoFuelCost = auto.cost;
+
+  const fuelBanner  = document.getElementById("fuelBanner");
+  const fuelAutoLbl = document.getElementById("fuelAutoLabel");
+
+  if (auto.hasData) {
+    // Hiện banner
+    document.getElementById("fuelBannerText").innerHTML =
+      `<strong>${fmt(auto.cost)} đ</strong> &nbsp;
+       <span class="fuel-formula">(${auto.liters} lít × ${fmt(auto.pricePerLiter)} đ/lít &nbsp;|&nbsp; ĐM: ${auto.rate} lít/100km &nbsp;×&nbsp; ${r.km} km)</span>`;
+    fuelBanner.style.display = "flex";
+    fuelAutoLbl.textContent  = `(ĐM: ${auto.rate}L/100 × ${fmt(auto.pricePerLiter)}đ/L)`;
+
+    // Nếu chưa có data lưu → tự điền luôn
+    if (!c.fuel) {
+      mFuel.value = auto.cost;
+      mFuel.classList.add("auto-filled");
+    } else {
+      mFuel.value = c.fuel;
+      mFuel.classList.remove("auto-filled");
+    }
+  } else {
+    fuelBanner.style.display = "none";
+    fuelAutoLbl.textContent  = "";
+    mFuel.value = c.fuel||0;
+    mFuel.classList.remove("auto-filled");
+    // Thông báo thiếu data nếu cần
+    if (!c.fuel && r.km) {
+      const missing = [];
+      if (!getTruckFuelRate(r.vehicleNo)) missing.push("định mức xe");
+      if (!getFuelPrice(r.planDate))      missing.push("giá dầu");
+      if (missing.length) showToast(`⚠️ Thiếu ${missing.join(", ")} để tự tính NL`, true);
+    }
+  }
+
+  calcModal();
+  document.getElementById("modalBg").classList.add("show");
+}
+
+/* Nút "✅ Áp dụng" trên banner NL */
+window.applyAutoFuel = function() {
+  mFuel.value = _autoFuelCost;
+  mFuel.classList.add("auto-filled");
+  calcModal();
+  showToast("✅ Đã áp dụng nhiên liệu tự tính");
+};
+
+/* Nút "⛽ Tính lại NL" trong footer modal */
+window.recalcFuel = function() {
+  const r = trkStore.find(x=>x.id===currentTrkId)||{};
+  const auto = calcAutoFuelCost(r.vehicleNo, r.km, r.planDate);
+  if (!auto.hasData) { showToast("⚠️ Không đủ dữ liệu để tính NL (cần định mức xe + giá dầu)", true); return; }
+  _autoFuelCost = auto.cost;
+  mFuel.value = auto.cost;
+  mFuel.classList.add("auto-filled");
+  calcModal();
+  showToast(`⛽ Đã tính lại: ${auto.liters} lít × ${fmt(auto.pricePerLiter)} đ = ${fmt(auto.cost)} đ`);
+};
+
+function calcModal(){
+  const truck=+mTruckPrice.value||0, lift=+mLift.value||0, drop=+mDrop.value||0, dep=+mDeposit.value||0;
+  const toll=+mToll.value||0, fuel=+mFuel.value||0, wage=+mWage.value||0, repair=+mRepair.value||0, other=+mOther.value||0;
+  const rev=truck+lift+drop+dep, cost=toll+fuel+wage+repair+other, profit=rev-cost;
+  mRevenue.value=rev; mCost.value=cost;
+  const el=document.getElementById("mProfit");
+  el.textContent=fmt(profit);
+  el.style.color=profit>=0?"var(--green)":"var(--red)";
+}
+
+function closeModal(){
+  currentTrkId=null;
+  document.getElementById("modalBg").classList.remove("show");
+}
+
+async function saveCost(){
+  if(!currentTrkId) return;
+  calcModal();
+  const rec={
+    truckingId:currentTrkId,
+    service:mService.value.trim(),
+    truckPrice:+mTruckPrice.value||0,
+    lift:+mLift.value||0, dropFee:+mDrop.value||0, deposit:+mDeposit.value||0,
+    revenue:+mRevenue.value||0,
+    toll:+mToll.value||0, fuel:+mFuel.value||0, wage:+mWage.value||0,
+    repair:+mRepair.value||0, other:+mOther.value||0,
+    cost:+mCost.value||0,
+    note:mNote.value.trim(),
+    updatedAt: new Date().toISOString()
+  };
+  try{
+    await db.collection(COL_COST).doc(currentTrkId).set(rec);
+    showToast("✅ Đã lưu chi phí");
+    closeModal();
+  }catch(e){showToast("Lỗi: "+e.message,true);}
+}
+
+document.getElementById("modalBg").addEventListener("click",function(e){if(e.target===this)closeModal();});
+
+/* SEARCH */
+window.doSearch=function(){render();};
+window.clearSearch=function(){
+  document.getElementById("searchKw").value="";
+  document.getElementById("fromDate").value="";
+  document.getElementById("toDate").value="";
+  document.getElementById("filterHasCost").checked=false;
+  document.getElementById("filterNoCost").checked=false;
+  render();
+};
+
+/* EXPORT */
+window.exportExcel=function(){
+  if(!trkStore.length){showToast("Không có dữ liệu",true);return;}
+  const hdr=["Ngày","Khách","Mã KH","Kho/NM","KM","Xe","Lái xe","Container","Booking","Nơi lấy","Nơi hạ","Đơn giá TK","Loại DV","Phí nâng","Phí hạ","Cược cont","Tổng chi hộ","Tổng DT","Cầu đường","Nhiên liệu","Lương","Sửa chữa","Phí khác","Tổng CP","Lợi nhuận","Diễn giải"];
+  const rows=trkStore.map(r=>{
+    const c=costStore[r.id]||{};
+    const rev=+c.revenue||0, cost=+c.cost||0;
+    const chiHo=(+c.lift||0)+(+c.dropFee||0)+(+c.deposit||0);
+    const fuelVal = c.fuel || (calcAutoFuelCost(r.vehicleNo, r.km, r.planDate).cost) || "";
+    return [r.planDate,r.customer,r.cusCode,r.factory,r.km,r.vehicleNo,r.driver,r.containerNo,r.booking,r.depot,r.port,r.price,c.service||"",c.lift||"",c.dropFee||"",c.deposit||"",chiHo||"",rev||"",c.toll||"",fuelVal,c.wage||"",c.repair||"",c.other||"",cost||"",rev-cost||"",c.note||""];
+  });
+  const csv=[hdr,...rows].map(r=>r.join(",")).join("\n");
+  const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="Accountant.csv";
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  showToast("✅ Đã xuất Excel");
+};
+</script>
+</body>
+</html>
