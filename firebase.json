@@ -2,12 +2,13 @@
   "hosting": {
     "site": "tienphatvt",
     "public": ".",
-    "cleanUrls": true,
+    "cleanUrls": false,
+    "headers": [{
+      "source": "**/*.html",
+      "headers": [{"key": "Cache-Control", "value": "no-cache"}]
+    }],
     "rewrites": [
-      {
-        "source": "/",
-        "destination": "/landing.html"
-      }
+      {"source": "/", "destination": "/landing.html"}
     ],
     "ignore": [
       "firebase.json",

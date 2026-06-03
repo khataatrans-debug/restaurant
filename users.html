@@ -67,7 +67,7 @@ tr:hover td{background:#e8eeff!important;}
     <input id="uPass" type="text" placeholder="Password" style="width:130px">
     <select id="uRole" style="width:130px">
       <option value="user">User</option>
-      <option value="viceadmin">Phó Admin</option>
+      <option value="viceadmin">Administrator</option>
       <option value="admin">Admin</option>
     </select>
     <button class="btn-primary" onclick="addUser()">➕ Thêm user</button>
@@ -188,7 +188,7 @@ function render(){
     const isVice=u.role==="viceadmin";
     const roleBg=isAdmin?"#dbeafe":isVice?"#fef3c7":"#f1f5f9";
     const roleColor=isAdmin?"#1d4ed8":isVice?"#92400e":"#475569";
-    const roleLabel=isAdmin?"Admin":isVice?"Phó Admin":"User";
+    const roleLabel=isAdmin?"Admin":isVice?" Administrator":"User";
     tbody.insertAdjacentHTML("beforeend",`
       <tr>
         <td>${rowNum}</td>
