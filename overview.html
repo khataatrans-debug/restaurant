@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>📊 Báo cáo</title>
+<title>📊 Overview — TMS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <style>
@@ -272,21 +272,13 @@ tfoot td{background:#f0f4ff;font-weight:700;border-top:2px solid var(--accent);f
   <div class="print-date" id="printDateLabel" style="display:none"></div>
  <div class="company-header">
   <div class="co-left">
-    <div class="company-name" id="coName">
-      CÔNG TY VẬN TẢI ABC
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <div class="company-name" id="coName">CÔNG TY VẬN TẢI</div>
+      <button onclick="openEditCo()" style="font-size:11px;padding:2px 8px;background:#e0e7ff;color:#1d4ed8;border:1px solid #a5b4fc;border-radius:4px;cursor:pointer;font-family:inherit;font-weight:600;print:none" class="no-print">✏️ Sửa</button>
     </div>
-
-    <div class="company-addr" id="coAddr">
-      Địa chỉ: 1234 CAO THẮNG, PHƯỜNG 3, TP.HCM
-    </div>
-
-    <div class="company-addr">
-      Mã số thuế: 01031616116
-    </div>
-
-    <div class="company-addr">
-      Số tài khoản ngân hàng: 0812345678
-    </div>
+    <div class="company-addr" id="coAddr">Địa chỉ: --</div>
+    <div class="company-addr" id="coTax">Mã số thuế: --</div>
+    <div class="company-addr" id="coBank">Số tài khoản ngân hàng: --</div>
   </div>
 
   <div class="co-right">
@@ -470,6 +462,29 @@ tfoot td{background:#f0f4ff;font-weight:700;border-top:2px solid var(--accent);f
 </div>
 
 <!-- TOAST -->
+<!-- Modal sửa thông tin công ty -->
+<div id="editCoModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;width:460px;max-width:95vw;padding:24px;box-shadow:0 8px 32px rgba(0,0,0,.2);">
+    <h4 style="color:#0d2248;font-size:15px;margin-bottom:16px">🏢 Sửa thông tin công ty</h4>
+    <div style="margin-bottom:10px"><label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:3px">TÊN CÔNG TY</label>
+      <input id="editCoName" style="width:100%;height:36px;font-size:13px;font-family:inherit;border:1px solid #e2e8f5;border-radius:6px;padding:0 10px" placeholder="Tên công ty">
+    </div>
+    <div style="margin-bottom:10px"><label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:3px">ĐỊA CHỈ</label>
+      <input id="editCoAddr" style="width:100%;height:36px;font-size:13px;font-family:inherit;border:1px solid #e2e8f5;border-radius:6px;padding:0 10px" placeholder="Địa chỉ">
+    </div>
+    <div style="margin-bottom:10px"><label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:3px">MÃ SỐ THUẾ</label>
+      <input id="editCoTax" style="width:100%;height:36px;font-size:13px;font-family:inherit;border:1px solid #e2e8f5;border-radius:6px;padding:0 10px" placeholder="Mã số thuế">
+    </div>
+    <div style="margin-bottom:16px"><label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:3px">SỐ TÀI KHOẢN NGÂN HÀNG</label>
+      <input id="editCoBank" style="width:100%;height:36px;font-size:13px;font-family:inherit;border:1px solid #e2e8f5;border-radius:6px;padding:0 10px" placeholder="Số TK ngân hàng">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="closeEditCo()" style="padding:7px 16px;font-size:13px;font-family:inherit;font-weight:600;background:#6b7280;color:#fff;border:none;border-radius:6px;cursor:pointer">Hủy</button>
+      <button onclick="saveCoInfo()" style="padding:7px 16px;font-size:13px;font-family:inherit;font-weight:600;background:#1d6ef5;color:#fff;border:none;border-radius:6px;cursor:pointer">💾 Lưu</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" style="position:fixed;bottom:24px;right:24px;background:#22c55e;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.15);opacity:0;transition:opacity .3s;pointer-events:none;z-index:999;"></div>
 
 <script>
@@ -479,7 +494,7 @@ const ALL_NAV=[
   {page:"index.html",       label:"🚚 Trucking"},
   {page:"accountant.html",  label:"📒 Accountant"},
   {page:"performance.html", label:"📈 Performance"},
-  {page:"overview.html",    label:"📊 Báo cáo"},
+  {page:"overview.html",    label:"📊 Overview"},
   {page:"master.html",      label:"📂 Master",      adminOnly:true},
   {page:"maintenance.html", label:"🔧 Bảo dưỡng",  adminOnly:true},
   {page:"users.html",       label:"👑 Users",        adminOnly:true},
@@ -584,9 +599,38 @@ rtdb.ref(`master_data_${APP_ID}`).on("value", snap => {
       document.getElementById("coAddr").textContent = "Địa chỉ: " + co.address;
       const sal=document.getElementById("coAddrSal");if(sal)sal.textContent="Địa chỉ: "+co.address;
     }
+    if (co.tax)  document.getElementById("coTax").textContent  = "Mã số thuế: " + co.tax;
+    if (co.bank) document.getElementById("coBank").textContent = "Số tài khoản ngân hàng: " + co.bank;
     localStorage.setItem(`MASTER_ALL_V4_${APP_ID}`, JSON.stringify(master));
+    // Cache for edit modal
+    window._coCurrent = co;
   } catch(e) {}
 });
+
+function openEditCo(){
+  const co = window._coCurrent || {};
+  document.getElementById("editCoName").value = co.name||"";
+  document.getElementById("editCoAddr").value = co.address||"";
+  document.getElementById("editCoTax").value  = co.tax||"";
+  document.getElementById("editCoBank").value = co.bank||"";
+  document.getElementById("editCoModal").style.display = "flex";
+}
+function closeEditCo(){
+  document.getElementById("editCoModal").style.display = "none";
+}
+function saveCoInfo(){
+  const co = {
+    name:    document.getElementById("editCoName").value.trim(),
+    address: document.getElementById("editCoAddr").value.trim(),
+    tax:     document.getElementById("editCoTax").value.trim(),
+    bank:    document.getElementById("editCoBank").value.trim(),
+  };
+  if(!co.name){ showToast("Nhập tên công ty!",true); return; }
+  rtdb.ref(`master_data_${APP_ID}/company`).set(co)
+    .then(()=>{ showToast("✅ Đã lưu thông tin công ty!"); closeEditCo(); })
+    .catch(e=>showToast("❌ Lỗi: "+e.message, true));
+}
+document.getElementById("editCoModal").addEventListener("click", function(e){ if(e.target===this) closeEditCo(); });
 
 window.saveVAT=function(){
   const inp=document.getElementById("vatPctInput");

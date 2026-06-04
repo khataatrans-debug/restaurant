@@ -222,7 +222,7 @@ db.ref(USERS_REF).on("value", snap => {
   localStorage.setItem(LOCAL_USERS, JSON.stringify(_users));
   document.getElementById("btnLogin").disabled = false;
   const st = document.getElementById("status");
-  st.textContent = `✅ Sẵn sàng · ${_users.length} tài khoản`;
+  st.textContent = "✅ Sẵn sàng";
   st.className = "ok";
 }, () => {
   _users = JSON.parse(localStorage.getItem(LOCAL_USERS)||"[]");

@@ -49,6 +49,18 @@ td{border-bottom:1px solid var(--border);padding:5px 6px;text-align:center;verti
 td.tl{text-align:left;}
 td.num{text-align:right;font-weight:600;}
 td.cost-cell{background:#f8faff;}
+
+td.sticky-col, th.sticky-col {
+  position: sticky;
+  right: 0;
+  z-index: 3;
+  background: #fff;
+  box-shadow: -2px 0 6px rgba(13,34,72,.1);
+}
+thead th.sticky-col { background: #1a3a6e !important; z-index: 4; }
+tr:nth-child(even) td.sticky-col { background: var(--alt); }
+tr:hover td.sticky-col { background: #e8eeff !important; }
+
 tr:last-child td{border-bottom:none;}
 tr:nth-child(even) td{background:var(--alt);}
 tr:nth-child(even) td.cost-cell{background:#f0f4ff;}
@@ -140,7 +152,7 @@ tr:hover td{background:#e8eeff!important;}
     <thead><tr>
       <th>#</th><th>Ngày KH</th><th>Khách hàng</th><th>Mã KH</th>
       <th>Kho / Nhà máy</th><th>KM</th><th>Số xe</th><th>Lái xe</th>
-      <th>Container</th><th>Booking</th><th>Nơi lấy</th><th>Nơi hạ</th>
+      <th>Container</th><th>Booking</th><th>Nơi lấy</th><th>Nơi hạ</th><th style="background:#0369a1;white-space:nowrap">Cước VC (HĐ)</th>
       <th>Đơn giá TK</th>
       <th class="cost-col">Phí nâng</th>
       <th class="cost-col">Phí hạ</th>
@@ -155,7 +167,7 @@ tr:hover td{background:#e8eeff!important;}
       <th class="cost-col">Tổng CP</th>
       <th class="cost-col">Lợi nhuận</th>
       <th class="cost-col">Diễn giải</th>
-      <th class="cost-col">Chi phí</th>
+      <th class="cost-col sticky-col">Chi phí</th>
     </tr></thead>
     <tbody id="tbody"></tbody>
   </table>
@@ -403,7 +415,7 @@ function render(data){
     const masterWage = getWageFromMaster(r.customer, r.factory);
     const wageDisplay = (()=>{
       if(hasCostData && c.wage) return fmt(c.wage);           // đã nhập → hiển thị số đã lưu
-      if(masterWage) return `<span style="color:#7c3aed;font-size:10.5px">~${fmt(masterWage)}</span>`; // chưa nhập → gợi ý từ master
+      if(masterWage) return `<span style="color:#ea580c;font-size:10.5px">~${fmt(masterWage)}</span>`; // chưa nhập → gợi ý từ master
       return "";
     })();
 
@@ -421,6 +433,22 @@ function render(data){
       <td>${r.booking||""}</td>
       <td>${r.depot||""}</td>
       <td>${r.port||""}</td>
+      <td class="tl" style="font-size:11px;color:#0369a1;font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(()=>{
+        const svc=(r.serviceType||r.service||"").toLowerCase();
+        if(svc.includes("nhập")||svc.includes("import")) return "Cước VC tại: "+(r.factory||"");
+        if(svc.includes("xuất")||svc.includes("export")) return "Cước VC tại: "+(r.port||"");
+        if(svc.includes("chuyển")||svc.includes("kho")) return "Cước VC: "+(r.depot||"")+" → "+(r.port||"");
+        // Auto detect: nếu depot=port thì chuyển kho, nếu có factory thì nhập, còn lại xuất
+        if(r.factory && r.depot && r.port) return r.depot===r.port ? (r.depot+" → "+r.port) : (r.factory||"");
+        return r.port||r.factory||"";
+      })()}">${(()=>{
+        const svc=(r.serviceType||r.service||"").toLowerCase();
+        if(svc.includes("nhập")||svc.includes("import")) return r.factory||"";
+        if(svc.includes("xuất")||svc.includes("export")) return r.port||"";
+        if(svc.includes("chuyển")||svc.includes("kho")) return (r.depot||"")+"→"+(r.port||"");
+        if(r.factory && r.depot && r.port) return r.depot===r.port ? (r.depot+"→"+r.port) : (r.factory||"");
+        return r.port||r.factory||"";
+      })()}</td>
       <td class="num">${fmt(r.price)}</td>
       <td class="num cost-cell">${hasCostData?fmt(c.lift):""}</td>
       <td class="num cost-cell">${hasCostData?fmt(c.dropFee):""}</td>
@@ -435,7 +463,7 @@ function render(data){
       <td class="num cost-cell" style="color:var(--red)">${hasCostData?fmt(cost):""}</td>
       <td class="num cost-cell" style="color:${profit>=0?"var(--green)":"var(--red)"};font-weight:700">${hasCostData?fmt(profit):""}</td>
       <td class="tl cost-cell" style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.note||""}</td>
-      <td class="cost-cell">
+      <td class="cost-cell sticky-col">
         <button class="btn btn-cost btn-sm" onclick="openModal('${r.id}')">
           ${hasCostData?"✏️ Sửa CP":"➕ Nhập CP"}
         </button>
@@ -594,7 +622,7 @@ async function saveCost(){
   }catch(e){showToast("Lỗi: "+e.message,true);}
 }
 
-document.getElementById("modalBg").addEventListener("click",function(e){if(e.target===this)closeModal();});
+
 
 /* SEARCH */
 window.doSearch=function(){render();};
