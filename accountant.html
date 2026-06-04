@@ -152,9 +152,9 @@ tr:hover td{background:#e8eeff!important;}
     <thead><tr>
       <th>#</th><th>Ngày KH</th><th>Khách hàng</th><th>Mã KH</th>
       <th>Kho / Nhà máy</th><th>KM</th><th>Số xe</th><th>Lái xe</th>
-      <th>Container</th><th>Booking</th><th>Loại DV</th><th>Nơi lấy</th><th>Nơi hạ</th><th style="background:#0369a1;white-space:nowrap">Thông tin VC</th>
-      <th>Đơn giá TK</th>
-      <th class="cost-col">Phí nâng</th>
+      <th>Container</th><th>Booking</th><th>Nơi lấy</th><th>Nơi hạ</th><th style="background:#0369a1;white-space:nowrap">Thông tin VC</th>
+      <th>Đơn giá VC</th>
+      <th class="cost-col">Số HĐ</th><th class="cost-col">Phí nâng</th>
       <th class="cost-col">Phí hạ</th>
       <th class="cost-col">Cược cont</th>
       <th class="cost-col" style="background:#7e3af2">Tổng chi hộ</th>
@@ -167,7 +167,7 @@ tr:hover td{background:#e8eeff!important;}
       <th class="cost-col">Tổng CP</th>
       <th class="cost-col">Lợi nhuận</th>
       <th class="cost-col">Diễn giải</th>
-      <th class="cost-col sticky-col">Chi phí</th>
+      <th style="background:#0369a1;white-space:nowrap">Thông tin VC</th><th class="cost-col sticky-col">Chi phí</th>
     </tr></thead>
     <tbody id="tbody"></tbody>
   </table>
@@ -192,10 +192,11 @@ tr:hover td{background:#e8eeff!important;}
     <div class="m-section">💵 Doanh thu</div>
     <div class="m-grid">
       <div class="m-field"><label>Loại DV</label><input id="mService" placeholder="Loại dịch vụ..."></div>
-      <div class="m-field"><label>Đơn giá TK</label><input id="mTruckPrice" type="number" placeholder="0" oninput="calcModal()"></div>
+      <div class="m-field"><label>Đơn giá VC</label><input id="mTruckPrice" type="number" placeholder="0" oninput="calcModal()"></div>
       <div class="m-field"><label>Phí nâng</label><input id="mLift" type="number" placeholder="0" oninput="calcModal()"></div>
       <div class="m-field"><label>Phí hạ</label><input id="mDrop" type="number" placeholder="0" oninput="calcModal()"></div>
       <div class="m-field"><label>Phí cược cont</label><input id="mDeposit" type="number" placeholder="0" oninput="calcModal()"></div>
+      <div class="m-field"><label>Số hóa đơn</label><input id="mInvoiceNo" type="text" placeholder="Số HĐ..."></div>
       <div class="m-field"><label>Tổng doanh thu</label><input id="mRevenue" type="number" readonly></div>
     </div>
 
@@ -431,29 +432,11 @@ function render(data){
       <td class="tl">${r.driver||""}</td>
       <td style="font-family:monospace">${r.containerNo||""}</td>
       <td>${r.booking||""}</td>
-      <td style="font-size:11px;font-weight:600;color:#7c3aed">${c.service||""}</td>
       <td>${r.depot||""}</td>
       <td>${r.port||""}</td>
-      <td class="tl" style="font-size:11px;color:#0369a1;font-weight:600;white-space:nowrap">${(()=>{
-        const svc = (c.service||"").toLowerCase().trim();
-        const kho = r.factory||"";
-        const noiLay = r.depot||"";
-        const noiHa = r.port||"";
-        const bks = r.vehicleNo||"";
-        let tu="", den="";
-        if(svc.includes("export")||svc==="ex"||svc.includes("xuất")){
-          tu=kho; den=noiHa;
-        } else if(svc.includes("import")||svc==="im"||svc.includes("nhập")){
-          tu=noiHa; den=kho;
-        } else if(svc.includes("ck")||svc.includes("chuyển kho")||svc.includes("chuyen kho")){
-          tu=noiLay; den=noiHa;
-        } else {
-          tu=noiLay||kho; den=noiHa;
-        }
-        if(!tu && !den) return "";
-        return "Cước vận chuyển Container từ "+tu+" đến "+den+(bks?", BKS: "+bks:"");
-      })()}</td>
+
       <td class="num">${fmt(r.price)}</td>
+      <td class="tl cost-cell" style="font-size:11px;font-weight:600;color:#0369a1">${c.invoiceNo||""}</td>
       <td class="num cost-cell">${hasCostData?fmt(c.lift):""}</td>
       <td class="num cost-cell">${hasCostData?fmt(c.dropFee):""}</td>
       <td class="num cost-cell">${hasCostData?fmt(c.deposit):""}</td>
@@ -467,6 +450,7 @@ function render(data){
       <td class="num cost-cell" style="color:var(--red)">${hasCostData?fmt(cost):""}</td>
       <td class="num cost-cell" style="color:${profit>=0?"var(--green)":"var(--red)"};font-weight:700">${hasCostData?fmt(profit):""}</td>
       <td class="tl cost-cell" style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.note||""}</td>
+            <td class="tl" style="font-size:11px;color:#0369a1;font-weight:600;white-space:nowrap" title="${(()=>{const svc=(c.service||"").toLowerCase().trim();const kho=r.factory||"";const noiLay=r.depot||"";const noiHa=r.port||"";const bks=r.vehicleNo||"";let tu="",den="";if(svc.includes("export")||svc==="ex"||svc.includes("xuất")){tu=kho;den=noiHa;}else if(svc.includes("import")||svc==="im"||svc.includes("nhập")){tu=noiHa;den=kho;}else if(svc.includes("ck")||svc.includes("chuyển kho")||svc.includes("chuyen kho")){tu=noiLay;den=noiHa;}else{tu=noiLay||kho;den=noiHa;}if(!tu&&!den)return"";return"Cước VC từ "+tu+" đến "+den+(bks?", BKS: "+bks:"");})()}">${(()=>{const svc=(c.service||"").toLowerCase().trim();const kho=r.factory||"";const noiLay=r.depot||"";const noiHa=r.port||"";const bks=r.vehicleNo||"";let tu="",den="";if(svc.includes("export")||svc==="ex"||svc.includes("xuất")){tu=kho;den=noiHa;}else if(svc.includes("import")||svc==="im"||svc.includes("nhập")){tu=noiHa;den=kho;}else if(svc.includes("ck")||svc.includes("chuyển kho")||svc.includes("chuyen kho")){tu=noiLay;den=noiHa;}else{tu=noiLay||kho;den=noiHa;}if(!tu&&!den)return"";return"Cước vận chuyển Container từ "+tu+" đến "+den+(bks?", BKS: "+bks:"");})()}</td>
       <td class="cost-cell sticky-col">
         <button class="btn btn-cost btn-sm" onclick="openModal('${r.id}')">
           ${hasCostData?"✏️ Sửa CP":"➕ Nhập CP"}
@@ -505,6 +489,7 @@ function openModal(trkId){
   // Điền form
   mTruckPrice.value = c.truckPrice!==undefined ? c.truckPrice : (r.price||0);
   mService.value    = c.service||"";
+  document.getElementById("mInvoiceNo").value = c.invoiceNo||"";
   mLift.value       = c.lift||0;
   mDrop.value       = c.dropFee||0;
   mDeposit.value    = c.deposit||0;
@@ -610,6 +595,7 @@ async function saveCost(){
   const rec={
     truckingId:currentTrkId,
     service:mService.value.trim(),
+    invoiceNo:document.getElementById("mInvoiceNo").value.trim(),
     truckPrice:+mTruckPrice.value||0,
     lift:+mLift.value||0, dropFee:+mDrop.value||0, deposit:+mDeposit.value||0,
     revenue:+mRevenue.value||0,
