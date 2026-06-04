@@ -229,7 +229,6 @@ tr:hover td{background:#e8eeff!important;}
     <div class="row row-r1">
       <div class="field"><span class="lbl">Ngày KH</span>    <input id="planDate"   type="date"></div>
       <div class="field"><span class="lbl">Cut-off</span>    <input id="cutoff"     type="date"></div>
-      <div class="field"><span class="lbl">Ngày trả</span>   <input id="returnDate" type="date"></div>
       <div class="field"><span class="lbl">Khách hàng</span> <select id="customer"></select></div>
       <div class="field"><span class="lbl">Nơi lấy</span>    <select id="depot"></select></div>
       <div class="field"><span class="lbl">Nơi hạ</span>     <select id="port"></select></div>
@@ -243,8 +242,8 @@ tr:hover td{background:#e8eeff!important;}
       <div class="field"><span class="lbl">Carrier</span>      <select id="carrier"></select></div>
       <div class="field"><span class="lbl">Kho / Nhà máy</span><select id="factory"><option value="">-- Chọn kho --</option></select></div>
       <div class="field"><span class="lbl">KM</span>           <input id="km" readonly></div>
-      <div class="field"><span class="lbl">Đơn giá (VNĐ)</span><input id="price" placeholder="0"></div>
-      <div class="field"><span class="lbl">Lương chuyến</span> <input id="wage" readonly></div>
+      <div class="field"><span class="lbl">Số Seal</span><input id="price" placeholder="Nhập số seal..."></div>
+      <div class="field"><span class="lbl">Trọng lượng</span> <input id="wage" placeholder="Tấn..."></div>
       <div class="field"><span class="lbl">NL ước tính (lít)</span><input id="fuelEst" readonly></div>
     </div>
 
@@ -275,7 +274,7 @@ tr:hover td{background:#e8eeff!important;}
       <span style="color:var(--muted);font-size:11px">→</span>
       <input type="date" id="toDate">
       <button class="btn btn-save btn-sm" onclick="searchData()">Lọc</button>
-      <button class="btn btn-cancel btn-sm" onclick="clearSearch()">Reset</button>
+      <button class="btn btn-cancel btn-sm" onclick="clearSearch()" style="background:#94a3b8;color:#fff;border:none">✕ Hủy</button>
     </div>
     <div class="filter-r">
       <label class="chk"><input type="checkbox" id="filterArranged"> Đã sắp xe</label>
@@ -292,7 +291,7 @@ tr:hover td{background:#e8eeff!important;}
       <tr>
         <th>#</th><th>Ngày KH</th><th>Khách hàng</th><th>Mã KH</th>
         <th>Kho / Nhà máy</th><th>KM</th><th>Booking / Bill</th><th>Nơi lấy</th><th>Nơi hạ</th><th>Số xe</th><th>Mooc</th>
-        <th>Lái xe</th><th>SL</th><th>Đơn giá</th><th>Lương LX</th><th>NL (lít)</th><th>Container</th>
+        <th>Lái xe</th><th>SL</th><th>Số Seal</th><th>Trọng lượng</th><th>NL (lít)</th><th>Container</th>
         <th>Trạng thái</th><th>Ghi chú</th><th>File</th><th>Sửa</th><th>Xóa</th></tr></thead>
     <tbody id="tbody"></tbody>
   </table>
@@ -648,7 +647,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
 
   window.exportExcel = function () {
     if (!store.length) { alert("Không có dữ liệu để xuất"); return; }
-    const hdr = ["Ngày","Khách","Mã KH","Nơi lấy","Nơi hạ","Kho","KM","Xe","Mooc","Tài xế","Giá","Lương LX","NL (lít)","Container","Ghi chú"];
+    const hdr = ["Ngày","Khách","Mã KH","Nơi lấy","Nơi hạ","Kho","KM","Xe","Mooc","Tài xế","Số Seal","Trọng lượng","NL (lít)","Container","Ghi chú"];
     const rows = store.map(r => [
       r.planDate||"", r.customer||"", r.cusCode||"",
       r.depot||"", r.port||"", r.factory||"",
