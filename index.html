@@ -225,8 +225,8 @@ tr:hover td{background:#e8eeff!important;}
   <div class="form-inner">
 
     <!-- HÀNG 1: 7 cột đều -->
-    <div class="sec"><span class="sec-label">📋 Thông tin chuyến</span><div class="sec-line"></div></div>
-    <div class="row row-r1">
+    <div class="sec" style="background:#eff6ff;border-radius:6px 6px 0 0;padding:4px 10px"><span class="sec-label">📋 Thông tin chuyến</span><div class="sec-line"></div></div>
+    <div class="row row-r1" style="background:#eff6ff;padding:8px 10px;border-radius:0 0 6px 6px;margin-bottom:4px">
       <div class="field"><span class="lbl">Ngày KH</span>    <input id="planDate"   type="date"></div>
       <div class="field"><span class="lbl">Cut-off</span>    <input id="cutoff"     type="date"></div>
       <div class="field"><span class="lbl">Khách hàng</span> <select id="customer"></select></div>
@@ -236,8 +236,8 @@ tr:hover td{background:#e8eeff!important;}
     </div>
 
     <!-- HÀNG 2: 7 cột đều -->
-    <div class="sec"><span class="sec-label">🗺️ Tuyến đường</span><div class="sec-line"></div></div>
-    <div class="row row-r2">
+    <div class="sec" style="background:#f0fdf4;border-radius:6px 6px 0 0;padding:4px 10px"><span class="sec-label">🗺️ Tuyến đường</span><div class="sec-line"></div></div>
+    <div class="row row-r2" style="background:#f0fdf4;padding:8px 10px;border-radius:0 0 6px 6px;margin-bottom:4px">
       <div class="field"><span class="lbl">Booking</span>      <input id="booking" placeholder="Số booking..."></div>
       <div class="field"><span class="lbl">Carrier</span>      <select id="carrier"></select></div>
       <div class="field"><span class="lbl">Kho / Nhà máy</span><select id="factory"><option value="">-- Chọn kho --</option></select></div>
@@ -248,8 +248,8 @@ tr:hover td{background:#e8eeff!important;}
     </div>
 
     <!-- HÀNG 3: 5 cột đều -->
-    <div class="sec"><span class="sec-label">🚛 Phương tiện</span><div class="sec-line"></div></div>
-    <div class="row row-r3">
+    <div class="sec" style="background:#fdf4ff;border-radius:6px 6px 0 0;padding:4px 10px"><span class="sec-label">🚛 Phương tiện</span><div class="sec-line"></div></div>
+    <div class="row row-r3" style="background:#fdf4ff;padding:8px 10px;border-radius:0 0 6px 6px;margin-bottom:4px">
       <div class="field"><span class="lbl">Số xe</span>       <select id="vehicleNo"></select></div>
       <div class="field"><span class="lbl">Mooc</span>        <select id="mooc"></select></div>
       <div class="field"><span class="lbl">Lái xe</span>      <input id="driver" readonly></div>
@@ -258,8 +258,8 @@ tr:hover td{background:#e8eeff!important;}
     </div>
 
     <!-- HÀNG 4: ghi chú + file -->
-    <div class="sec"><span class="sec-label">📎 Ghi chú & File</span><div class="sec-line"></div></div>
-    <div class="row row-r4">
+    <div class="sec" style="background:#fffbeb;border-radius:6px 6px 0 0;padding:4px 10px"><span class="sec-label">📎 Ghi chú & File</span><div class="sec-line"></div></div>
+    <div class="row row-r4" style="background:#fffbeb;padding:8px 10px;border-radius:0 0 6px 6px;margin-bottom:4px">
       <div class="field"><input id="note" placeholder="Ghi chú thêm..."></div>
       <div class="field"><input id="attachFile" type="file"></div>
     </div>
@@ -321,7 +321,6 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
   const elCarrier     = document.getElementById("carrier");
   const elPlanDate    = document.getElementById("planDate");
   const elCutoff      = document.getElementById("cutoff");
-  const elReturnDate  = document.getElementById("returnDate");
   const elDepot       = document.getElementById("depot");
   const elPort        = document.getElementById("port");
   const tbody         = document.getElementById("tbody");
@@ -542,7 +541,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
       if (editId) {
         const existing = store.find(x => x.id === editId) || {};
         const updated = { ...existing,
-          planDate:elPlanDate.value, cutoff:elCutoff.value, returnDate:elReturnDate.value,
+          planDate:elPlanDate.value, cutoff:elCutoff.value, returnDate:"",
           customer:(elCustomer.value||"").trim(), cusCode:elCusCode.value,
           depot:elDepot.value, port:elPort.value,
           booking:elBooking.value, carrier:elCarrier.value, factory:elFactory.value, km:elKm.value,
@@ -557,7 +556,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
         const qty = Math.max(1, Number(elQty.value||1));
         for (let i = 0; i < qty; i++) {
           const rec = { id: Date.now()+"_"+i,
-            planDate:elPlanDate.value, cutoff:elCutoff.value, returnDate:elReturnDate.value,
+            planDate:elPlanDate.value, cutoff:elCutoff.value, returnDate:"",
             customer:(elCustomer.value||"").trim(), cusCode:elCusCode.value,
             depot:elDepot.value, port:elPort.value,
             booking:elBooking.value, carrier:elCarrier.value, factory:elFactory.value, km:elKm.value,
@@ -585,7 +584,6 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
     editId = id;
     elPlanDate.value   = r.planDate   || "";
     elCutoff.value     = r.cutoff     || "";
-    elReturnDate.value = r.returnDate || "";
     elBooking.value    = r.booking    || "";
     elCarrier.value    = r.carrier    || "";
     elDepot.value      = r.depot      || "";
