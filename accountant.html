@@ -152,7 +152,7 @@ tr:hover td{background:#e8eeff!important;}
     <thead><tr>
       <th>#</th><th>Ngày KH</th><th>Khách hàng</th><th>Mã KH</th>
       <th>Kho / Nhà máy</th><th>KM</th><th>Số xe</th><th>Lái xe</th>
-      <th>Container</th><th>Booking</th><th>Nơi lấy</th><th>Nơi hạ</th><th style="background:#0369a1;white-space:nowrap">Cước VC (HĐ)</th>
+      <th>Container</th><th>Booking</th><th>Nơi lấy</th><th>Nơi hạ</th><th style="background:#0369a1;white-space:nowrap">Thông tin VC</th>
       <th>Đơn giá TK</th>
       <th class="cost-col">Phí nâng</th>
       <th class="cost-col">Phí hạ</th>
@@ -433,21 +433,12 @@ function render(data){
       <td>${r.booking||""}</td>
       <td>${r.depot||""}</td>
       <td>${r.port||""}</td>
-      <td class="tl" style="font-size:11px;color:#0369a1;font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(()=>{
-        const svc=(r.serviceType||r.service||"").toLowerCase();
-        if(svc.includes("nhập")||svc.includes("import")) return "Cước VC tại: "+(r.factory||"");
-        if(svc.includes("xuất")||svc.includes("export")) return "Cước VC tại: "+(r.port||"");
-        if(svc.includes("chuyển")||svc.includes("kho")) return "Cước VC: "+(r.depot||"")+" → "+(r.port||"");
-        // Auto detect: nếu depot=port thì chuyển kho, nếu có factory thì nhập, còn lại xuất
-        if(r.factory && r.depot && r.port) return r.depot===r.port ? (r.depot+" → "+r.port) : (r.factory||"");
-        return r.port||r.factory||"";
-      })()}">${(()=>{
-        const svc=(r.serviceType||r.service||"").toLowerCase();
-        if(svc.includes("nhập")||svc.includes("import")) return r.factory||"";
-        if(svc.includes("xuất")||svc.includes("export")) return r.port||"";
-        if(svc.includes("chuyển")||svc.includes("kho")) return (r.depot||"")+"→"+(r.port||"");
-        if(r.factory && r.depot && r.port) return r.depot===r.port ? (r.depot+"→"+r.port) : (r.factory||"");
-        return r.port||r.factory||"";
+      <td class="tl" style="font-size:11px;color:#0369a1;font-weight:600;white-space:nowrap">${(()=>{
+        const tu = r.depot||r.factory||"";
+        const den = r.port||"";
+        const bks = r.vehicleNo||"";
+        if(!tu && !den) return "";
+        return "Cước vận chuyển Container từ "+tu+" đến "+den+(bks?", BKS: "+bks:"");
       })()}</td>
       <td class="num">${fmt(r.price)}</td>
       <td class="num cost-cell">${hasCostData?fmt(c.lift):""}</td>
