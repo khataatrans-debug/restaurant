@@ -152,7 +152,7 @@ tr:hover td{background:#e8eeff!important;}
     <thead><tr>
       <th>#</th><th>Ngày KH</th><th>Khách hàng</th><th>Mã KH</th>
       <th>Kho / Nhà máy</th><th>KM</th><th>Số xe</th><th>Lái xe</th>
-      <th>Container</th><th>Booking</th><th>Nơi lấy</th><th>Nơi hạ</th><th style="background:#0369a1;white-space:nowrap">Thông tin VC</th>
+      <th>Container</th><th>Booking</th><th>Loại DV</th><th>Nơi lấy</th><th>Nơi hạ</th><th style="background:#0369a1;white-space:nowrap">Thông tin VC</th>
       <th>Đơn giá TK</th>
       <th class="cost-col">Phí nâng</th>
       <th class="cost-col">Phí hạ</th>
@@ -431,12 +431,25 @@ function render(data){
       <td class="tl">${r.driver||""}</td>
       <td style="font-family:monospace">${r.containerNo||""}</td>
       <td>${r.booking||""}</td>
+      <td style="font-size:11px;font-weight:600;color:#7c3aed">${c.service||""}</td>
       <td>${r.depot||""}</td>
       <td>${r.port||""}</td>
       <td class="tl" style="font-size:11px;color:#0369a1;font-weight:600;white-space:nowrap">${(()=>{
-        const tu = r.depot||r.factory||"";
-        const den = r.port||"";
+        const svc = (c.service||"").toLowerCase().trim();
+        const kho = r.factory||"";
+        const noiLay = r.depot||"";
+        const noiHa = r.port||"";
         const bks = r.vehicleNo||"";
+        let tu="", den="";
+        if(svc.includes("export")||svc==="ex"||svc.includes("xuất")){
+          tu=kho; den=noiHa;
+        } else if(svc.includes("import")||svc==="im"||svc.includes("nhập")){
+          tu=noiHa; den=kho;
+        } else if(svc.includes("ck")||svc.includes("chuyển kho")||svc.includes("chuyen kho")){
+          tu=noiLay; den=noiHa;
+        } else {
+          tu=noiLay||kho; den=noiHa;
+        }
         if(!tu && !den) return "";
         return "Cước vận chuyển Container từ "+tu+" đến "+den+(bks?", BKS: "+bks:"");
       })()}</td>
