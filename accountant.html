@@ -433,9 +433,9 @@ function render(data){
       <td class="tl">${r.driver||""}</td>
       <td style="font-family:monospace">${r.containerNo||""}</td>
       <td>${r.booking||""}</td>
+      <td style="font-size:11px;font-weight:600;color:#7c3aed">${c.service||""}</td>
       <td>${r.depot||""}</td>
       <td>${r.port||""}</td>
-
       <td class="num">${fmt(r.price)}</td>
       <td class="tl cost-cell" style="font-size:11px;font-weight:600;color:#0369a1">${c.invoiceNo||""}</td>
       <td class="num cost-cell">${hasCostData?fmt(c.lift):""}</td>
@@ -451,7 +451,17 @@ function render(data){
       <td class="num cost-cell" style="color:var(--red)">${hasCostData?fmt(cost):""}</td>
       <td class="num cost-cell" style="color:${profit>=0?"var(--green)":"var(--red)"};font-weight:700">${hasCostData?fmt(profit):""}</td>
       <td class="tl cost-cell" style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.note||""}</td>
-            <td class="tl" style="font-size:11px;color:#0369a1;font-weight:600;white-space:nowrap" title="${(()=>{const svc=(c.service||"").toLowerCase().trim();const kho=r.factory||"";const noiLay=r.depot||"";const noiHa=r.port||"";const bks=r.vehicleNo||"";let tu="",den="";if(svc.includes("export")||svc==="ex"||svc.includes("xuất")){tu=kho;den=noiHa;}else if(svc.includes("import")||svc==="im"||svc.includes("nhập")){tu=noiHa;den=kho;}else if(svc.includes("ck")||svc.includes("chuyển kho")||svc.includes("chuyen kho")){tu=noiLay;den=noiHa;}else{tu=noiLay||kho;den=noiHa;}if(!tu&&!den)return"";return"Cước VC từ "+tu+" đến "+den+(bks?", BKS: "+bks:"");})()}">${(()=>{const svc=(c.service||"").toLowerCase().trim();const kho=r.factory||"";const noiLay=r.depot||"";const noiHa=r.port||"";const bks=r.vehicleNo||"";let tu="",den="";if(svc.includes("export")||svc==="ex"||svc.includes("xuất")){tu=kho;den=noiHa;}else if(svc.includes("import")||svc==="im"||svc.includes("nhập")){tu=noiHa;den=kho;}else if(svc.includes("ck")||svc.includes("chuyển kho")||svc.includes("chuyen kho")){tu=noiLay;den=noiHa;}else{tu=noiLay||kho;den=noiHa;}if(!tu&&!den)return"";return"Cước vận chuyển Container từ "+tu+" đến "+den+(bks?", BKS: "+bks:"");})()}</td>
+      <td class="tl" style="font-size:11px;color:#0369a1;font-weight:600;white-space:nowrap">${(()=>{
+        const svc=(c.service||"").toLowerCase().trim();
+        const kho=r.factory||""; const noiLay=r.depot||""; const noiHa=r.port||""; const bks=r.vehicleNo||"";
+        let tu="",den="";
+        if(svc.includes("export")||svc==="ex"||svc.includes("xuất")){tu=kho;den=noiHa;}
+        else if(svc.includes("import")||svc==="im"||svc.includes("nhập")){tu=noiHa;den=kho;}
+        else if(svc.includes("ck")||svc.includes("chuyển kho")||svc.includes("chuyen kho")){tu=noiLay;den=noiHa;}
+        else{tu=noiLay||kho;den=noiHa;}
+        if(!tu&&!den)return"";
+        return"Cước vận chuyển Container từ "+tu+" đến "+den+(bks?", BKS: "+bks:"");
+      })()}</td>
       <td class="cost-cell sticky-col">
         <button class="btn btn-cost btn-sm" onclick="openModal('${r.id}')">
           ${hasCostData?"✏️ Sửa CP":"➕ Nhập CP"}
