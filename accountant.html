@@ -193,7 +193,7 @@ tr:hover td{background:#e8eeff!important;}
     <div class="m-section">💵 Doanh thu</div>
     <div class="m-grid">
       <div class="m-field"><label>Loại DV</label><input id="mService" placeholder="Loại dịch vụ..."></div>
-      <div class="m-field"><label>Đơn giá VC</label><input id="mTruckPrice" type="number" placeholder="0" oninput="calcModal()"></div>
+      <div class="m-field"><label>Đơn giá VC <span id="priceAutoLabel" style="color:#ea580c;font-size:10px;font-weight:600"></span></label><input id="mTruckPrice" type="number" placeholder="0" oninput="calcModal()" class="auto-filled"></div>
       <div class="m-field"><label>Phí nâng</label><input id="mLift" type="number" placeholder="0" oninput="calcModal()"></div>
       <div class="m-field"><label>Phí hạ</label><input id="mDrop" type="number" placeholder="0" oninput="calcModal()"></div>
       <div class="m-field"><label>Phí cược cont</label><input id="mDeposit" type="number" placeholder="0" oninput="calcModal()"></div>
@@ -340,6 +340,26 @@ function getWageFromMaster(customerName, factoryName) {
     for(const k of khoKeys){
       if((c[k.factory]||"").trim()===facName)
         return parseFloat(c[k.wage]||0);
+    }
+  }
+  return 0;
+}
+
+function getPriceFromMaster(customerName, factoryName) {
+  const cusName=(customerName||"").trim();
+  const facName=(factoryName||"").trim();
+  if(!cusName||!facName) return 0;
+  const khoKeys=[
+    {factory:"factory",  price:"price"},
+    {factory:"factory2", price:"price2"},
+    {factory:"factory3", price:"price3"},
+    {factory:"factory4", price:"price4"},
+  ];
+  for(const c of _masterCustomers){
+    if((c.name||"").trim()!==cusName) continue;
+    for(const k of khoKeys){
+      if((c[k.factory]||"").trim()===facName)
+        return parseFloat(c[k.price]||0);
     }
   }
   return 0;
@@ -492,7 +512,8 @@ function openModal(trkId){
   const c=costStore[trkId]||{};
 
   // ── Lương chuyến tự động từ master ── (phải khai báo trước khi dùng)
-  const masterWage = getWageFromMaster(r.customer, r.factory);
+  const masterWage  = getWageFromMaster(r.customer, r.factory);
+  const masterPrice = getPriceFromMaster(r.customer, r.factory);
 
   // Info banner
   document.getElementById("modalInfo").innerHTML=`
@@ -502,7 +523,19 @@ function openModal(trkId){
     <div><span>💰 Đơn giá VC:</span> <strong style="color:#1d6ef5">${r.vcPrice?fmt(+r.vcPrice)+"đ":"(chưa có)"}</strong> &nbsp;|&nbsp; <span>🏷️ Loại DV:</span> <strong style="color:#7c3aed">${r.serviceType||"--"}</strong></div>`;
 
   // Điền form
-  mTruckPrice.value = c.truckPrice!==undefined ? c.truckPrice : (r.vcPrice||0);
+  // Ưu tiên: đã lưu → vcPrice trucking → giá master
+  const autoPrice = masterPrice || 0;
+  mTruckPrice.value = c.truckPrice!==undefined ? c.truckPrice : (r.vcPrice || autoPrice);
+  // Hiện label nếu lấy từ master
+  const priceAutoLbl = document.getElementById("priceAutoLabel");
+  if (priceAutoLbl) {
+    if (c.truckPrice===undefined && !r.vcPrice && masterPrice)
+      priceAutoLbl.textContent = `(master: ${fmt(masterPrice)}đ)`;
+    else if (masterPrice)
+      priceAutoLbl.textContent = `(master: ${fmt(masterPrice)}đ)`;
+    else
+      priceAutoLbl.textContent = "";
+  }
   mService.value    = c.service || r.serviceType || "";
   document.getElementById("mInvoiceNo").value = c.invoiceNo||"";
   mLift.value       = c.lift||0;
