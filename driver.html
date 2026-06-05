@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>🚛 Lái Xe</title>
+<link rel="manifest" href="manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#0d2248;--accent:#1d6ef5;--green:#0d9f6e;--red:#e03131;
+  --amber:#e67700;--border:#e2e8f5;--muted:#64748b;--bg:#f0f4fb;
+  --white:#fff;--text:#0f172a;--alt:#f7f9ff;--r:12px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh;padding-bottom:calc(70px + var(--safe-bottom));}
+
+/* ── LOGIN SCREEN ── */
+#loginScreen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;background:linear-gradient(160deg,#0d2248 0%,#1d3a6e 60%,#1d6ef5 100%);}
+.login-logo{font-size:56px;margin-bottom:8px;}
+.login-title{color:#fff;font-size:22px;font-weight:800;margin-bottom:4px;}
+.login-sub{color:rgba(255,255,255,.55);font-size:13px;margin-bottom:32px;}
+.login-card{background:#fff;border-radius:16px;padding:24px;width:100%;max-width:360px;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+.login-card label{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;}
+.login-card input{width:100%;height:44px;border:1.5px solid var(--border);border-radius:8px;padding:0 12px;font-size:14px;font-family:inherit;margin-bottom:14px;outline:none;transition:.15s;}
+.login-card input:focus{border-color:var(--accent);}
+.btn-login{width:100%;height:46px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:4px;}
+.login-err{color:var(--red);font-size:12px;text-align:center;margin-top:8px;min-height:18px;}
+
+/* ── TOP BAR ── */
+.topbar{background:var(--navy);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:0 2px 8px rgba(13,34,72,.3);}
+.topbar-left{display:flex;flex-direction:column;}
+.topbar-name{color:#fff;font-weight:700;font-size:15px;}
+.topbar-sub{color:rgba(255,255,255,.5);font-size:11px;margin-top:1px;}
+.btn-logout-top{background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:5px 10px;font-size:11px;font-family:inherit;cursor:pointer;}
+
+/* ── BOTTOM NAV ── */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:var(--white);border-top:1px solid var(--border);display:flex;padding-bottom:var(--safe-bottom);z-index:100;box-shadow:0 -2px 12px rgba(13,34,72,.08);}
+.bnav-item{flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 4px 8px;cursor:pointer;transition:.15s;border:none;background:none;font-family:inherit;}
+.bnav-icon{font-size:22px;line-height:1;}
+.bnav-label{font-size:10px;font-weight:600;color:var(--muted);margin-top:3px;letter-spacing:.03em;}
+.bnav-item.active .bnav-label{color:var(--accent);}
+.bnav-item.active .bnav-icon{filter:drop-shadow(0 0 4px rgba(29,110,245,.5));}
+
+/* ── PAGE ── */
+.page{display:none;padding:16px;}
+.page.active{display:block;}
+.page-title{font-size:16px;font-weight:800;color:var(--navy);margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+
+/* ── CARDS ── */
+.card{background:var(--white);border-radius:var(--r);border:1px solid var(--border);padding:14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(13,34,72,.06);}
+.card-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;}
+
+/* ── ĐƠN HÀNG ── */
+.order-card{background:var(--white);border-radius:var(--r);border:1px solid var(--border);padding:14px;margin-bottom:10px;box-shadow:0 1px 4px rgba(13,34,72,.06);cursor:pointer;transition:.15s;position:relative;}
+.order-card:active{background:var(--alt);}
+.order-date{font-size:11px;color:var(--muted);font-weight:600;margin-bottom:4px;}
+.order-customer{font-size:15px;font-weight:700;color:var(--navy);}
+.order-route{font-size:12px;color:var(--muted);margin-top:3px;}
+.order-tags{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;}
+.tag{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:20px;font-size:10.5px;font-weight:600;}
+.tag-blue{background:#eff6ff;color:#1d4ed8;}
+.tag-green{background:#f0fdf4;color:#166534;}
+.tag-amber{background:#fffbeb;color:#92400e;}
+.tag-red{background:#fef2f2;color:#991b1b;}
+.tag-purple{background:#faf5ff;color:#6b21a8;}
+.status-dot{width:8px;height:8px;border-radius:50%;position:absolute;top:14px;right:14px;}
+.dot-new{background:#f59e0b;}
+.dot-confirmed{background:#22c55e;}
+.dot-done{background:#94a3b8;}
+
+/* ── MODAL ── */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:flex-end;justify-content:center;}
+.modal-bg.show{display:flex;}
+.modal-sheet{background:var(--white);border-radius:20px 20px 0 0;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;padding:20px 16px 32px;}
+.modal-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px;}
+.modal-title{font-size:16px;font-weight:800;color:var(--navy);margin-bottom:14px;}
+.info-row{display:flex;gap:8px;margin-bottom:6px;font-size:13px;}
+.info-label{color:var(--muted);font-weight:600;white-space:nowrap;min-width:80px;}
+.info-val{color:var(--text);font-weight:500;}
+.m-section{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin:14px 0 8px;border-bottom:1px solid var(--border);padding-bottom:4px;}
+.m-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
+.m-field label{display:block;font-size:10.5px;font-weight:700;color:var(--muted);margin-bottom:4px;}
+.m-field input,.m-field textarea{width:100%;height:40px;border:1.5px solid var(--border);border-radius:8px;padding:0 10px;font-size:13px;font-family:inherit;outline:none;}
+.m-field input:focus,.m-field textarea:focus{border-color:var(--accent);}
+.m-field textarea{height:70px;padding:8px 10px;resize:none;}
+.m-field.full{grid-column:1/-1;}
+.profit-row{background:var(--alt);border-radius:8px;padding:12px;display:flex;justify-content:space-between;align-items:center;margin-top:8px;}
+.profit-label{font-size:12px;font-weight:700;color:var(--muted);}
+.profit-val{font-size:20px;font-weight:800;}
+.btn-row{display:flex;gap:8px;margin-top:16px;}
+.btn{flex:1;height:44px;border:none;border-radius:8px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-success{background:var(--green);color:#fff;}
+.btn-gray{background:#f1f5f9;color:#475569;}
+.btn-danger{background:var(--red);color:#fff;}
+.auto-banner{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:8px 12px;font-size:11.5px;color:#166534;margin-bottom:10px;}
+
+/* ── LƯƠNG ── */
+.wage-summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.wage-card{background:var(--white);border-radius:var(--r);border:1px solid var(--border);padding:12px;text-align:center;}
+.wage-card .wc-val{font-size:20px;font-weight:800;color:var(--navy);}
+.wage-card .wc-label{font-size:10px;font-weight:700;color:var(--muted);margin-top:3px;text-transform:uppercase;}
+.wage-card.highlight{background:var(--navy);}
+.wage-card.highlight .wc-val{color:#fff;}
+.wage-card.highlight .wc-label{color:rgba(255,255,255,.6);}
+.trip-row{background:var(--white);border-radius:8px;border:1px solid var(--border);padding:10px 12px;margin-bottom:6px;font-size:12px;}
+.trip-row-top{display:flex;justify-content:space-between;font-weight:600;}
+.trip-row-sub{color:var(--muted);margin-top:3px;}
+
+/* ── TẠM ỨNG ── */
+.advance-card{background:var(--white);border-radius:var(--r);border:1px solid var(--border);padding:14px;margin-bottom:10px;}
+.advance-amount{font-size:18px;font-weight:800;color:var(--amber);}
+.advance-date{font-size:11px;color:var(--muted);margin-top:2px;}
+.advance-note{font-size:12px;color:var(--text);margin-top:4px;}
+
+/* ── FILTER ── */
+.filter-row{display:flex;gap:8px;margin-bottom:12px;align-items:center;}
+.filter-row select,.filter-row input{flex:1;height:36px;border:1.5px solid var(--border);border-radius:8px;padding:0 10px;font-size:12.5px;font-family:inherit;outline:none;background:var(--white);}
+.filter-row select:focus{border-color:var(--accent);}
+
+/* ── EMPTY ── */
+.empty{text-align:center;padding:40px 20px;color:var(--muted);}
+.empty-icon{font-size:40px;margin-bottom:8px;}
+.empty-text{font-size:13px;}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#0d2248;color:#fff;padding:10px 20px;border-radius:30px;font-size:13px;font-weight:600;z-index:999;opacity:0;transition:.3s;pointer-events:none;white-space:nowrap;}
+#toast.show{opacity:1;}
+
+/* ── LOADING ── */
+.loading-spinner{text-align:center;padding:30px;color:var(--muted);font-size:13px;}
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<!-- ══ LOGIN SCREEN ══ -->
+<div id="loginScreen">
+  <div class="login-logo">🚛</div>
+  <div class="login-title">Driver App</div>
+  <div class="login-sub">Hệ thống quản lý vận tải</div>
+  <div class="login-card">
+    <label>Tên đăng nhập</label>
+    <input id="loginUser" placeholder="Username" autocomplete="username">
+    <label>Mật khẩu</label>
+    <input id="loginPass" type="password" placeholder="Password" autocomplete="current-password">
+    <button class="btn-login" onclick="doLogin()">Đăng nhập</button>
+    <div class="login-err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- ══ MAIN APP ══ -->
+<div id="mainApp" style="display:none">
+
+  <!-- Top Bar -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-name" id="topName">🚛 Lái xe</div>
+      <div class="topbar-sub" id="topSub"></div>
+    </div>
+    <button class="btn-logout-top" onclick="doLogout()">Đăng xuất</button>
+  </div>
+
+  <!-- Pages -->
+  <!-- PAGE 1: ĐƠN HÀNG -->
+  <div class="page active" id="pageOrders">
+    <div class="page-title">📋 Đơn hàng của tôi</div>
+    <div class="filter-row">
+      <select id="orderFilter" onchange="renderOrders()">
+        <option value="">Tất cả</option>
+        <option value="new">Chờ xác nhận</option>
+        <option value="confirmed">Đã xác nhận</option>
+      </select>
+      <input type="month" id="orderMonth" onchange="renderOrders()" style="max-width:140px">
+    </div>
+    <div id="orderList"><div class="loading-spinner">⏳ Đang tải...</div></div>
+  </div>
+
+  <!-- PAGE 2: NHẬP CHI PHÍ -->
+  <div class="page" id="pageCost">
+    <div class="page-title">💰 Nhập chi phí</div>
+    <div class="filter-row">
+      <select id="costFilter" onchange="renderCostList()">
+        <option value="no">Chưa nhập CP</option>
+        <option value="all">Tất cả</option>
+        <option value="yes">Đã nhập CP</option>
+      </select>
+      <input type="month" id="costMonth" onchange="renderCostList()" style="max-width:140px">
+    </div>
+    <div id="costList"><div class="loading-spinner">⏳ Đang tải...</div></div>
+  </div>
+
+  <!-- PAGE 3: BẢNG LƯƠNG -->
+  <div class="page" id="pageWage">
+    <div class="page-title">💵 Bảng lương</div>
+    <div class="filter-row">
+      <input type="month" id="wageMonth" onchange="renderWage()">
+    </div>
+    <div id="wageSummary"></div>
+    <div id="wageList"></div>
+  </div>
+
+  <!-- PAGE 4: TẠM ỨNG -->
+  <div class="page" id="pageAdvance">
+    <div class="page-title">💳 Tạm ứng</div>
+    <button class="btn btn-primary" style="width:100%;margin-bottom:14px;height:44px;font-size:14px" onclick="openAdvanceModal()">+ Yêu cầu tạm ứng</button>
+    <div id="advanceList"><div class="loading-spinner">⏳ Đang tải...</div></div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav class="bottom-nav">
+    <button class="bnav-item active" onclick="switchPage('orders',this)">
+      <span class="bnav-icon">📋</span>
+      <span class="bnav-label">Đơn hàng</span>
+    </button>
+    <button class="bnav-item" onclick="switchPage('cost',this)">
+      <span class="bnav-icon">💰</span>
+      <span class="bnav-label">Chi phí</span>
+    </button>
+    <button class="bnav-item" onclick="switchPage('wage',this)">
+      <span class="bnav-icon">💵</span>
+      <span class="bnav-label">Lương</span>
+    </button>
+    <button class="bnav-item" onclick="switchPage('advance',this)">
+      <span class="bnav-icon">💳</span>
+      <span class="bnav-label">Tạm ứng</span>
+    </button>
+  </nav>
+</div>
+
+<!-- ══ MODAL: XEM ĐƠN + XÁC NHẬN ══ -->
+<div class="modal-bg" id="modalOrder">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">📦 Chi tiết đơn hàng</div>
+    <div id="modalOrderContent"></div>
+    <div class="btn-row" id="modalOrderBtns"></div>
+  </div>
+</div>
+
+<!-- ══ MODAL: NHẬP CHI PHÍ ══ -->
+<div class="modal-bg" id="modalCost">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">💰 Nhập chi phí chuyến</div>
+    <div id="modalCostInfo" style="margin-bottom:12px;font-size:12px;color:var(--muted);line-height:1.7;"></div>
+    <div id="fuelBannerDriver" class="auto-banner" style="display:none"></div>
+    <div class="m-section">Chi phí</div>
+    <div class="m-grid">
+      <div class="m-field"><label>Cầu đường / Vé cổng</label><input id="dToll" type="number" placeholder="0" oninput="calcDriverCost()"></div>
+      <div class="m-field"><label id="dFuelLabel">Nhiên liệu</label><input id="dFuel" type="number" placeholder="0" oninput="calcDriverCost()"></div>
+      <div class="m-field"><label>NL thực đổ (lít)</label><input id="dFuelActual" type="number" placeholder="0" oninput="calcDriverCost()"></div>
+      <div class="m-field"><label>Phí sửa chữa</label><input id="dRepair" type="number" placeholder="0" oninput="calcDriverCost()"></div>
+      <div class="m-field full"><label>Phí khác</label><input id="dOther" type="number" placeholder="0" oninput="calcDriverCost()"></div>
+      <div class="m-field full"><label>Ghi chú</label><textarea id="dNote" placeholder="Ghi chú..."></textarea></div>
+    </div>
+    <div class="profit-row">
+      <span class="profit-label">Tổng chi phí</span>
+      <span class="profit-val" id="dTotalCost" style="color:var(--red)">0</span>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-gray" onclick="closeCostModal()">Hủy</button>
+      <button class="btn btn-success" onclick="saveDriverCost()">💾 Lưu chi phí</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: TẠM ỨNG ══ -->
+<div class="modal-bg" id="modalAdvance">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">💳 Yêu cầu tạm ứng</div>
+    <div class="m-grid">
+      <div class="m-field full"><label>Số tiền tạm ứng (đ)</label><input id="advAmount" type="number" placeholder="0"></div>
+      <div class="m-field full"><label>Lý do</label><textarea id="advNote" placeholder="Nhập lý do tạm ứng..."></textarea></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-gray" onclick="closeAdvModal()">Hủy</button>
+      <button class="btn btn-primary" onclick="saveAdvance()">Gửi yêu cầu</button>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="app-config.js"></script>
+
+<script>
+// ── Firebase init ──
+firebase.initializeApp({
+  apiKey:"AIzaSyAPmHlNgx-w5KfK4LF490pvdYA_mGgcX_k",
+  authDomain:"transportation-6d6f5.firebaseapp.com",
+  databaseURL:"https://transportation-6d6f5-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:"transportation-6d6f5",
+  storageBucket:"transportation-6d6f5.firebasestorage.app",
+  messagingSenderId:"1097685849973",
+  appId:"1:1097685849973:web:79ad636e3dfd0b12f7653c"
+});
+const db  = firebase.firestore();
+const rtdb = firebase.database();
+
+// ── State ──
+const SESS_KEY = "DRIVER_SESSION";
+let session = null;         // {username, driverName, truckNo}
+let APP_ID  = window.APP_ID || "DEFAULT";
+let trkStore  = [];         // chuyến của lái xe này
+let costStore = {};         // chi phí đã nhập
+let masterData = {};        // master RTDB
+let advanceStore = [];      // tạm ứng
+let currentTrkId = null;
+let _autoFuelCost = 0;
+
+// ── Helpers ──
+function fmt(n){return Number(n||0).toLocaleString("vi-VN");}
+function thisMonth(){return new Date().toISOString().slice(0,7);}
+function showToast(msg,err){
+  const t=document.getElementById("toast");
+  t.textContent=msg; t.style.background=err?"#e03131":"#0d2248";
+  t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),2500);
+}
+
+// ── LOGIN ──
+async function doLogin(){
+  const username = document.getElementById("loginUser").value.trim();
+  const password = document.getElementById("loginPass").value.trim();
+  const err = document.getElementById("loginErr");
+  err.textContent = "";
+  if(!username||!password){err.textContent="Nhập đủ tài khoản và mật khẩu!";return;}
+
+  try {
+    // Đọc users từ RTDB: users_APP_ID/{username}
+    const snap = await rtdb.ref(`users_${APP_ID}/${username}`).once("value");
+    if(!snap.exists()){err.textContent="❌ Tài khoản không tồn tại!";return;}
+    const user = snap.val();
+    if(user.password !== password){err.textContent="❌ Sai mật khẩu!";return;}
+    if(user.role !== "driver"){err.textContent="❌ Tài khoản không phải lái xe!";return;}
+
+    session = {username, driverName: user.driverName||username, truckNo: user.truckNo||"", role:"driver"};
+    localStorage.setItem(SESS_KEY, JSON.stringify(session));
+    startApp();
+  } catch(e){
+    err.textContent="❌ Lỗi kết nối: "+e.message;
+  }
+}
+
+document.getElementById("loginPass").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();});
+
+function doLogout(){
+  localStorage.removeItem(SESS_KEY);
+  location.reload();
+}
+
+// ── INIT ──
+function startApp(){
+  document.getElementById("loginScreen").style.display="none";
+  document.getElementById("mainApp").style.display="block";
+  document.getElementById("topName").textContent="🚛 "+session.driverName;
+  document.getElementById("topSub").textContent=session.truckNo?"Xe: "+session.truckNo:"";
+
+  // Set default month
+  const m = thisMonth();
+  document.getElementById("orderMonth").value=m;
+  document.getElementById("costMonth").value=m;
+  document.getElementById("wageMonth").value=m;
+
+  // Load master data
+  rtdb.ref(`master_data_${APP_ID}`).on("value", snap=>{
+    masterData = snap.exists() ? snap.val() : {};
+  });
+
+  // Load trucking — chỉ lấy chuyến của lái xe này
+  db.collection(`trucking_plan_${APP_ID}`)
+    .where("driver","==",session.driverName)
+    .orderBy("planDate","desc")
+    .onSnapshot(snap=>{
+      trkStore = snap.docs.map(d=>({id:d.id,...d.data()}));
+      renderOrders();
+      renderCostList();
+      renderWage();
+    });
+
+  // Load costs
+  db.collection(`acc_costs_${APP_ID}`).onSnapshot(snap=>{
+    costStore={};
+    snap.docs.forEach(d=>{costStore[d.id]=d.data();});
+    renderCostList();
+    renderWage();
+  });
+
+  // Load advance
+  db.collection(`advances_${APP_ID}`)
+    .where("driver","==",session.driverName)
+    .orderBy("createdAt","desc")
+    .onSnapshot(snap=>{
+      advanceStore = snap.docs.map(d=>({id:d.id,...d.data()}));
+      renderAdvance();
+    });
+
+  // PWA service worker
+  if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+}
+
+// Check session on load
+window.addEventListener("load",()=>{
+  const raw = localStorage.getItem(SESS_KEY);
+  if(raw){try{session=JSON.parse(raw);startApp();}catch(e){}}
+});
+
+// ── NAVIGATION ──
+function switchPage(name, btn){
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  document.querySelectorAll(".bnav-item").forEach(b=>b.classList.remove("active"));
+  document.getElementById("page"+name.charAt(0).toUpperCase()+name.slice(1)).classList.add("active");
+  btn.classList.add("active");
+  if(name==="wage") renderWage();
+  if(name==="advance") renderAdvance();
+}
+
+// ── ORDERS PAGE ──
+function getFilteredTrips(monthInputId, filterInputId, driverFilter){
+  const month = document.getElementById(monthInputId)?.value || thisMonth();
+  const filter = document.getElementById(filterInputId)?.value || "";
+  let rows = trkStore.filter(r=>r.planDate && r.planDate.startsWith(month));
+  if(filter==="new") rows=rows.filter(r=>!r.driverConfirmed);
+  if(filter==="confirmed") rows=rows.filter(r=>r.driverConfirmed);
+  return rows;
+}
+
+function renderOrders(){
+  const rows = getFilteredTrips("orderMonth","orderFilter");
+  const el = document.getElementById("orderList");
+  if(!rows.length){el.innerHTML='<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">Không có đơn hàng</div></div>';return;}
+  el.innerHTML = rows.map(r=>{
+    const confirmed = r.driverConfirmed;
+    const dotClass = confirmed?"dot-confirmed":"dot-new";
+    return `<div class="order-card" onclick="openOrderModal('${r.id}')">
+      <div class="status-dot ${dotClass}"></div>
+      <div class="order-date">${r.planDate||""}</div>
+      <div class="order-customer">${r.customer||""}</div>
+      <div class="order-route">🏭 ${r.factory||""} &nbsp;|&nbsp; 📍 ${r.depot||""} → ${r.port||""}</div>
+      <div class="order-tags">
+        ${r.containerNo?`<span class="tag tag-blue">📦 ${r.containerNo}</span>`:""}
+        ${r.km?`<span class="tag tag-purple">📏 ${r.km} km</span>`:""}
+        ${r.serviceType?`<span class="tag tag-amber">🏷️ ${r.serviceType}</span>`:""}
+        <span class="tag ${confirmed?"tag-green":"tag-amber"}">${confirmed?"✅ Đã xác nhận":"⏳ Chờ xác nhận"}</span>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function openOrderModal(trkId){
+  const r = trkStore.find(x=>x.id===trkId)||{};
+  const confirmed = r.driverConfirmed;
+  document.getElementById("modalOrderContent").innerHTML=`
+    <div class="info-row"><span class="info-label">📅 Ngày:</span><span class="info-val">${r.planDate||""}</span></div>
+    <div class="info-row"><span class="info-label">👤 Khách:</span><span class="info-val">${r.customer||""}</span></div>
+    <div class="info-row"><span class="info-label">🏭 Kho:</span><span class="info-val">${r.factory||""}</span></div>
+    <div class="info-row"><span class="info-label">🚛 Xe:</span><span class="info-val">${r.vehicleNo||""}</span></div>
+    <div class="info-row"><span class="info-label">📏 KM:</span><span class="info-val">${r.km||""} km</span></div>
+    <div class="info-row"><span class="info-label">📦 Cont:</span><span class="info-val">${r.containerNo||"(chưa có)"}</span></div>
+    <div class="info-row"><span class="info-label">📍 Nơi lấy:</span><span class="info-val">${r.depot||""}</span></div>
+    <div class="info-row"><span class="info-label">📍 Nơi hạ:</span><span class="info-val">${r.port||""}</span></div>
+    <div class="info-row"><span class="info-label">🏷️ Loại DV:</span><span class="info-val">${r.serviceType||""}</span></div>
+    <div class="info-row"><span class="info-label">📝 Booking:</span><span class="info-val">${r.booking||""}</span></div>
+    ${r.note?`<div class="info-row"><span class="info-label">💬 Ghi chú:</span><span class="info-val">${r.note}</span></div>`:""}
+    <div style="margin-top:10px;padding:10px;border-radius:8px;background:${confirmed?"#f0fdf4":"#fffbeb"};font-size:12px;font-weight:600;color:${confirmed?"#166534":"#92400e"}">
+      ${confirmed?"✅ Bạn đã xác nhận đơn hàng này":"⏳ Chưa xác nhận — bấm xác nhận bên dưới"}
+    </div>`;
+
+  document.getElementById("modalOrderBtns").innerHTML = confirmed
+    ? `<button class="btn btn-gray" onclick="closeOrderModal()">Đóng</button>`
+    : `<button class="btn btn-gray" onclick="closeOrderModal()">Đóng</button>
+       <button class="btn btn-success" onclick="confirmOrder('${trkId}')">✅ Xác nhận nhận đơn</button>`;
+
+  document.getElementById("modalOrder").classList.add("show");
+}
+
+async function confirmOrder(trkId){
+  try{
+    await db.collection(`trucking_plan_${APP_ID}`).doc(trkId).update({
+      driverConfirmed: true,
+      driverConfirmedAt: new Date().toISOString()
+    });
+    showToast("✅ Đã xác nhận đơn hàng!");
+    closeOrderModal();
+  }catch(e){showToast("❌ Lỗi: "+e.message, true);}
+}
+function closeOrderModal(){document.getElementById("modalOrder").classList.remove("show");}
+
+// ── COST PAGE ──
+function renderCostList(){
+  const month = document.getElementById("costMonth")?.value || thisMonth();
+  const filter = document.getElementById("costFilter")?.value || "no";
+  let rows = trkStore.filter(r=>r.planDate&&r.planDate.startsWith(month));
+  if(filter==="no") rows=rows.filter(r=>!costStore[r.id]);
+  if(filter==="yes") rows=rows.filter(r=>!!costStore[r.id]);
+  const el=document.getElementById("costList");
+  if(!rows.length){el.innerHTML='<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">'+(filter==="no"?"Đã nhập hết chi phí!":"Không có dữ liệu")+'</div></div>';return;}
+  el.innerHTML=rows.map(r=>{
+    const c=costStore[r.id]||{};
+    const hasCost=!!costStore[r.id];
+    return `<div class="order-card" onclick="openCostModal('${r.id}')">
+      <div class="status-dot ${hasCost?"dot-confirmed":"dot-new"}"></div>
+      <div class="order-date">${r.planDate||""}</div>
+      <div class="order-customer">${r.customer||""}</div>
+      <div class="order-route">🏭 ${r.factory||""} &nbsp;|&nbsp; 📏 ${r.km||0} km</div>
+      <div class="order-tags">
+        ${r.vehicleNo?`<span class="tag tag-blue">🚛 ${r.vehicleNo}</span>`:""}
+        ${hasCost?`<span class="tag tag-green">✅ Đã nhập: ${fmt(c.cost)}đ</span>`:`<span class="tag tag-amber">⏳ Chưa nhập CP</span>`}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function openCostModal(trkId){
+  currentTrkId=trkId;
+  const r=trkStore.find(x=>x.id===trkId)||{};
+  const c=costStore[trkId]||{};
+
+  document.getElementById("modalCostInfo").innerHTML=
+    `📅 ${r.planDate} &nbsp;|&nbsp; 👤 ${r.customer} &nbsp;|&nbsp; 🏭 ${r.factory}<br>🚛 ${r.vehicleNo||""} &nbsp;|&nbsp; 📏 ${r.km||0} km &nbsp;|&nbsp; 📍 ${r.depot||""} → ${r.port||""}`;
+
+  // Auto fuel calculation
+  const trucks = Array.isArray(masterData.trucks) ? masterData.trucks : Object.values(masterData.trucks||{});
+  const fuels  = Array.isArray(masterData.fuels)  ? masterData.fuels  : Object.values(masterData.fuels||{});
+  fuels.sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  const trk = trucks.find(t=>(t.truck||"").trim()===(r.vehicleNo||"").trim());
+  const fuelRate = trk ? parseFloat(trk.fuel||0) : 0;
+  const appFuels = planDate => {
+    if(!fuels.length) return 0;
+    const app = fuels.filter(f=>f.date<=planDate);
+    return app.length ? parseFloat(app[0].price||0) : parseFloat(fuels[fuels.length-1].price||0);
+  };
+  const pricePerL = appFuels(r.planDate||"");
+  const km = parseFloat(r.km||0);
+  _autoFuelCost = 0;
+  if(fuelRate&&pricePerL&&km){
+    const liters = km*fuelRate/100;
+    _autoFuelCost = Math.round(liters*pricePerL);
+    document.getElementById("fuelBannerDriver").style.display="block";
+    document.getElementById("fuelBannerDriver").innerHTML=
+      `⛽ NL tự tính: <strong>${fmt(_autoFuelCost)}đ</strong> &nbsp;(${liters.toFixed(1)} lít × ${fmt(pricePerL)}đ/lít | ĐM: ${fuelRate}L/100km)`;
+    document.getElementById("dFuelLabel").textContent=`Nhiên liệu (ĐM: ~${fmt(_autoFuelCost)}đ)`;
+  } else {
+    document.getElementById("fuelBannerDriver").style.display="none";
+    document.getElementById("dFuelLabel").textContent="Nhiên liệu";
+  }
+
+  // Fill form
+  document.getElementById("dToll").value    = c.toll||0;
+  document.getElementById("dFuel").value    = c.fuel || (_autoFuelCost||0);
+  document.getElementById("dFuelActual").value = c.fuelActual||0;
+  document.getElementById("dRepair").value  = c.repair||0;
+  document.getElementById("dOther").value   = c.other||0;
+  document.getElementById("dNote").value    = c.note||"";
+  calcDriverCost();
+  document.getElementById("modalCost").classList.add("show");
+}
+
+function calcDriverCost(){
+  const toll=+document.getElementById("dToll").value||0;
+  const fuel=+document.getElementById("dFuel").value||0;
+  const repair=+document.getElementById("dRepair").value||0;
+  const other=+document.getElementById("dOther").value||0;
+  const total=toll+fuel+repair+other;
+  document.getElementById("dTotalCost").textContent=fmt(total)+"đ";
+}
+
+async function saveDriverCost(){
+  const r=trkStore.find(x=>x.id===currentTrkId)||{};
+  const c=costStore[currentTrkId]||{};
+  const toll=+document.getElementById("dToll").value||0;
+  const fuel=+document.getElementById("dFuel").value||0;
+  const fuelActual=+document.getElementById("dFuelActual").value||0;
+  const repair=+document.getElementById("dRepair").value||0;
+  const other=+document.getElementById("dOther").value||0;
+  const note=document.getElementById("dNote").value.trim();
+  const cost=toll+fuel+repair+other;
+
+  // Tính lương từ master
+  const customers = Array.isArray(masterData.customers)?masterData.customers:Object.values(masterData.customers||{});
+  const khoKeys=[{f:"factory",p:"price",w:"wage"},{f:"factory2",p:"price2",w:"wage2"},{f:"factory3",p:"price3",w:"wage3"},{f:"factory4",p:"price4",w:"wage4"}];
+  let wage=0, truckPrice=0;
+  for(const cu of customers){
+    if((cu.name||"").trim()!==(r.customer||"").trim()) continue;
+    for(const k of khoKeys){
+      if((cu[k.f]||"").trim()===(r.factory||"").trim()){
+        wage=parseFloat(cu[k.w]||0); truckPrice=parseFloat(cu[k.p]||0); break;
+      }
+    }
+  }
+
+  const data={
+    toll, fuel, fuelActual, repair, other, note, cost,
+    wage: c.wage||wage,
+    truckPrice: c.truckPrice||r.vcPrice||truckPrice,
+    revenue: (c.truckPrice||r.vcPrice||truckPrice)+(c.lift||0)+(c.dropFee||0)+(c.deposit||0),
+    updatedByDriver: true,
+    updatedAt: new Date().toISOString()
+  };
+
+  try{
+    await db.collection(`acc_costs_${APP_ID}`).doc(currentTrkId).set(data,{merge:true});
+    showToast("✅ Đã lưu chi phí!");
+    closeCostModal();
+  }catch(e){showToast("❌ Lỗi: "+e.message,true);}
+}
+function closeCostModal(){document.getElementById("modalCost").classList.remove("show");}
+
+// ── WAGE PAGE ──
+function renderWage(){
+  const month = document.getElementById("wageMonth")?.value || thisMonth();
+  const rows = trkStore.filter(r=>r.planDate&&r.planDate.startsWith(month));
+  const customers = Array.isArray(masterData.customers)?masterData.customers:Object.values(masterData.customers||{});
+  const trucks = Array.isArray(masterData.trucks)?masterData.trucks:Object.values(masterData.trucks||{});
+  const fuels  = Array.isArray(masterData.fuels)?masterData.fuels:Object.values(masterData.fuels||{});
+  fuels.sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+
+  let totalWage=0, totalKm=0, totalFuelActual=0, totalFuelCalc=0;
+  const khoKeys=[{f:"factory",w:"wage"},{f:"factory2",w:"wage2"},{f:"factory3",w:"wage3"},{f:"factory4",w:"wage4"}];
+
+  const tripRows = rows.map(r=>{
+    const c=costStore[r.id]||{};
+    // Lương
+    let wage=c.wage||0;
+    if(!wage){
+      for(const cu of customers){
+        if((cu.name||"").trim()!==(r.customer||"").trim()) continue;
+        for(const k of khoKeys){if((cu[k.f]||"").trim()===(r.factory||"").trim()){wage=parseFloat(cu[k.w]||0);break;}}
+      }
+    }
+    // NL định mức
+    const trk=trucks.find(t=>(t.truck||"").trim()===(r.vehicleNo||"").trim());
+    const fuelRate=trk?parseFloat(trk.fuel||0):0;
+    const appFuel=fuels.filter(f=>f.date<=(r.planDate||""));
+    const priceL=appFuel.length?parseFloat(appFuel[0].price||0):0;
+    const km=parseFloat(r.km||0);
+    const calcFuel=fuelRate&&priceL&&km?Math.round(km*fuelRate/100*priceL):0;
+    const actualFuel=parseFloat(c.fuelActual||0);
+
+    totalWage+=wage; totalKm+=km;
+    totalFuelActual+=actualFuel;
+    totalFuelCalc+=(fuelRate&&km?km*fuelRate/100:0);
+
+    return `<div class="trip-row">
+      <div class="trip-row-top">
+        <span>${r.planDate} — ${r.customer}</span>
+        <span style="color:var(--green)">${fmt(wage)}đ</span>
+      </div>
+      <div class="trip-row-sub">🏭 ${r.factory||""} &nbsp;|&nbsp; 📏 ${km}km
+        ${actualFuel?` &nbsp;|&nbsp; ⛽ thực đổ: ${actualFuel}L`:""}
+        ${calcFuel?` &nbsp;|&nbsp; ĐM: ${fmt(calcFuel)}đ`:""}
+      </div>
+    </div>`;
+  }).join("");
+
+  // Tổng tạm ứng trong tháng
+  const totalAdv = advanceStore.filter(a=>(a.createdAt||"").startsWith(month)).reduce((s,a)=>s+(+a.amount||0),0);
+
+  document.getElementById("wageSummary").innerHTML=`
+    <div class="wage-summary">
+      <div class="wage-card highlight"><div class="wc-val">${fmt(totalWage)}đ</div><div class="wc-label">Tổng lương</div></div>
+      <div class="wage-card"><div class="wc-val">${rows.length}</div><div class="wc-label">Số chuyến</div></div>
+      <div class="wage-card"><div class="wc-val">${fmt(totalKm)} km</div><div class="wc-label">Tổng KM</div></div>
+      <div class="wage-card"><div class="wc-val">${totalFuelActual.toFixed(0)} L</div><div class="wc-label">NL thực đổ</div></div>
+      <div class="wage-card"><div class="wc-val">${totalFuelCalc.toFixed(0)} L</div><div class="wc-label">NL định mức</div></div>
+      <div class="wage-card"><div class="wc-val" style="color:var(--amber)">${fmt(totalAdv)}đ</div><div class="wc-label">Tạm ứng</div></div>
+    </div>`;
+  document.getElementById("wageList").innerHTML = tripRows || '<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">Không có dữ liệu</div></div>';
+}
+
+// ── ADVANCE PAGE ──
+function renderAdvance(){
+  const el=document.getElementById("advanceList");
+  if(!advanceStore.length){el.innerHTML='<div class="empty"><div class="empty-icon">💳</div><div class="empty-text">Chưa có yêu cầu tạm ứng</div></div>';return;}
+  el.innerHTML=advanceStore.map(a=>`
+    <div class="advance-card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="advance-amount">${fmt(a.amount)}đ</div>
+        <span class="tag ${a.status==="approved"?"tag-green":a.status==="rejected"?"tag-red":"tag-amber"}">
+          ${a.status==="approved"?"✅ Đã duyệt":a.status==="rejected"?"❌ Từ chối":"⏳ Chờ duyệt"}
+        </span>
+      </div>
+      <div class="advance-date">${(a.createdAt||"").slice(0,10)}</div>
+      ${a.note?`<div class="advance-note">${a.note}</div>`:""}
+    </div>`).join("");
+}
+
+function openAdvanceModal(){document.getElementById("modalAdvance").classList.add("show");}
+function closeAdvModal(){document.getElementById("modalAdvance").classList.remove("show");}
+
+async function saveAdvance(){
+  const amount=+document.getElementById("advAmount").value||0;
+  const note=document.getElementById("advNote").value.trim();
+  if(!amount){showToast("❌ Nhập số tiền tạm ứng!",true);return;}
+  try{
+    await db.collection(`advances_${APP_ID}`).add({
+      driver: session.driverName,
+      username: session.username,
+      amount, note,
+      status:"pending",
+      createdAt: new Date().toISOString()
+    });
+    showToast("✅ Đã gửi yêu cầu tạm ứng!");
+    document.getElementById("advAmount").value="";
+    document.getElementById("advNote").value="";
+    closeAdvModal();
+  }catch(e){showToast("❌ Lỗi: "+e.message,true);}
+}
+
+// Close modals on backdrop click
+document.querySelectorAll(".modal-bg").forEach(m=>{
+  m.addEventListener("click",e=>{if(e.target===m)m.classList.remove("show");});
+});
+</script>
+</body>
+</html>

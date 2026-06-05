@@ -65,17 +65,20 @@ tr:hover td{background:#e8eeff!important;}
   <div class="form-row">
     <input id="uName" placeholder="Username" style="width:130px">
     <input id="uPass" type="text" placeholder="Password" style="width:130px">
-    <select id="uRole" style="width:130px">
+    <select id="uRole" style="width:130px" onchange="toggleDriverFields()">
       <option value="user">User</option>
+      <option value="driver">🚛 Lái xe</option>
       <option value="viceadmin">Administrator</option>
       <option value="admin">Admin</option>
     </select>
+    <input id="uDriverName" placeholder="Họ tên lái xe" style="width:140px;display:none">
+    <input id="uTruckNo" placeholder="Số xe" style="width:100px;display:none">
     <button class="btn-primary" onclick="addUser()">➕ Thêm user</button>
   </div>
   <div class="tbl-wrap">
     <table>
       <thead><tr>
-        <th>#</th><th>Username</th><th>Role</th><th>Mật khẩu</th>
+        <th>#</th><th>Username</th><th>Role</th><th>Mật khẩu</th><th>Họ tên LX</th><th>Số xe</th>
         <th>Trucking</th><th>Accountant</th><th>Performance</th><th>Overview</th><th>Master</th><th>Bảo dưỡng</th><th>Users</th>
         <th>Đổi pass</th><th>Xóa</th>
       </tr></thead>
@@ -161,7 +164,13 @@ function saveUsers(u){
   const arr=Array.isArray(u)?u:Object.values(u||{});
   _users=arr;
   localStorage.setItem(USERS_KEY,JSON.stringify(arr));
-  return db.ref(USERS_REF).set(arr)
+  // Sync sang users_APP_ID dạng {username: {...}} để driver.html đọc được
+  const byUsername={};
+  arr.forEach(x=>{if(x.username) byUsername[x.username]=x;});
+  return Promise.all([
+    db.ref(USERS_REF).set(arr),
+    db.ref(`users_${window.APP_ID}`).set(byUsername)
+  ])
     .then(()=>showToast("✅ Đã lưu"))
     .catch(e=>showToast("Lỗi: "+e.message,true));
 }
@@ -186,14 +195,17 @@ function render(){
     const isSelf=_session.username===u.username;
     const isAdmin=u.role==="admin";
     const isVice=u.role==="viceadmin";
-    const roleBg=isAdmin?"#dbeafe":isVice?"#fef3c7":"#f1f5f9";
-    const roleColor=isAdmin?"#1d4ed8":isVice?"#92400e":"#475569";
-    const roleLabel=isAdmin?"Admin":isVice?" Administrator":"User";
+    const isDriver=u.role==="driver";
+    const roleBg=isAdmin?"#dbeafe":isVice?"#fef3c7":isDriver?"#f0fdf4":"#f1f5f9";
+    const roleColor=isAdmin?"#1d4ed8":isVice?"#92400e":isDriver?"#166534":"#475569";
+    const roleLabel=isAdmin?"Admin":isVice?"Administrator":isDriver?"🚛 Lái xe":"User";
     tbody.insertAdjacentHTML("beforeend",`
       <tr>
         <td>${rowNum}</td>
         <td style="font-weight:600">${u.username}${isSelf?" 👈":""}</td>
         <td><span style="background:${roleBg};color:${roleColor};padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600">${roleLabel}</span></td>
+        <td style="font-size:12px">${u.driverName||""}</td>
+        <td style="font-size:12px;font-family:monospace">${u.truckNo||""}</td>
         <td><div class="pw-cell">
           <span class="pw-text" id="pw_${realIdx}">••••••</span>
           <button class="btn-gray btn-sm" id="pwbtn_${realIdx}" onclick="togglePw(${realIdx})">👁️</button>
@@ -206,19 +218,35 @@ function render(){
 }
 
 /* ── ADD USER — lưu password plain text ── */
+function toggleDriverFields(){
+  const r=document.getElementById("uRole").value;
+  const isDriver=r==="driver";
+  document.getElementById("uDriverName").style.display=isDriver?"":"none";
+  document.getElementById("uTruckNo").style.display=isDriver?"":"none";
+}
+
 function addUser(){
   const u=document.getElementById("uName").value.trim();
   const p=document.getElementById("uPass").value.trim();
   const r=document.getElementById("uRole").value;
+  const driverName=document.getElementById("uDriverName").value.trim();
+  const truckNo=document.getElementById("uTruckNo").value.trim();
   if(!u||!p){showToast("Nhập đủ username và password!",true);return;}
   if(u.length<3){showToast("Username phải từ 3 ký tự!",true);return;}
   if(p.length<4){showToast("Password phải từ 4 ký tự!",true);return;}
+  if(r==="driver"&&!driverName){showToast("Nhập họ tên lái xe!",true);return;}
   if(_users.some(x=>x.username.toLowerCase()===u.toLowerCase())){showToast("Username đã tồn tại!",true);return;}
   const users=[..._users];
-  users.push({username:u, password:p, role:r, pages:r==="admin"?[...PAGES]:r==="viceadmin"?["index.html","accountant.html","performance.html","overview.html","maintenance.html","master.html","users.html"]:[]});
+  const obj={username:u, password:p, role:r,
+    pages:r==="admin"?[...PAGES]:r==="viceadmin"?["index.html","accountant.html","performance.html","overview.html","maintenance.html","master.html","users.html"]:[]};
+  if(r==="driver"){obj.driverName=driverName; obj.truckNo=truckNo;}
+  users.push(obj);
   saveUsers(users);
   document.getElementById("uName").value="";
   document.getElementById("uPass").value="";
+  document.getElementById("uDriverName").value="";
+  document.getElementById("uTruckNo").value="";
+  toggleDriverFields();
 }
 
 /* ── TOGGLE PAGE ── */
