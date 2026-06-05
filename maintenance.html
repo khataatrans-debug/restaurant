@@ -1966,7 +1966,7 @@ async function renderDReqRepair(){
       <td class="num">${a.cost?fmt(a.cost)+"đ":""}</td>
       <td>${STATUS_REPAIR[a.status]||a.status}</td>
       <td class="tl" style="font-size:11px;color:#64748b">${a.reason||""}</td>
-      <td>${canProcess?`<button class="btn btn-blue btn-sm" onclick='openDReqModal("${d.id}","repair",${JSON.stringify({driver:a.driver,truck:a.truckNo,part:a.part,desc:a.desc,urgency:a.urgency})})'>Xử lý</button>`:
+      <td>${canProcess?`<button class="btn btn-blue btn-sm" data-id="${d.id}" data-type="repair" onclick="openDReqFromBtn(this,'${(a.driver||"").replace(/'/g,"")}','${(a.truckNo||"").replace(/'/g,"")}','${(a.part||"").replace(/'/g,"")}','${(a.urgency||"")}')">Xử lý</button>`:
         '<span style="font-size:10px;color:#94a3b8">Đã xong</span>'}</td>
     </tr>`;
   }).join("");
@@ -1991,10 +1991,19 @@ async function renderDReqFuel(){
       <td class="tl">${a.note||""}</td>
       <td>${STATUS_FUEL[a.status]||a.status}</td>
       <td class="tl" style="font-size:11px;color:#64748b">${a.reason||""}</td>
-      <td>${canProcess?`<button class="btn btn-blue btn-sm" onclick='openDReqModal("${d.id}","fuel",${JSON.stringify({driver:a.driver,truck:a.truckNo,liter:a.liter})})'>Xử lý</button>`:
+      <td>${canProcess?`<button class="btn btn-blue btn-sm" data-id="${d.id}" data-type="fuel" onclick="openDReqFromBtn(this,'${(a.driver||"").replace(/'/g,"")}','${(a.truckNo||"")}','${a.liter||0}','')">Xử lý</button>`:
         '<span style="font-size:10px;color:#94a3b8">Đã xong</span>'}</td>
     </tr>`;
   }).join("");
+}
+
+function openDReqFromBtn(btn, p1, p2, p3, p4){
+  const id=btn.getAttribute("data-id");
+  const type=btn.getAttribute("data-type");
+  const info = type==="repair"
+    ? {driver:p1, truck:p2, part:p3, urgency:p4}
+    : {driver:p1, truck:p2, liter:p3};
+  openDReqModal(id, type, info);
 }
 
 function openDReqModal(id, type, info){
