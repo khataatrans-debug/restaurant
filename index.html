@@ -69,9 +69,9 @@ body{font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif;background:var(--b
 .row{display:grid;gap:7px;margin-bottom:7px;}
 
 /* Hàng 1: 3 ngày + khách hàng + nơi lấy + nơi hạ + mã KH — 7 cột đều */
-.row-r1{ grid-template-columns: 120px 110px 1.5fr 1fr 1fr 80px 120px 100px; }
-.row-r2{ grid-template-columns: 1.3fr 90px 1fr 1fr 1fr 65px 75px; }
-.row-r3{ grid-template-columns: 120px 90px 65px 140px 1fr 150px; }
+.row-r1{ grid-template-columns: repeat(8, 1fr); }
+.row-r2{ grid-template-columns: repeat(7, 1fr); }
+.row-r3{ grid-template-columns: 1fr 1fr 1fr 1fr 2fr 1.2fr; }
 
 /* ── FIELD ── */
 .field{display:flex;flex-direction:column;gap:2px;}
@@ -275,7 +275,7 @@ tr:hover td{background:#e8eeff!important;}
       <tr>
         <th>#</th><th>Ngày KH</th><th>Khách hàng</th><th>Mã KH</th>
         <th>Kho / Nhà máy</th><th>KM</th><th>Booking / Bill</th><th>Nơi lấy</th><th>Nơi hạ</th><th>Số xe</th><th>Mooc</th>
-        <th>Lái xe</th><th>SL</th><th>Số Seal</th><th>Trọng lượng</th><th>NL (lít)</th><th>Container</th>
+        <th>Lái xe</th><th>Loại DV</th><th>SL</th><th>Số Seal</th><th>Trọng lượng</th><th>NL (lít)</th><th>Container</th>
         <th>Trạng thái</th><th>Ghi chú</th><th>File</th><th>Sửa</th><th>Xóa</th></tr></thead>
     <tbody id="tbody"></tbody>
   </table>
@@ -634,7 +634,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
       r.planDate||"", r.customer||"", r.cusCode||"",
       r.depot||"", r.port||"", r.factory||"",
       r.km||"", r.vehicleNo||"", r.mooc||"", r.driver||"",
-      r.price||"", r.wage||"", r.fuelEst||"",
+      r.serviceType||"", r.price||"", r.wage||"", r.fuelEst||"",
       r.containerNo||"", (r.note||"").replace(/,/g," ")
     ]);
     const csv = [hdr,...rows].map(r=>r.join(",")).join("\n");
@@ -692,6 +692,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
         <td>${r.mooc||""}</td>
         <td class="tl">${r.driver||""}</td>
         <td>1</td>
+        <td style="font-size:11px;font-weight:600;color:#7c3aed">${r.serviceType||""}</td>
         <td style="font-weight:600">${r.price||""}</td>
         <td style="color:#0d9f6e;font-weight:600">${r.wage||""}</td>
         <td style="color:#1d6ef5">${r.fuelEst||""}</td>
