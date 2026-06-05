@@ -167,6 +167,7 @@ tr:hover td{background:#e8eeff!important;}
   <button class="tab-btn"        onclick="openTab('fuel',this)">⛽ Lịch sử cấp nhiên liệu</button>
   <button class="tab-btn"        onclick="openTab('overview',this)">📊 Tổng quan</button>
   <button class="tab-btn"        onclick="openTab('fuelPrice',this)">💲 Giá nhiên liệu</button>
+  <button class="tab-btn"        onclick="openTab('driverReq',this)">🚛 Đề xuất lái xe</button>
 </div>
 
 <!-- ════════════════════════════════════════
@@ -950,6 +951,7 @@ window.openTab=function(id,el){
   if(id==="fuelPrice")  renderFuelPrice();
   if(id==="fuel")       autoFillLatestFuelPrice();
   if(id==="repairOv"){  buildRovDropdowns(); renderRepairOv(); }
+  if(id==="driverReq"){ renderDReqRepair(); renderDReqFuel(); }
 };
 
 /* ══════════════════════════════════════════

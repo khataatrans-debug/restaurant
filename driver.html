@@ -210,6 +210,59 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
     <div id="advanceList"><div class="loading-spinner">⏳ Đang tải...</div></div>
   </div>
 
+  <!-- PAGE 5: ĐỀ XUẤT -->
+  <div class="page" id="pageRequest">
+    <div class="page-title">🔧 Đề xuất</div>
+    <!-- Sub tabs -->
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <button id="reqTab1" class="btn btn-primary" style="flex:1;height:36px;font-size:12px" onclick="switchReqTab('fuel')">⛽ Cấp nhiên liệu</button>
+      <button id="reqTab2" class="btn btn-gray" style="flex:1;height:36px;font-size:12px" onclick="switchReqTab('repair')">🔧 Sửa chữa</button>
+    </div>
+    <div id="reqFuelPanel">
+      <div class="card">
+        <div class="card-title">⛽ Đề xuất cấp nhiên liệu</div>
+        <div class="m-grid">
+          <div class="m-field"><label>Số xe</label><input id="reqFuelTruck" readonly style="background:#f8fafc"></div>
+          <div class="m-field"><label>Lái xe</label><input id="reqFuelDriver" readonly style="background:#f8fafc"></div>
+          <div class="m-field"><label>Ngày</label><input id="reqFuelDate" type="date"></div>
+          <div class="m-field"><label>Số lít đề xuất</label><input id="reqFuelLiter" type="number" placeholder="0"></div>
+          <div class="m-field full"><label>NL định mức tháng này</label><input id="reqFuelCalc" readonly style="background:#f0fdf4;color:#166534;font-weight:700"></div>
+          <div class="m-field full"><label>Ghi chú</label><textarea id="reqFuelNote" placeholder="Ghi chú..."></textarea></div>
+        </div>
+        <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="saveReqFuel()">📤 Gửi đề xuất</button>
+      </div>
+      <div id="reqFuelList"></div>
+    </div>
+    <div id="reqRepairPanel" style="display:none">
+      <div class="card">
+        <div class="card-title">🔧 Đề xuất sửa chữa / thay thế</div>
+        <div class="m-grid">
+          <div class="m-field"><label>Số xe</label><input id="reqRepairTruck" readonly style="background:#f8fafc"></div>
+          <div class="m-field"><label>Lái xe</label><input id="reqRepairDriver" readonly style="background:#f8fafc"></div>
+          <div class="m-field"><label>Ngày</label><input id="reqRepairDate" type="date"></div>
+          <div class="m-field"><label>Loại</label>
+            <select id="reqRepairType" style="width:100%;height:40px;border:1.5px solid var(--border);border-radius:8px;padding:0 10px;font-size:13px;font-family:inherit;outline:none">
+              <option value="repair">Sửa chữa</option>
+              <option value="replace">Thay thế</option>
+              <option value="check">Kiểm tra</option>
+            </select>
+          </div>
+          <div class="m-field full"><label>Bộ phận / Hạng mục</label><input id="reqRepairPart" placeholder="VD: Lốp xe, phanh, động cơ..."></div>
+          <div class="m-field full"><label>Tình trạng / Diễn giải yêu cầu</label><textarea id="reqRepairDesc" placeholder="Mô tả tình trạng hư hỏng, yêu cầu sửa/thay..."></textarea></div>
+          <div class="m-field"><label>Mức độ</label>
+            <select id="reqRepairUrgency" style="width:100%;height:40px;border:1.5px solid var(--border);border-radius:8px;padding:0 10px;font-size:13px;font-family:inherit;outline:none">
+              <option value="normal">Bình thường</option>
+              <option value="urgent">Khẩn cấp</option>
+            </select>
+          </div>
+          <div class="m-field"><label>Chi phí ước tính (đ)</label><input id="reqRepairCost" type="number" placeholder="0"></div>
+        </div>
+        <button class="btn btn-danger" style="width:100%;margin-top:8px" onclick="saveReqRepair()">📤 Gửi đề xuất sửa chữa</button>
+      </div>
+      <div id="reqRepairList"></div>
+    </div>
+  </div>
+
   <!-- Bottom Nav -->
   <nav class="bottom-nav">
     <button class="bnav-item active" onclick="switchPage('orders',this)">
@@ -227,6 +280,10 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
     <button class="bnav-item" onclick="switchPage('advance',this)">
       <span class="bnav-icon">💳</span>
       <span class="bnav-label">Tạm ứng</span>
+    </button>
+    <button class="bnav-item" onclick="switchPage('request',this)">
+      <span class="bnav-icon">🔧</span>
+      <span class="bnav-label">Đề xuất</span>
     </button>
   </nav>
 </div>
@@ -248,17 +305,35 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
     <div class="modal-title">💰 Nhập chi phí chuyến</div>
     <div id="modalCostInfo" style="margin-bottom:12px;font-size:12px;color:var(--muted);line-height:1.7;"></div>
     <div id="fuelBannerDriver" class="auto-banner" style="display:none"></div>
-    <div class="m-section">Chi phí</div>
+
+    <div class="m-section">💸 Chi phí hộ khách</div>
     <div class="m-grid">
-      <div class="m-field"><label>Cầu đường / Vé cổng</label><input id="dToll" type="number" placeholder="0" oninput="calcDriverCost()"></div>
-      <div class="m-field"><label id="dFuelLabel">Nhiên liệu</label><input id="dFuel" type="number" placeholder="0" oninput="calcDriverCost()"></div>
-      <div class="m-field"><label>NL thực đổ (lít)</label><input id="dFuelActual" type="number" placeholder="0" oninput="calcDriverCost()"></div>
-      <div class="m-field"><label>Phí sửa chữa</label><input id="dRepair" type="number" placeholder="0" oninput="calcDriverCost()"></div>
-      <div class="m-field full"><label>Phí khác</label><input id="dOther" type="number" placeholder="0" oninput="calcDriverCost()"></div>
+      <div class="m-field"><label>Phí nâng (đ)</label><input id="dLift" type="number" placeholder="0" oninput="calcDriverCost()"></div>
+      <div class="m-field"><label>Số HĐ nâng</label><input id="dLiftInv" placeholder="Số hóa đơn..."></div>
+      <div class="m-field"><label>Phí hạ (đ)</label><input id="dDrop" type="number" placeholder="0" oninput="calcDriverCost()"></div>
+      <div class="m-field"><label>Số HĐ hạ</label><input id="dDropInv" placeholder="Số hóa đơn..."></div>
+      <div class="m-field"><label>Phí cược cont (đ)</label><input id="dDeposit" type="number" placeholder="0" oninput="calcDriverCost()"></div>
+      <div class="m-field"><label>Số HĐ cược</label><input id="dDepositInv" placeholder="Số hóa đơn..."></div>
+    </div>
+
+    <div class="m-section">🚛 Chi phí vận hành</div>
+    <div class="m-grid">
+      <div class="m-field"><label>Cầu đường (đ)</label><input id="dToll" type="number" placeholder="0" oninput="calcDriverCost()"></div>
+      <div class="m-field"><label>Phí vé cổng (đ)</label><input id="dGate" type="number" placeholder="0" oninput="calcDriverCost()"></div>
+      <div class="m-field"><label>Phí căng xe (đ)</label><input id="dStretch" type="number" placeholder="0" oninput="calcDriverCost()"></div>
+      <div class="m-field"><label>Phí vá vỏ xe (đ)</label><input id="dTire" type="number" placeholder="0" oninput="calcDriverCost()"></div>
+      <div class="m-field"><label>Phí sửa chữa (đ)</label><input id="dRepair" type="number" placeholder="0" oninput="calcDriverCost()"></div>
+      <div class="m-field"><label>Phí khác (đ)</label><input id="dOther" type="number" placeholder="0" oninput="calcDriverCost()"></div>
+    </div>
+
+    <div class="m-section">⛽ Nhiên liệu</div>
+    <div class="m-grid">
+      <div class="m-field full"><label id="dFuelLabel">NL định mức (đ)</label><input id="dFuel" type="number" placeholder="0" readonly style="background:#f0fdf4;color:#166534;font-weight:700"></div>
       <div class="m-field full"><label>Ghi chú</label><textarea id="dNote" placeholder="Ghi chú..."></textarea></div>
     </div>
+
     <div class="profit-row">
-      <span class="profit-label">Tổng chi phí</span>
+      <span class="profit-label">Tổng chi phí vận hành</span>
       <span class="profit-val" id="dTotalCost" style="color:var(--red)">0</span>
     </div>
     <div class="btn-row">
@@ -425,6 +500,113 @@ function switchPage(name, btn){
   btn.classList.add("active");
   if(name==="wage") renderWage();
   if(name==="advance") renderAdvance();
+  if(name==="request") initRequestPage();
+}
+
+function switchReqTab(tab){
+  document.getElementById("reqFuelPanel").style.display=tab==="fuel"?"":"none";
+  document.getElementById("reqRepairPanel").style.display=tab==="repair"?"":"none";
+  document.getElementById("reqTab1").className="btn "+(tab==="fuel"?"btn-primary":"btn-gray");
+  document.getElementById("reqTab2").className="btn "+(tab==="repair"?"btn-danger":"btn-gray");
+}
+
+function initRequestPage(){
+  const today=new Date().toISOString().slice(0,10);
+  document.getElementById("reqFuelTruck").value=session.truckNo||"";
+  document.getElementById("reqFuelDriver").value=session.driverName||session.username;
+  document.getElementById("reqFuelDate").value=today;
+  document.getElementById("reqRepairTruck").value=session.truckNo||"";
+  document.getElementById("reqRepairDriver").value=session.driverName||session.username;
+  document.getElementById("reqRepairDate").value=today;
+  // Tính NL định mức tháng
+  const month=today.slice(0,7);
+  const rows=trkStore.filter(r=>r.planDate&&r.planDate.startsWith(month));
+  const trucks=Array.isArray(masterData.trucks)?masterData.trucks:Object.values(masterData.trucks||{});
+  const trk=trucks.find(t=>(t.truck||"").trim()===session.truckNo);
+  const fuelRate=trk?parseFloat(trk.fuel||0):0;
+  const totalKm=rows.reduce((s,r)=>s+parseFloat(r.km||0),0);
+  const calcLiter=fuelRate&&totalKm?Math.round(totalKm*fuelRate/100):0;
+  document.getElementById("reqFuelCalc").value=calcLiter?`${calcLiter} lít (${rows.length} chuyến × ${fuelRate}L/100km)`:"Chưa có dữ liệu";
+  renderReqFuelList();
+  renderReqRepairList();
+}
+
+async function saveReqFuel(){
+  const liter=+document.getElementById("reqFuelLiter").value||0;
+  const note=document.getElementById("reqFuelNote").value.trim();
+  if(!liter){showToast("❌ Nhập số lít đề xuất!",true);return;}
+  try{
+    await db.collection(`requests_fuel_${APP_ID}`).add({
+      driver:session.driverName||session.username,
+      username:session.username,
+      truckNo:session.truckNo,
+      liter, note,
+      date:document.getElementById("reqFuelDate").value,
+      status:"pending",
+      createdAt:new Date().toISOString()
+    });
+    showToast("✅ Đã gửi đề xuất nhiên liệu!");
+    document.getElementById("reqFuelLiter").value="";
+    document.getElementById("reqFuelNote").value="";
+    renderReqFuelList();
+  }catch(e){showToast("❌ Lỗi: "+e.message,true);}
+}
+
+async function saveReqRepair(){
+  const part=document.getElementById("reqRepairPart").value.trim();
+  const desc=document.getElementById("reqRepairDesc").value.trim();
+  if(!part||!desc){showToast("❌ Nhập đủ hạng mục và diễn giải!",true);return;}
+  try{
+    await db.collection(`requests_repair_${APP_ID}`).add({
+      driver:session.driverName||session.username,
+      username:session.username,
+      truckNo:session.truckNo,
+      type:document.getElementById("reqRepairType").value,
+      part, desc,
+      urgency:document.getElementById("reqRepairUrgency").value,
+      cost:+document.getElementById("reqRepairCost").value||0,
+      date:document.getElementById("reqRepairDate").value,
+      status:"pending",
+      createdAt:new Date().toISOString()
+    });
+    showToast("✅ Đã gửi đề xuất sửa chữa!");
+    document.getElementById("reqRepairPart").value="";
+    document.getElementById("reqRepairDesc").value="";
+    document.getElementById("reqRepairCost").value="";
+    renderReqRepairList();
+  }catch(e){showToast("❌ Lỗi: "+e.message,true);}
+}
+
+async function renderReqFuelList(){
+  const snap=await db.collection(`requests_fuel_${APP_ID}`).where("username","==",session.username).orderBy("createdAt","desc").limit(10).get();
+  const el=document.getElementById("reqFuelList");
+  if(snap.empty){el.innerHTML='<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">Chưa có đề xuất</div></div>';return;}
+  el.innerHTML=snap.docs.map(d=>{const a=d.data();return`<div class="advance-card">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="advance-amount">⛽ ${a.liter} lít</div>
+      <span class="tag ${a.status==="approved"?"tag-green":a.status==="rejected"?"tag-red":"tag-amber"}">${a.status==="approved"?"✅ Duyệt":a.status==="rejected"?"❌ Từ chối":"⏳ Chờ"}</span>
+    </div>
+    <div class="advance-date">${a.date}</div>
+    ${a.note?`<div class="advance-note">${a.note}</div>`:""}
+  </div>`}).join("");
+}
+
+async function renderReqRepairList(){
+  const snap=await db.collection(`requests_repair_${APP_ID}`).where("username","==",session.username).orderBy("createdAt","desc").limit(10).get();
+  const el=document.getElementById("reqRepairList");
+  if(snap.empty){el.innerHTML='<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">Chưa có đề xuất</div></div>';return;}
+  el.innerHTML=snap.docs.map(d=>{const a=d.data();return`<div class="advance-card">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="font-weight:700;color:var(--navy)">${a.part}</div>
+      <span class="tag ${a.urgency==="urgent"?"tag-red":"tag-amber"}">${a.urgency==="urgent"?"🚨 Khẩn":"🔧 Thường"}</span>
+    </div>
+    <div class="advance-date">${a.date} | ${a.type==="repair"?"Sửa":a.type==="replace"?"Thay":"Kiểm tra"}</div>
+    <div class="advance-note">${a.desc}</div>
+    <div style="display:flex;justify-content:space-between;margin-top:4px">
+      ${a.cost?`<span style="font-size:11px;color:var(--amber)">Ước tính: ${fmt(a.cost)}đ</span>`:"<span></span>"}
+      <span class="tag ${a.status==="approved"?"tag-green":a.status==="rejected"?"tag-red":"tag-amber"}">${a.status==="approved"?"✅ Duyệt":a.status==="rejected"?"❌ Từ chối":"⏳ Chờ"}</span>
+    </div>
+  </div>`}).join("");
 }
 
 // ── ORDERS PAGE ──
@@ -517,7 +699,9 @@ function renderCostList(){
       <div class="order-route">🏭 ${r.factory||""} &nbsp;|&nbsp; 📏 ${r.km||0} km</div>
       <div class="order-tags">
         ${r.vehicleNo?`<span class="tag tag-blue">🚛 ${r.vehicleNo}</span>`:""}
-        ${hasCost?`<span class="tag tag-green">✅ Đã nhập: ${fmt(c.cost)}đ</span>`:`<span class="tag tag-amber">⏳ Chưa nhập CP</span>`}
+        ${c.driverCostStatus==="rejected"?
+          `<span class="tag tag-red">❌ Bị từ chối: ${c.driverCostRejectReason||""}</span>`:
+          hasCost?`<span class="tag tag-green">✅ Đã nhập: ${fmt(c.cost)}đ</span>`:`<span class="tag tag-amber">⏳ Chưa nhập CP</span>`}
       </div>
     </div>`;
   }).join("");
@@ -559,8 +743,16 @@ function openCostModal(trkId){
 
   // Fill form
   document.getElementById("dToll").value    = c.toll||0;
-  document.getElementById("dFuel").value    = c.fuel || (_autoFuelCost||0);
-  document.getElementById("dFuelActual").value = c.fuelActual||0;
+  document.getElementById("dGate").value    = c.gate||0;
+  document.getElementById("dStretch").value = c.stretch||0;
+  document.getElementById("dTire").value    = c.tire||0;
+  document.getElementById("dLift").value    = c.lift||0;
+  document.getElementById("dLiftInv").value = c.liftInv||"";
+  document.getElementById("dDrop").value    = c.dropFee||0;
+  document.getElementById("dDropInv").value = c.dropInv||"";
+  document.getElementById("dDeposit").value = c.deposit||0;
+  document.getElementById("dDepositInv").value = c.depositInv||"";
+  document.getElementById("dFuel").value    = _autoFuelCost||c.fuel||0;
   document.getElementById("dRepair").value  = c.repair||0;
   document.getElementById("dOther").value   = c.other||0;
   document.getElementById("dNote").value    = c.note||"";
@@ -570,10 +762,13 @@ function openCostModal(trkId){
 
 function calcDriverCost(){
   const toll=+document.getElementById("dToll").value||0;
+  const gate=+document.getElementById("dGate").value||0;
+  const stretch=+document.getElementById("dStretch").value||0;
+  const tire=+document.getElementById("dTire").value||0;
   const fuel=+document.getElementById("dFuel").value||0;
   const repair=+document.getElementById("dRepair").value||0;
   const other=+document.getElementById("dOther").value||0;
-  const total=toll+fuel+repair+other;
+  const total=toll+gate+stretch+tire+fuel+repair+other;
   document.getElementById("dTotalCost").textContent=fmt(total)+"đ";
 }
 
@@ -581,12 +776,20 @@ async function saveDriverCost(){
   const r=trkStore.find(x=>x.id===currentTrkId)||{};
   const c=costStore[currentTrkId]||{};
   const toll=+document.getElementById("dToll").value||0;
+  const gate=+document.getElementById("dGate").value||0;
+  const stretch=+document.getElementById("dStretch").value||0;
+  const tire=+document.getElementById("dTire").value||0;
+  const lift=+document.getElementById("dLift").value||0;
+  const liftInv=document.getElementById("dLiftInv").value.trim();
+  const drop=+document.getElementById("dDrop").value||0;
+  const dropInv=document.getElementById("dDropInv").value.trim();
+  const deposit=+document.getElementById("dDeposit").value||0;
+  const depositInv=document.getElementById("dDepositInv").value.trim();
   const fuel=+document.getElementById("dFuel").value||0;
-  const fuelActual=+document.getElementById("dFuelActual").value||0;
   const repair=+document.getElementById("dRepair").value||0;
   const other=+document.getElementById("dOther").value||0;
   const note=document.getElementById("dNote").value.trim();
-  const cost=toll+fuel+repair+other;
+  const cost=toll+gate+stretch+tire+fuel+repair+other;
 
   // Tính lương từ master
   const customers = Array.isArray(masterData.customers)?masterData.customers:Object.values(masterData.customers||{});
@@ -602,10 +805,12 @@ async function saveDriverCost(){
   }
 
   const data={
-    toll, fuel, fuelActual, repair, other, note, cost,
+    toll, gate, stretch, tire,
+    lift, liftInv, dropFee:drop, dropInv, deposit, depositInv,
+    fuel, repair, other, note, cost,
     wage: c.wage||wage,
     truckPrice: c.truckPrice||r.vcPrice||truckPrice,
-    revenue: (c.truckPrice||r.vcPrice||truckPrice)+(c.lift||0)+(c.dropFee||0)+(c.deposit||0),
+    revenue: (c.truckPrice||r.vcPrice||truckPrice)+lift+drop+deposit,
     updatedByDriver: true,
     updatedAt: new Date().toISOString()
   };
@@ -659,6 +864,7 @@ function renderWage(){
         <span style="color:var(--green)">${fmt(wage)}đ</span>
       </div>
       <div class="trip-row-sub">🏭 ${r.factory||""} &nbsp;|&nbsp; 📏 ${km}km
+        ${r.containerNo?` &nbsp;|&nbsp; 📦 ${r.containerNo}`:""}
         ${actualFuel?` &nbsp;|&nbsp; ⛽ thực đổ: ${actualFuel}L`:""}
         ${calcFuel?` &nbsp;|&nbsp; ĐM: ${fmt(calcFuel)}đ`:""}
       </div>
