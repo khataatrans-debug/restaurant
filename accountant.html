@@ -491,6 +491,9 @@ function openModal(trkId){
   const r=trkStore.find(x=>x.id===trkId)||{};
   const c=costStore[trkId]||{};
 
+  // ── Lương chuyến tự động từ master ── (phải khai báo trước khi dùng)
+  const masterWage = getWageFromMaster(r.customer, r.factory);
+
   // Info banner
   document.getElementById("modalInfo").innerHTML=`
     <div><span>📅 Ngày:</span> ${r.planDate||""} &nbsp;|&nbsp; <span>👤 Khách:</span> ${r.customer||""} &nbsp;|&nbsp; <span>🔑 Mã KH:</span> ${r.cusCode||""}</div>
@@ -509,9 +512,6 @@ function openModal(trkId){
   mRepair.value     = c.repair||0;
   mOther.value      = c.other||0;
   mNote.value       = c.note||"";
-
-  // ── Lương chuyến tự động từ master ──
-  const masterWage = getWageFromMaster(r.customer, r.factory);
   const wageVal    = c.wage !== undefined ? c.wage   // đã lưu → giữ nguyên
                    : masterWage           ? masterWage // lấy từ master
                    : masterWage;                     // tra master theo kho
