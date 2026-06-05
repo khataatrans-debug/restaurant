@@ -2,7 +2,7 @@
   "name": "TMS Vận Tải",
   "short_name": "TMS",
   "description": "Hệ thống quản lý vận tải thông minh",
-  "start_url": "/driver.html",
+ "start_url": "/driver.html?app=TIENPHATVT"
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#060f22",
