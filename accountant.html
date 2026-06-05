@@ -629,7 +629,8 @@ window.recalcFuel = function() {
 function calcModal(){
   const truck=+mTruckPrice.value||0, lift=+mLift.value||0, drop=+mDrop.value||0, dep=+mDeposit.value||0;
   const toll=+mToll.value||0, fuel=+mFuel.value||0, wage=+mWage.value||0, repair=+mRepair.value||0, other=+mOther.value||0;
-  const rev=truck+lift+drop+dep, cost=toll+fuel+wage+repair+other, profit=rev-cost;
+  const rev=truck+lift+drop+dep, cost=toll+fuel+wage+repair+other;
+  const profit=truck-cost; // Lợi nhuận = Đơn giá VC - Chi phí (không tính chi hộ)
   mRevenue.value=rev; mCost.value=cost;
   const el=document.getElementById("mProfit");
   el.textContent=fmt(profit);
