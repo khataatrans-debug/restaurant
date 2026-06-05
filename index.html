@@ -224,44 +224,33 @@ tr:hover td{background:#e8eeff!important;}
 <div class="form-card">
   <div class="form-inner">
 
-    <!-- HÀNG 1: 7 cột đều -->
-    <div class="sec" style="background:#eff6ff;border-radius:6px 6px 0 0;padding:4px 10px"><span class="sec-label">📋 Thông tin chuyến</span><div class="sec-line"></div></div>
-    <div class="row row-r1" style="background:#eff6ff;padding:8px 10px;border-radius:0 0 6px 6px;margin-bottom:4px">
-      <div class="field"><span class="lbl">Ngày KH</span>    <input id="planDate"   type="date"></div>
-      <div class="field"><span class="lbl">Cut-off</span>    <input id="cutoff"     type="date"></div>
-      <div class="field"><span class="lbl">Khách hàng</span> <select id="customer"></select></div>
-      <div class="field"><span class="lbl">Nơi lấy</span>    <select id="depot"></select></div>
-      <div class="field"><span class="lbl">Nơi hạ</span>     <select id="port"></select></div>
-      <div class="field"><span class="lbl">Mã KH</span>      <input id="cusCode" readonly></div>
-    </div>
-
-    <!-- HÀNG 2: 7 cột đều -->
-    <div class="sec" style="background:#f0fdf4;border-radius:6px 6px 0 0;padding:4px 10px"><span class="sec-label">🗺️ Tuyến đường</span><div class="sec-line"></div></div>
-    <div class="row row-r2" style="background:#f0fdf4;padding:8px 10px;border-radius:0 0 6px 6px;margin-bottom:4px">
-      <div class="field"><span class="lbl">Booking</span>      <input id="booking" placeholder="Số booking..."></div>
-      <div class="field"><span class="lbl">Carrier</span>      <select id="carrier"></select></div>
+    <!-- DÒNG 1: Thông tin chuyến + Tuyến đường -->
+    <div class="row row-r1">
+      <div class="field field-sm"><span class="lbl">Ngày KH</span><input id="planDate" type="date"></div>
+      <div class="field field-sm"><span class="lbl">Cut-off</span><input id="cutoff" type="date"></div>
+      <div class="field"><span class="lbl">Khách hàng</span><select id="customer"></select></div>
+      <div class="field"><span class="lbl">Nơi lấy</span><select id="depot"></select></div>
+      <div class="field"><span class="lbl">Nơi hạ</span><select id="port"></select></div>
+      <div class="field field-sm"><span class="lbl">Mã KH</span><input id="cusCode" readonly></div>
+      <div class="field field-sm"><span class="lbl">Booking</span><input id="booking" placeholder="Số booking..."></div>
+      <div class="field"><span class="lbl">Carrier</span><select id="carrier"></select></div>
       <div class="field"><span class="lbl">Kho / Nhà máy</span><select id="factory"><option value="">-- Chọn kho --</option></select></div>
-      <div class="field"><span class="lbl">KM</span>           <input id="km" readonly></div>
-      <div class="field"><span class="lbl">Số Seal</span><input id="price" placeholder="Nhập số seal..."></div>
-      <div class="field"><span class="lbl">Trọng lượng</span> <input id="wage" placeholder="Tấn..."></div>
-      <div class="field"><span class="lbl">NL ước tính (lít)</span><input id="fuelEst" readonly></div>
+      <div class="field field-sm"><span class="lbl">Loại DV</span><select id="serviceType"><option value="">-- Chọn --</option><option value="Import">Import</option><option value="Export">Export</option><option value="CK">CK</option></select></div>
     </div>
 
-    <!-- HÀNG 3: 5 cột đều -->
-    <div class="sec" style="background:#fdf4ff;border-radius:6px 6px 0 0;padding:4px 10px"><span class="sec-label">🚛 Phương tiện</span><div class="sec-line"></div></div>
-    <div class="row row-r3" style="background:#fdf4ff;padding:8px 10px;border-radius:0 0 6px 6px;margin-bottom:4px">
-      <div class="field"><span class="lbl">Số xe</span>       <select id="vehicleNo"></select></div>
-      <div class="field"><span class="lbl">Mooc</span>        <select id="mooc"></select></div>
-      <div class="field"><span class="lbl">Lái xe</span>      <input id="driver" readonly></div>
-      <div class="field"><span class="lbl">Số lượng</span>    <input id="qty" type="number" min="1" value="1"></div>
-      <div class="field"><span class="lbl">Số Container</span><input id="containerNo" placeholder="XXXX0000000"></div>
-    </div>
-
-    <!-- HÀNG 4: ghi chú + file -->
-    <div class="sec" style="background:#fffbeb;border-radius:6px 6px 0 0;padding:4px 10px"><span class="sec-label">📎 Ghi chú & File</span><div class="sec-line"></div></div>
-    <div class="row row-r4" style="background:#fffbeb;padding:8px 10px;border-radius:0 0 6px 6px;margin-bottom:4px">
-      <div class="field"><input id="note" placeholder="Ghi chú thêm..."></div>
-      <div class="field"><input id="attachFile" type="file"></div>
+    <!-- DÒNG 2: Phương tiện + Số liệu + Ghi chú -->
+    <div class="row row-r2" style="border-top:2px solid #e2e8f0;padding-top:8px">
+      <div class="field"><span class="lbl">Số xe</span><select id="vehicleNo"></select></div>
+      <div class="field"><span class="lbl">Mooc</span><select id="mooc"></select></div>
+      <div class="field"><span class="lbl">Lái xe</span><input id="driver" readonly></div>
+      <div class="field field-sm"><span class="lbl">KM</span><input id="km" readonly></div>
+      <div class="field field-sm"><span class="lbl">Số Seal</span><input id="price" placeholder="VD: Seal1234"></div>
+      <div class="field field-sm"><span class="lbl">Trọng lượng (tấn)</span><input id="wage" type="number" step="0.1" min="0" placeholder="VD: 25"></div>
+      <div class="field field-sm"><span class="lbl">Số lượng</span><input id="qty" type="number" min="1" value="1"></div>
+      <div class="field field-sm"><span class="lbl">Số Container</span><input id="containerNo" placeholder="XXXX0000000"></div>
+      <div class="field field-sm"><span class="lbl">NL ước tính (lít)</span><input id="fuelEst" readonly></div>
+      <div class="field"><span class="lbl">Ghi chú</span><input id="note" placeholder="Ghi chú thêm..."></div>
+      <div class="field"><span class="lbl">File</span><input id="attachFile" type="file"></div>
     </div>
 
   </div>
@@ -541,7 +530,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
       if (editId) {
         const existing = store.find(x => x.id === editId) || {};
         const updated = { ...existing,
-          planDate:elPlanDate.value, cutoff:elCutoff.value, returnDate:"",
+          planDate:elPlanDate.value, cutoff:elCutoff.value, returnDate:"", serviceType:document.getElementById("serviceType")?.value||"",
           customer:(elCustomer.value||"").trim(), cusCode:elCusCode.value,
           depot:elDepot.value, port:elPort.value,
           booking:elBooking.value, carrier:elCarrier.value, factory:elFactory.value, km:elKm.value,
@@ -556,7 +545,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
         const qty = Math.max(1, Number(elQty.value||1));
         for (let i = 0; i < qty; i++) {
           const rec = { id: Date.now()+"_"+i,
-            planDate:elPlanDate.value, cutoff:elCutoff.value, returnDate:"",
+            planDate:elPlanDate.value, cutoff:elCutoff.value, returnDate:"", serviceType:document.getElementById("serviceType")?.value||"",
             customer:(elCustomer.value||"").trim(), cusCode:elCusCode.value,
             depot:elDepot.value, port:elPort.value,
             booking:elBooking.value, carrier:elCarrier.value, factory:elFactory.value, km:elKm.value,
