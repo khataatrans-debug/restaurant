@@ -495,10 +495,12 @@ function openModal(trkId){
   document.getElementById("modalInfo").innerHTML=`
     <div><span>📅 Ngày:</span> ${r.planDate||""} &nbsp;|&nbsp; <span>👤 Khách:</span> ${r.customer||""} &nbsp;|&nbsp; <span>🔑 Mã KH:</span> ${r.cusCode||""}</div>
     <div><span>🏭 Kho:</span> ${r.factory||""} &nbsp;|&nbsp; <span>🚛 Xe:</span> ${r.vehicleNo||""} &nbsp;|&nbsp; <span>📏 KM:</span> ${r.km||"?"} km</div>
-    <div><span>📦 Container:</span> ${r.containerNo||"(chưa có)"} &nbsp;|&nbsp; <span>📍 Tuyến:</span> ${r.depot||""} → ${r.port||""}</div>`;
+    <div><span>📦 Container:</span> ${r.containerNo||"(chưa có)"} &nbsp;|&nbsp; <span>📍 Tuyến:</span> ${r.depot||""} → ${r.port||""}</div>
+    <div><span>💰 Đơn giá VC:</span> <strong style="color:#1d6ef5">${r.price?Number(r.price).toLocaleString("vi-VN")+"đ":""}</strong> &nbsp;|&nbsp; <span>🏷️ Loại DV:</span> <strong style="color:#7c3aed">${r.serviceType||""}</strong></div>`;
 
   // Điền form
   mTruckPrice.value = c.truckPrice!==undefined ? c.truckPrice : (r.price||0);
+  if(!c.service && r.serviceType) mService.value = r.serviceType;
   mService.value    = c.service||"";
   document.getElementById("mInvoiceNo").value = c.invoiceNo||"";
   mLift.value       = c.lift||0;
