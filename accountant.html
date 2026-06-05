@@ -456,7 +456,11 @@ function render(data){
       <td style="font-size:11px;font-weight:600;color:#7c3aed">${c.service||""}</td>
       <td>${r.depot||""}</td>
       <td>${r.port||""}</td>
-      <td class="num">${r.vcPrice?fmt(+r.vcPrice):""}</td>
+      <td class="num">${(()=>{
+        if(r.vcPrice) return fmt(+r.vcPrice);
+        const mp=getPriceFromMaster(r.customer,r.factory);
+        return mp?`<span style="color:#ea580c;font-size:10.5px">~${fmt(mp)}</span>`:"";
+      })()}</td>
       <td class="tl cost-cell" style="font-size:11px;font-weight:600;color:#0369a1">${c.invoiceNo||""}</td>
       <td class="num cost-cell">${hasCostData?fmt(c.lift):""}</td>
       <td class="num cost-cell">${hasCostData?fmt(c.dropFee):""}</td>
@@ -520,7 +524,7 @@ function openModal(trkId){
     <div><span>📅 Ngày:</span> ${r.planDate||""} &nbsp;|&nbsp; <span>👤 Khách:</span> ${r.customer||""} &nbsp;|&nbsp; <span>🔑 Mã KH:</span> ${r.cusCode||""}</div>
     <div><span>🏭 Kho:</span> ${r.factory||""} &nbsp;|&nbsp; <span>🚛 Xe:</span> ${r.vehicleNo||""} &nbsp;|&nbsp; <span>📏 KM:</span> ${r.km||"?"} km</div>
     <div><span>📦 Container:</span> ${r.containerNo||"(chưa có)"} &nbsp;|&nbsp; <span>📍 Tuyến:</span> ${r.depot||""} → ${r.port||""}</div>
-    <div><span>💰 Đơn giá VC:</span> <strong style="color:#1d6ef5">${r.vcPrice?fmt(+r.vcPrice)+"đ":"(chưa có)"}</strong> &nbsp;|&nbsp; <span>🏷️ Loại DV:</span> <strong style="color:#7c3aed">${r.serviceType||"--"}</strong></div>`;
+    <div><span>💰 Đơn giá VC:</span> <strong style="color:#1d6ef5">${r.vcPrice?fmt(+r.vcPrice)+"đ":(masterPrice?fmt(masterPrice)+"đ (master)":"(chưa có)")}</strong> &nbsp;|&nbsp; <span>🏷️ Loại DV:</span> <strong style="color:#7c3aed">${r.serviceType||"--"}</strong></div>`;
 
   // Điền form
   // Ưu tiên: đã lưu → vcPrice trucking → giá master
