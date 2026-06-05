@@ -374,8 +374,11 @@ function startApp(){
   });
 
   // Load trucking — chỉ lấy chuyến của lái xe này
-  db.collection(`trucking_plan_${APP_ID}`)
-    .where("driver","==",session.driverName)
+  // Query theo tên lái xe hoặc số xe
+  const truckQuery = session.truckNo
+    ? db.collection(`trucking_plan_${APP_ID}`).where("vehicleNo","==",session.truckNo)
+    : db.collection(`trucking_plan_${APP_ID}`).where("driver","==",session.driverName);
+  truckQuery
     .orderBy("planDate","desc")
     .onSnapshot(snap=>{
       trkStore = snap.docs.map(d=>({id:d.id,...d.data()}));
