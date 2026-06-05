@@ -89,11 +89,18 @@ tr:hover td{background:#e8eeff!important;}
 
 <div class="modal-bg" id="modalBg">
   <div class="modal">
-    <h4>🔑 Đổi mật khẩu</h4>
+    <h4>✏️ Sửa tài khoản</h4>
     <div id="modalUser" style="font-size:13px;margin-bottom:12px;color:#374151;font-weight:600"></div>
-    <label>Mật khẩu mới</label>
-    <input id="newPass" type="text" placeholder="Nhập mật khẩu mới">
-    <label>Nhập lại</label>
+    <label>Role</label>
+    <select id="newRole" style="width:100%;padding:7px 10px;margin-bottom:12px;border:1px solid var(--border);border-radius:5px;font-size:13px;font-family:inherit">
+      <option value="user">User</option>
+      <option value="driver">🚛 Lái xe</option>
+      <option value="viceadmin">Administrator</option>
+      <option value="admin">Admin</option>
+    </select>
+    <label>Mật khẩu mới <span style="color:#94a3b8;font-weight:400">(để trống nếu không đổi)</span></label>
+    <input id="newPass" type="text" placeholder="Nhập mật khẩu mới (tùy chọn)">
+    <label>Nhập lại mật khẩu</label>
     <input id="confirmPass" type="text" placeholder="Nhập lại mật khẩu mới">
     <div class="modal-actions">
       <button class="btn-gray" style="padding:6px 14px;font-size:13px" onclick="closeModal()">Hủy</button>
@@ -277,9 +284,10 @@ function togglePw(i){
 
 /* ── CHANGE PASS ── */
 function openChangePass(i){
-  if(_session.role==="viceadmin" && _users[i].role==="admin"){showToast("Không có quyền đổi mật khẩu Admin!",true);return;}
+  if(_session.role==="viceadmin" && _users[i].role==="admin"){showToast("Không có quyền sửa Admin!",true);return;}
   changePassIdx=i;
   document.getElementById("modalUser").textContent=`👤 ${_users[i].username}`;
+  document.getElementById("newRole").value=_users[i].role||"user";
   document.getElementById("newPass").value="";
   document.getElementById("confirmPass").value="";
   document.getElementById("modalBg").classList.add("show");
@@ -288,11 +296,16 @@ function closeModal(){changePassIdx=null;document.getElementById("modalBg").clas
 function confirmChangePass(){
   const np=document.getElementById("newPass").value.trim();
   const cp=document.getElementById("confirmPass").value.trim();
-  if(!np){showToast("Nhập mật khẩu mới!",true);return;}
-  if(np.length<4){showToast("Mật khẩu phải từ 4 ký tự!",true);return;}
-  if(np!==cp){showToast("Mật khẩu nhập lại không khớp!",true);return;}
+  const newRole=document.getElementById("newRole").value;
+  // Validate pass chỉ khi có nhập
+  if(np){
+    if(np.length<4){showToast("Mật khẩu phải từ 4 ký tự!",true);return;}
+    if(np!==cp){showToast("Mật khẩu nhập lại không khớp!",true);return;}
+  }
+  if(!np && !newRole){showToast("Không có thay đổi gì!",true);return;}
   const users=[..._users];
-  users[changePassIdx].password=np;
+  if(np) users[changePassIdx].password=np;
+  users[changePassIdx].role=newRole;
   saveUsers(users);
   closeModal();
 }
