@@ -4,7 +4,7 @@
     "public": ".",
     "cleanUrls": false,
     "headers": [{
-      "start_url": "https://tienphatvt.web.app/driver.html",
+      "source": "**/*.html",
       "headers": [{"key": "Cache-Control", "value": "no-cache"}]
     }],
     "rewrites": [
