@@ -78,7 +78,7 @@ tr:hover td{background:#e8eeff!important;}
   <div class="tbl-wrap">
     <table>
       <thead><tr>
-        <th>#</th><th>Username</th><th>Role</th><th>Mật khẩu</th><th>Họ tên LX</th><th>Số xe</th>
+        <th>#</th><th>Username</th><th>Role</th><th>Họ tên LX</th><th>Số xe</th><th>Mật khẩu</th>
         <th>Trucking</th><th>Accountant</th><th>Performance</th><th>Overview</th><th>Master</th><th>Bảo dưỡng</th><th>Users</th>
         <th>Đổi pass</th><th>Xóa</th>
       </tr></thead>
@@ -92,12 +92,18 @@ tr:hover td{background:#e8eeff!important;}
     <h4>✏️ Sửa tài khoản</h4>
     <div id="modalUser" style="font-size:13px;margin-bottom:12px;color:#374151;font-weight:600"></div>
     <label>Role</label>
-    <select id="newRole" style="width:100%;padding:7px 10px;margin-bottom:12px;border:1px solid var(--border);border-radius:5px;font-size:13px;font-family:inherit">
+    <select id="newRole" style="width:100%;padding:7px 10px;margin-bottom:12px;border:1px solid var(--border);border-radius:5px;font-size:13px;font-family:inherit" onchange="toggleDriverFields()">
       <option value="user">User</option>
       <option value="driver">🚛 Lái xe</option>
       <option value="viceadmin">Administrator</option>
       <option value="admin">Admin</option>
     </select>
+    <div id="driverFields" style="display:none">
+      <label>Họ tên lái xe</label>
+      <input id="editDriverName" type="text" placeholder="VD: Trần Ngọc Thọ" style="width:100%;padding:7px 10px;margin-bottom:12px;border:1px solid var(--border);border-radius:5px;font-size:13px;font-family:inherit">
+      <label>Số xe</label>
+      <input id="editTruckNo" type="text" placeholder="VD: 51C67245" style="width:100%;padding:7px 10px;margin-bottom:12px;border:1px solid var(--border);border-radius:5px;font-size:13px;font-family:inherit">
+    </div>
     <label>Mật khẩu mới <span style="color:#94a3b8;font-weight:400">(để trống nếu không đổi)</span></label>
     <input id="newPass" type="text" placeholder="Nhập mật khẩu mới (tùy chọn)">
     <label>Nhập lại mật khẩu</label>
@@ -283,11 +289,18 @@ function togglePw(i){
 }
 
 /* ── CHANGE PASS ── */
+function toggleDriverFields(){
+  const role=document.getElementById("newRole").value;
+  document.getElementById("driverFields").style.display=role==="driver"?"block":"none";
+}
 function openChangePass(i){
   if(_session.role==="viceadmin" && _users[i].role==="admin"){showToast("Không có quyền sửa Admin!",true);return;}
   changePassIdx=i;
   document.getElementById("modalUser").textContent=`👤 ${_users[i].username}`;
   document.getElementById("newRole").value=_users[i].role||"user";
+  document.getElementById("editDriverName").value=_users[i].driverName||"";
+  document.getElementById("editTruckNo").value=_users[i].truckNo||"";
+  toggleDriverFields();
   document.getElementById("newPass").value="";
   document.getElementById("confirmPass").value="";
   document.getElementById("modalBg").classList.add("show");
@@ -306,6 +319,10 @@ function confirmChangePass(){
   const users=[..._users];
   if(np) users[changePassIdx].password=np;
   users[changePassIdx].role=newRole;
+  if(newRole==="driver"){
+    users[changePassIdx].driverName=document.getElementById("editDriverName").value.trim();
+    users[changePassIdx].truckNo=document.getElementById("editTruckNo").value.trim();
+  }
   saveUsers(users);
   closeModal();
 }
