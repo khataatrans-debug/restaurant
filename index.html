@@ -224,33 +224,35 @@ tr:hover td{background:#e8eeff!important;}
 <div class="form-card">
   <div class="form-inner">
 
-    <!-- DÒNG 1: Thông tin chuyến + Tuyến đường -->
+    <!-- DÒNG 1 -->
     <div class="row row-r1">
-      <div class="field field-sm"><span class="lbl">Ngày KH</span><input id="planDate" type="date"></div>
-      <div class="field field-sm"><span class="lbl">Cut-off</span><input id="cutoff" type="date"></div>
-      <div class="field"><span class="lbl">Khách hàng</span><select id="customer"></select></div>
-      <div class="field"><span class="lbl">Nơi lấy</span><select id="depot"></select></div>
-      <div class="field"><span class="lbl">Nơi hạ</span><select id="port"></select></div>
-      <div class="field field-sm"><span class="lbl">Mã KH</span><input id="cusCode" readonly></div>
-      <div class="field field-sm"><span class="lbl">Booking</span><input id="booking" placeholder="Số booking..."></div>
-      <div class="field"><span class="lbl">Carrier</span><select id="carrier"></select></div>
-      <div class="field"><span class="lbl">Kho / Nhà máy</span><select id="factory"><option value="">-- Chọn kho --</option></select></div>
-      <div class="field field-sm"><span class="lbl">Loại DV</span><select id="serviceType"><option value="">-- Chọn --</option><option value="Import">Import</option><option value="Export">Export</option><option value="CK">CK</option></select></div>
+      <div class="field f-sm"><span class="lbl">Ngày KH</span><input id="planDate" type="date"></div>
+      <div class="field f-sm"><span class="lbl">Cut-off</span><input id="cutoff" type="date"></div>
+      <div class="field f-lg"><span class="lbl">Khách hàng</span><select id="customer"></select></div>
+      <div class="field f-md"><span class="lbl">Nơi lấy</span><select id="depot"></select></div>
+      <div class="field f-md"><span class="lbl">Nơi hạ</span><select id="port"></select></div>
+      <div class="field f-sm"><span class="lbl">Mã KH</span><input id="cusCode" readonly></div>
+      <div class="field f-sm"><span class="lbl">Booking</span><input id="booking" placeholder="Số booking..."></div>
+      <div class="field f-md"><span class="lbl">Carrier</span><select id="carrier"></select></div>
     </div>
-
-    <!-- DÒNG 2: Phương tiện + Số liệu + Ghi chú -->
-    <div class="row row-r2" style="border-top:2px solid #e2e8f0;padding-top:8px">
-      <div class="field"><span class="lbl">Số xe</span><select id="vehicleNo"></select></div>
-      <div class="field"><span class="lbl">Mooc</span><select id="mooc"></select></div>
-      <div class="field"><span class="lbl">Lái xe</span><input id="driver" readonly></div>
-      <div class="field field-sm"><span class="lbl">KM</span><input id="km" readonly></div>
-      <div class="field field-sm"><span class="lbl">Số Seal</span><input id="price" placeholder="VD: Seal1234"></div>
-      <div class="field field-sm"><span class="lbl">Trọng lượng (tấn)</span><input id="wage" type="number" step="0.1" min="0" placeholder="VD: 25"></div>
-      <div class="field field-sm"><span class="lbl">Số lượng</span><input id="qty" type="number" min="1" value="1"></div>
-      <div class="field field-sm"><span class="lbl">Số Container</span><input id="containerNo" placeholder="XXXX0000000"></div>
-      <div class="field field-sm"><span class="lbl">NL ước tính (lít)</span><input id="fuelEst" readonly></div>
-      <div class="field"><span class="lbl">Ghi chú</span><input id="note" placeholder="Ghi chú thêm..."></div>
-      <div class="field"><span class="lbl">File</span><input id="attachFile" type="file"></div>
+    <!-- DÒNG 2 -->
+    <div class="row row-r2">
+      <div class="field f-md"><span class="lbl">Kho / Nhà máy</span><select id="factory"><option value="">-- Chọn kho --</option></select></div>
+      <div class="field f-sm"><span class="lbl">Loại DV</span><select id="serviceType"><option value="">-- Chọn --</option><option value="Import">Import</option><option value="Export">Export</option><option value="CK">CK</option></select></div>
+      <div class="field f-md"><span class="lbl">Số xe</span><select id="vehicleNo"></select></div>
+      <div class="field f-md"><span class="lbl">Mooc</span><select id="mooc"></select></div>
+      <div class="field f-md"><span class="lbl">Lái xe</span><input id="driver" readonly></div>
+      <div class="field f-xs"><span class="lbl">KM</span><input id="km" readonly></div>
+      <div class="field f-xs"><span class="lbl">NL (lít)</span><input id="fuelEst" readonly></div>
+    </div>
+    <!-- DÒNG 3 -->
+    <div class="row row-r3">
+      <div class="field f-sm"><span class="lbl">Số Seal</span><input id="price" type="text" placeholder="VD: Seal1234"></div>
+      <div class="field f-xs"><span class="lbl">Trọng lượng (tấn)</span><input id="wage" type="text" placeholder="VD: 25.5"></div>
+      <div class="field f-xs"><span class="lbl">Số lượng</span><input id="qty" type="number" min="1" placeholder="1"></div>
+      <div class="field f-sm"><span class="lbl">Số Container</span><input id="containerNo" placeholder="XXXX0000000"></div>
+      <div class="field f-lg"><span class="lbl">Ghi chú</span><input id="note" placeholder="Ghi chú thêm..."></div>
+      <div class="field f-md"><span class="lbl">File đính kèm</span><input id="attachFile" type="file"></div>
     </div>
 
   </div>
@@ -421,11 +423,11 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
   elFactory.onchange = function () {
     const o = this.selectedOptions[0];
     if (!o || !o.dataset.km) {
-      elKm.value = ""; elPrice.value = ""; elWage.value = ""; elFuelEst.value = ""; return;
+      elKm.value = ""; elFuelEst.value = ""; return;
     }
     elKm.value    = o.dataset.km;
-    elPrice.value = o.dataset.price || "";
-    elWage.value  = o.dataset.wage  || "";
+    // price (seal) nhập tay - không auto fill
+    // wage (ton) nhập tay - không auto fill
     // Tính nhiên liệu ước tính = km × định mức xe / 100
     calcFuel();
   };
@@ -530,12 +532,12 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
       if (editId) {
         const existing = store.find(x => x.id === editId) || {};
         const updated = { ...existing,
-          planDate:elPlanDate.value, cutoff:elCutoff.value, returnDate:"", serviceType:document.getElementById("serviceType")?.value||"",
+          planDate:elPlanDate.value, cutoff:elCutoff.value, returnDate:"",
           customer:(elCustomer.value||"").trim(), cusCode:elCusCode.value,
           depot:elDepot.value, port:elPort.value,
           booking:elBooking.value, carrier:elCarrier.value, factory:elFactory.value, km:elKm.value,
           vehicleNo:elVehicleNo.value, mooc:elMooc.value, driver:elDriver.value,
-          price:elPrice.value, wage:elWage.value, fuelEst:elFuelEst.value,
+          price:(elPrice.value||'').trim(), wage:(elWage.value||'').trim(), serviceType:document.getElementById('serviceType')?.value||'', fuelEst:elFuelEst.value,
           containerNo:elContainerNo.value, note:elNote.value,
           attachName: attachName || existing.attachName || "",
           attachData: attachData || existing.attachData || ""
@@ -545,12 +547,12 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
         const qty = Math.max(1, Number(elQty.value||1));
         for (let i = 0; i < qty; i++) {
           const rec = { id: Date.now()+"_"+i,
-            planDate:elPlanDate.value, cutoff:elCutoff.value, returnDate:"", serviceType:document.getElementById("serviceType")?.value||"",
+            planDate:elPlanDate.value, cutoff:elCutoff.value, returnDate:"",
             customer:(elCustomer.value||"").trim(), cusCode:elCusCode.value,
             depot:elDepot.value, port:elPort.value,
             booking:elBooking.value, carrier:elCarrier.value, factory:elFactory.value, km:elKm.value,
             vehicleNo:elVehicleNo.value, mooc:elMooc.value, driver:elDriver.value,
-            price:elPrice.value, wage:elWage.value, fuelEst:elFuelEst.value,
+            price:(elPrice.value||'').trim(), wage:(elWage.value||'').trim(), serviceType:document.getElementById('serviceType')?.value||'', fuelEst:elFuelEst.value,
             containerNo:elContainerNo.value, note:elNote.value,
             attachName, attachData
           };
@@ -585,7 +587,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
         if (o.value.trim() === ft) elFactory.value = o.value;
       });
       elFactory.dispatchEvent(new Event("change"));
-      elKm.value = r.km || ""; elPrice.value = r.price || "";
+      elKm.value = r.km || ""; elPrice.value = r.price || ""; const stEl=document.getElementById('serviceType'); if(stEl) stEl.value=r.serviceType||'';
     }, 0);
     elCusCode.value   = r.cusCode   || "";
     elVehicleNo.value = r.vehicleNo || "";
