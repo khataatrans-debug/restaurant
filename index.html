@@ -275,7 +275,7 @@ tr:hover td{background:#e8eeff!important;}
       <tr>
         <th>#</th><th>Ngày KH</th><th>Khách hàng</th><th>Mã KH</th>
         <th>Kho / Nhà máy</th><th>KM</th><th>Booking / Bill</th><th>Nơi lấy</th><th>Nơi hạ</th><th>Số xe</th><th>Mooc</th>
-        <th>Lái xe</th><th>Loại DV</th><th>SL</th><th>Số Seal</th><th>Trọng lượng</th><th>NL (lít)</th><th>Container</th>
+        <th>Lái xe</th><th>SL</th><th>Loại DV</th><th>Số Seal</th><th>Trọng lượng</th><th>NL (lít)</th><th>Container</th>
         <th>Trạng thái</th><th>Ghi chú</th><th>File</th><th>Sửa</th><th>Xóa</th></tr></thead>
     <tbody id="tbody"></tbody>
   </table>
@@ -691,7 +691,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
         <td>${r.vehicleNo||""}</td>
         <td>${r.mooc||""}</td>
         <td class="tl">${r.driver||""}</td>
-        <td>1</td>
+        <td>${r.qty||1}</td>
         <td style="font-size:11px;font-weight:600;color:#7c3aed">${r.serviceType||""}</td>
         <td style="font-weight:600">${r.price||""}</td>
         <td style="color:#0d9f6e;font-weight:600">${r.wage||""}</td>
