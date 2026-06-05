@@ -373,15 +373,17 @@ function startApp(){
     masterData = snap.exists() ? snap.val() : {};
   });
 
-  // Load trucking — chỉ lấy chuyến của lái xe này
-  // Query theo tên lái xe hoặc số xe
-  const truckQuery = session.truckNo
-    ? db.collection(`trucking_plan_${APP_ID}`).where("vehicleNo","==",session.truckNo)
-    : db.collection(`trucking_plan_${APP_ID}`).where("driver","==",session.driverName);
-  truckQuery
-    .orderBy("planDate","desc")
+  // Load trucking — load toàn bộ rồi filter client-side (tránh lỗi compound index)
+  db.collection(`trucking_plan_${APP_ID}`)
     .onSnapshot(snap=>{
-      trkStore = snap.docs.map(d=>({id:d.id,...d.data()}));
+      const all = snap.docs.map(d=>({id:d.id,...d.data()}));
+      // Filter theo vehicleNo hoặc driver, sort planDate desc
+      trkStore = all
+        .filter(r=> session.truckNo
+          ? (r.vehicleNo||"").trim() === session.truckNo.trim()
+          : (r.driver||"").trim() === session.driverName.trim()
+        )
+        .sort((a,b)=>(b.planDate||"").localeCompare(a.planDate||""));
       renderOrders();
       renderCostList();
       renderWage();
@@ -395,12 +397,13 @@ function startApp(){
     renderWage();
   });
 
-  // Load advance
+  // Load advance — load toàn bộ rồi filter client-side (tránh lỗi compound index)
   db.collection(`advances_${APP_ID}`)
-    .where("driver","==",session.driverName)
-    .orderBy("createdAt","desc")
     .onSnapshot(snap=>{
-      advanceStore = snap.docs.map(d=>({id:d.id,...d.data()}));
+      advanceStore = snap.docs
+        .map(d=>({id:d.id,...d.data()}))
+        .filter(a=>(a.driver||"").trim() === session.driverName.trim())
+        .sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));
       renderAdvance();
     });
 
