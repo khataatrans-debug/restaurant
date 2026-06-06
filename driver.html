@@ -302,7 +302,8 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
 <div class="modal-bg" id="modalCost">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
-    <div class="modal-title">💰 Nhập chi phí chuyến</div>
+    <div class="modal-title" id="modalCostTitle">💰 Nhập chi phí chuyến</div>
+    <div id="modalCostStatus" style="margin-bottom:8px;"></div>
     <div id="modalCostInfo" style="margin-bottom:12px;font-size:12px;color:var(--muted);line-height:1.7;"></div>
     <div id="fuelBannerDriver" class="auto-banner" style="display:none"></div>
 
@@ -691,21 +692,36 @@ function renderCostList(){
   let rows = trkStore.filter(r=>r.planDate&&r.planDate.startsWith(month));
   if(filter==="no") rows=rows.filter(r=>!costStore[r.id]);
   if(filter==="yes") rows=rows.filter(r=>!!costStore[r.id]);
+  if(filter==="rejected") rows=rows.filter(r=>costStore[r.id]&&costStore[r.id].driverCostStatus==="rejected");
   const el=document.getElementById("costList");
   if(!rows.length){el.innerHTML='<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">'+(filter==="no"?"Đã nhập hết chi phí!":"Không có dữ liệu")+'</div></div>';return;}
   el.innerHTML=rows.map(r=>{
     const c=costStore[r.id]||{};
     const hasCost=!!costStore[r.id];
-    return `<div class="order-card" data-id="${r.id}">
-      <div class="status-dot ${hasCost?"dot-confirmed":"dot-new"}"></div>
+    // Xác định trạng thái
+    const isRejected = c.driverCostStatus==="rejected";
+    const isVerified = c.accountantVerified;
+    let cardBorder = "1px solid var(--border)";
+    let statusTag = "";
+    if(isRejected){
+      cardBorder="2px solid #ef4444";
+      statusTag=`<span class="tag tag-red">❌ Từ chối: ${c.driverCostRejectReason||""}</span>`;
+    } else if(isVerified){
+      cardBorder="2px solid #22c55e";
+      statusTag=`<span class="tag tag-green">✅ KT đã xác nhận</span>`;
+    } else if(hasCost){
+      cardBorder="2px solid #f59e0b";
+      statusTag=`<span class="tag tag-amber">⏳ Chờ KT kiểm tra — ${fmt(c.cost)}đ</span>`;
+    } else {
+      statusTag=`<span class="tag" style="background:#f1f5f9;color:#64748b">📝 Chưa nhập CP</span>`;
+    }
+    return `<div class="order-card" data-id="${r.id}" style="border:${cardBorder}">
       <div class="order-date">${r.planDate||""}</div>
       <div class="order-customer">${r.customer||""}</div>
       <div class="order-route">🏭 ${r.factory||""} &nbsp;|&nbsp; 📏 ${r.km||0} km</div>
       <div class="order-tags">
         ${r.vehicleNo?`<span class="tag tag-blue">🚛 ${r.vehicleNo}</span>`:""}
-        ${c.driverCostStatus==="rejected"?
-          `<span class="tag tag-red">❌ Bị từ chối: ${c.driverCostRejectReason||""}</span>`:
-          hasCost?`<span class="tag tag-green">✅ Đã nhập: ${fmt(c.cost)}đ</span>`:`<span class="tag tag-amber">⏳ Chưa nhập CP</span>`}
+        ${statusTag}
       </div>
     </div>`;
   }).join("");
@@ -764,6 +780,21 @@ function openCostModal(trkId){
   document.getElementById("dOther").value   = c.other||0;
   document.getElementById("dNote").value    = c.note||"";
   calcDriverCost();
+  // Cập nhật tiêu đề và trạng thái
+  const isRejected2 = c.driverCostStatus==="rejected";
+  const isVerified2 = c.accountantVerified;
+  const hasCostNow = !!costStore[trkId];
+  document.getElementById("modalCostTitle").textContent = hasCostNow ? "✏️ Xem & Sửa chi phí" : "💰 Nhập chi phí chuyến";
+  const statusEl = document.getElementById("modalCostStatus");
+  if(isRejected2){
+    statusEl.innerHTML=`<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 12px;font-size:12px;color:#b91c1c;font-weight:600">❌ Kế toán từ chối: ${c.driverCostRejectReason||""}</div>`;
+  } else if(isVerified2){
+    statusEl.innerHTML=`<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:8px 12px;font-size:12px;color:#166534;font-weight:600">✅ Kế toán đã xác nhận chi phí này</div>`;
+  } else if(hasCostNow){
+    statusEl.innerHTML=`<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:8px 12px;font-size:12px;color:#92400e;font-weight:600">⏳ Đang chờ kế toán kiểm tra</div>`;
+  } else {
+    statusEl.innerHTML="";
+  }
   document.getElementById("modalCost").classList.add("show");
 }
 

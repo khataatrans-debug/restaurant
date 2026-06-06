@@ -490,12 +490,16 @@ function render(data){
         if(!tu&&!den)return"";
         return"Cước vận chuyển Container từ "+tu+" đến "+den+(bks?", BKS: "+bks:"");
       })()}</td>
-      <td class="cost-cell sticky-col" style="min-width:90px">
-        <button class="btn btn-cost btn-sm" onclick="openModal('${r.id}')" style="display:block;width:100%;margin-bottom:4px">
-          ${hasCostData?"✏️ Sửa CP":"➕ Nhập CP"}
+      <td class="cost-cell sticky-col" style="min-width:100px">
+        <button class="btn btn-cost btn-sm" onclick="openModal('${r.id}')" style="display:block;width:100%;margin-bottom:3px">
+          ${hasCostData?"✏️ Kiểm tra CP":"➕ Nhập CP"}
         </button>
-        ${(costStore[r.id]&&costStore[r.id].updatedByDriver&&costStore[r.id].driverCostStatus!=="rejected")?
-          "<button onclick=\"rejectDriverCost(\'"+r.id+"\',\'"+r.driver+"\')\" style=\"display:block;width:100%;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:4px;padding:3px 0;font-size:11px;font-weight:600;cursor:pointer;\">❌ Từ chối LX</button>":""}
+        ${(hasCostData&&!costStore[r.id].accountantVerified&&costStore[r.id].driverCostStatus!=="rejected")?
+          "<button onclick=\"verifyDriverCost(\'"+r.id+"\')\" style=\"display:block;width:100%;background:#f0fdf4;color:#166534;border:1px solid #86efac;border-radius:4px;padding:3px 0;font-size:11px;font-weight:600;cursor:pointer;margin-bottom:3px;\">✅ Xác nhận</button>":""}
+        ${(hasCostData&&!costStore[r.id].accountantVerified&&costStore[r.id].driverCostStatus!=="rejected")?
+          "<button onclick=\"rejectDriverCost(\'"+r.id+"\',\'"+r.driver+"\')\" style=\"display:block;width:100%;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:4px;padding:3px 0;font-size:11px;font-weight:600;cursor:pointer;\">❌ Từ chối</button>":""}
+        ${costStore[r.id]&&costStore[r.id].accountantVerified?
+          "<span style=\"font-size:10px;color:#166534;display:block;text-align:center;font-weight:600\">✅ Đã xác nhận</span>":""}
         ${costStore[r.id]&&costStore[r.id].driverCostStatus==="rejected"?
           "<span style=\"font-size:10px;color:#b91c1c;display:block;text-align:center\">⏳ LX đang sửa</span>":""}
       </td>`;
@@ -701,6 +705,19 @@ window.exportExcel=function(){
   document.body.appendChild(a);a.click();document.body.removeChild(a);
   showToast("✅ Đã xuất Excel");
 };
+
+/* ── XÁC NHẬN CHI PHÍ LÁI XE ── */
+async function verifyDriverCost(trkId){
+  if(!confirm("Xác nhận chi phí này là đúng?")) return;
+  try{
+    await db.collection(COL_COST).doc(trkId).update({
+      accountantVerified: true,
+      accountantVerifiedAt: new Date().toISOString(),
+      driverCostStatus: "verified"
+    });
+    showToast("✅ Đã xác nhận chi phí!");
+  }catch(e){showToast("Lỗi: "+e.message,true);}
+}
 
 /* ── TỪ CHỐI CHI PHÍ LÁI XE ── */
 async function rejectDriverCost(trkId, driverName){
