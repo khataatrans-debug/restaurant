@@ -228,6 +228,19 @@ tr:hover td{background:#e8eeff!important;}
       <button class="btn btn-gray" onclick="closeModal()">Hủy</button>
       <button class="btn btn-primary" onclick="saveCost()">💾 Lưu chi phí</button>
     </div>
+    <!-- KẾ TOÁN XÁC NHẬN / TỪ CHỐI -->
+    <div id="modalVerifySection" style="display:none;margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Kế toán kiểm tra</div>
+      <div id="modalVerifyStatus" style="margin-bottom:8px;font-size:12px;"></div>
+      <div id="modalVerifyBtns" style="display:flex;gap:8px;">
+        <button onclick="verifyDriverCost()" style="flex:1;height:36px;background:#f0fdf4;color:#166534;border:1.5px solid #86efac;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer">✅ Xác nhận đúng</button>
+        <button onclick="openRejectBox()" style="flex:1;height:36px;background:#fef2f2;color:#b91c1c;border:1.5px solid #fecaca;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer">❌ Từ chối</button>
+      </div>
+      <div id="rejectBox" style="display:none;margin-top:8px;">
+        <textarea id="rejectReason" placeholder="Nhập lý do từ chối để lái xe biết và sửa lại..." style="width:100%;height:70px;border:1.5px solid #fecaca;border-radius:6px;padding:8px;font-size:13px;font-family:inherit;resize:none;outline:none"></textarea>
+        <button onclick="rejectDriverCostModal()" style="width:100%;height:36px;margin-top:6px;background:#b91c1c;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer">📤 Gửi từ chối</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -490,18 +503,14 @@ function render(data){
         if(!tu&&!den)return"";
         return"Cước vận chuyển Container từ "+tu+" đến "+den+(bks?", BKS: "+bks:"");
       })()}</td>
-      <td class="cost-cell sticky-col" style="min-width:100px">
-        <button class="btn btn-cost btn-sm" onclick="openModal('${r.id}')" style="display:block;width:100%;margin-bottom:3px">
-          ${hasCostData?"✏️ Kiểm tra CP":"➕ Nhập CP"}
-        </button>
-        ${(hasCostData&&!costStore[r.id].accountantVerified&&costStore[r.id].driverCostStatus!=="rejected")?
-          "<button onclick=\"verifyDriverCost(\'"+r.id+"\')\" style=\"display:block;width:100%;background:#f0fdf4;color:#166534;border:1px solid #86efac;border-radius:4px;padding:3px 0;font-size:11px;font-weight:600;cursor:pointer;margin-bottom:3px;\">✅ Xác nhận</button>":""}
-        ${(hasCostData&&!costStore[r.id].accountantVerified&&costStore[r.id].driverCostStatus!=="rejected")?
-          "<button onclick=\"rejectDriverCost(\'"+r.id+"\',\'"+r.driver+"\')\" style=\"display:block;width:100%;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:4px;padding:3px 0;font-size:11px;font-weight:600;cursor:pointer;\">❌ Từ chối</button>":""}
-        ${costStore[r.id]&&costStore[r.id].accountantVerified?
-          "<span style=\"font-size:10px;color:#166534;display:block;text-align:center;font-weight:600\">✅ Đã xác nhận</span>":""}
-        ${costStore[r.id]&&costStore[r.id].driverCostStatus==="rejected"?
-          "<span style=\"font-size:10px;color:#b91c1c;display:block;text-align:center\">⏳ LX đang sửa</span>":""}
+      <td class="cost-cell sticky-col" style="min-width:90px">
+        ${(()=>{
+          const cv=costStore[r.id];
+          if(!cv) return `<button class="btn btn-cost btn-sm" onclick="openModal('${r.id}')" style="display:block;width:100%">➕ Nhập CP</button>`;
+          if(cv.accountantVerified) return `<button class="btn btn-cost btn-sm" onclick="openModal('${r.id}')" style="display:block;width:100%;background:#f0fdf4;color:#166534;border-color:#86efac">✅ Đã XN</button>`;
+          if(cv.driverCostStatus==="rejected") return `<button class="btn btn-cost btn-sm" onclick="openModal('${r.id}')" style="display:block;width:100%;background:#fef2f2;color:#b91c1c;border-color:#fecaca">❌ LX sửa lại</button>`;
+          return `<button class="btn btn-cost btn-sm" onclick="openModal('${r.id}')" style="display:block;width:100%;background:#fffbeb;color:#92400e;border-color:#fcd34d">⏳ KT chưa duyệt</button>`;
+        })()}
       </td>`;
     tbody.appendChild(tr);
   });
@@ -613,6 +622,29 @@ function openModal(trkId){
   }
 
   calcModal();
+  // Hiện section xác nhận nếu lái xe đã nhập CP
+  const cv2 = costStore[trkId]||{};
+  const verifySection = document.getElementById("modalVerifySection");
+  const verifyBtns = document.getElementById("modalVerifyBtns");
+  const verifyStatus = document.getElementById("modalVerifyStatus");
+  const rejectBox = document.getElementById("rejectBox");
+  if(cv2.updatedByDriver || cv2.cost){
+    verifySection.style.display="block";
+    rejectBox.style.display="none";
+    document.getElementById("rejectReason").value="";
+    if(cv2.accountantVerified){
+      verifyStatus.innerHTML=`<span style="color:#166534;font-weight:600">✅ Đã xác nhận lúc ${(cv2.accountantVerifiedAt||"").slice(0,16).replace("T"," ")}</span>`;
+      verifyBtns.style.display="none";
+    } else if(cv2.driverCostStatus==="rejected"){
+      verifyStatus.innerHTML=`<span style="color:#b91c1c;font-weight:600">❌ Đã từ chối — lý do: ${cv2.driverCostRejectReason||""}</span>`;
+      verifyBtns.style.display="flex";
+    } else {
+      verifyStatus.innerHTML=`<span style="color:#92400e">⏳ Lái xe đã nhập — chờ kế toán duyệt</span>`;
+      verifyBtns.style.display="flex";
+    }
+  } else {
+    verifySection.style.display="none";
+  }
   document.getElementById("modalBg").classList.add("show");
 }
 
@@ -707,7 +739,8 @@ window.exportExcel=function(){
 };
 
 /* ── XÁC NHẬN CHI PHÍ LÁI XE ── */
-async function verifyDriverCost(trkId){
+async function verifyDriverCost(){
+  const trkId = currentTrkId;
   if(!confirm("Xác nhận chi phí này là đúng?")) return;
   try{
     await db.collection(COL_COST).doc(trkId).update({
@@ -716,6 +749,27 @@ async function verifyDriverCost(trkId){
       driverCostStatus: "verified"
     });
     showToast("✅ Đã xác nhận chi phí!");
+    closeModal();
+  }catch(e){showToast("Lỗi: "+e.message,true);}
+}
+
+function openRejectBox(){
+  document.getElementById("rejectBox").style.display="block";
+  document.getElementById("rejectReason").focus();
+}
+
+async function rejectDriverCostModal(){
+  const trkId = currentTrkId;
+  const reason = document.getElementById("rejectReason").value.trim();
+  if(!reason){showToast("Nhập lý do từ chối!",true);return;}
+  try{
+    await db.collection(COL_COST).doc(trkId).update({
+      driverCostStatus:"rejected",
+      driverCostRejectReason:reason,
+      driverCostRejectedAt:new Date().toISOString()
+    });
+    showToast("❌ Đã từ chối chi phí!");
+    closeModal();
   }catch(e){showToast("Lỗi: "+e.message,true);}
 }
 
