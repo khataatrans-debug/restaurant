@@ -705,7 +705,7 @@ function renderCostList(){
     let statusTag = "";
     if(isRejected){
       cardBorder="2px solid #ef4444";
-      statusTag=`<span class="tag tag-red">❌ Từ chối: ${c.driverCostRejectReason||""}</span>`;
+      statusTag=`<span class="tag tag-red">🔄 KT yêu cầu kiểm tra lại: ${c.driverCostRejectReason||""}</span>`;
     } else if(isVerified){
       cardBorder="2px solid #22c55e";
       statusTag=`<span class="tag tag-green">✅ KT đã xác nhận</span>`;
