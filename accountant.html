@@ -499,7 +499,7 @@ function render(data){
           `<button class="btn-reject" onclick="rejectDriverCost('${r.id}','${(r.driver||"")}')">❌</button>`:""}
         ${costStore[r.id]?.driverCostStatus==="rejected"?
           `<span style="font-size:10px;color:#b91c1c;display:block">⏳ LX đang sửa</span>`:""}
-      </td>\`
+      </td>\`;
     tbody.appendChild(tr);
   });
 
