@@ -254,7 +254,9 @@ const ALL_NAV=[
       /* hiện tất cả 6 tab */
     }
     else{if(!(session.pages||[]).includes(item.page)) return;}
-    const a=document.createElement("a");a.href=item.page;a.textContent=item.label;
+    const a=document.createElement("a");
+    a.href=item.page+(location.search||"");
+    a.textContent=item.label;
     if(location.pathname.endsWith(item.page)) a.classList.add("active");
     nav.insertBefore(a,nr);
   });
@@ -492,6 +494,10 @@ function render(data){
         <button class="btn btn-cost btn-sm" onclick="openModal('${r.id}')">
           ${hasCostData?"✏️ Sửa CP":"➕ Nhập CP"}
         </button>
+        ${(costStore[r.id]&&costStore[r.id].updatedByDriver&&costStore[r.id].driverCostStatus!=="rejected")?
+          "<button class=\"btn-reject\" onclick=\"rejectDriverCost(\'"+r.id+"\',\'"+r.driver+"\')\" style=\"background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;margin-left:3px;\">❌</button>":""}
+        ${costStore[r.id]&&costStore[r.id].driverCostStatus==="rejected"?
+          "<span style=\"font-size:10px;color:#b91c1c;display:block\">⏳ LX đang sửa</span>":""}
       </td>`;
     tbody.appendChild(tr);
   });
@@ -695,6 +701,21 @@ window.exportExcel=function(){
   document.body.appendChild(a);a.click();document.body.removeChild(a);
   showToast("✅ Đã xuất Excel");
 };
+
+/* ── TỪ CHỐI CHI PHÍ LÁI XE ── */
+async function rejectDriverCost(trkId, driverName){
+  const reason = prompt("Lý do từ chối chi phí của lái xe "+driverName+":\n(Lái xe sẽ thấy thông báo này để sửa lại)");
+  if(reason===null) return;
+  if(!reason.trim()){alert("Vui lòng nhập lý do từ chối!");return;}
+  try{
+    await db.collection(COL_COST).doc(trkId).update({
+      driverCostStatus:"rejected",
+      driverCostRejectReason:reason.trim(),
+      driverCostRejectedAt:new Date().toISOString()
+    });
+    showToast("❌ Đã từ chối chi phí lái xe!");
+  }catch(e){showToast("Lỗi: "+e.message,true);}
+}
 </script>
 </body>
 </html>
