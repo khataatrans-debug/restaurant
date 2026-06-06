@@ -254,10 +254,7 @@ const ALL_NAV=[
       /* hiện tất cả 6 tab */
     }
     else{if(!(session.pages||[]).includes(item.page)) return;}
-    const a=document.createElement("a");
-    const appParam=location.search||"";
-    a.href=item.page+appParam;
-    a.textContent=item.label;
+    const a=document.createElement("a");a.href=item.page;a.textContent=item.label;
     if(location.pathname.endsWith(item.page)) a.classList.add("active");
     nav.insertBefore(a,nr);
   });
@@ -495,11 +492,7 @@ function render(data){
         <button class="btn btn-cost btn-sm" onclick="openModal('${r.id}')">
           ${hasCostData?"✏️ Sửa CP":"➕ Nhập CP"}
         </button>
-        ${(costStore[r.id]?.updatedByDriver&&costStore[r.id]?.driverCostStatus!=="rejected")?
-          `<button class="btn-reject" onclick="rejectDriverCost('${r.id}','${(r.driver||"")}')">❌</button>`:""}
-        ${costStore[r.id]?.driverCostStatus==="rejected"?
-          `<span style="font-size:10px;color:#b91c1c;display:block">⏳ LX đang sửa</span>`:""}
-      </td>\`;
+      </td>`;
     tbody.appendChild(tr);
   });
 
