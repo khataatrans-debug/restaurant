@@ -254,7 +254,10 @@ const ALL_NAV=[
       /* hiện tất cả 6 tab */
     }
     else{if(!(session.pages||[]).includes(item.page)) return;}
-    const a=document.createElement("a");a.href=item.page;a.textContent=item.label;
+    const a=document.createElement("a");
+    const appParam=location.search||"";
+    a.href=item.page+appParam;
+    a.textContent=item.label;
     if(location.pathname.endsWith(item.page)) a.classList.add("active");
     nav.insertBefore(a,nr);
   });
