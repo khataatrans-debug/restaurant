@@ -223,17 +223,22 @@ tr:hover td{background:#e8eeff!important;}
       <span style="font-size:12px;font-weight:600;color:var(--muted)">Lợi nhuận</span>
       <span id="mProfit" style="font-size:18px;font-weight:700;color:var(--green)">0</span>
     </div>
-    <div id="modalVerifyStatus" style="font-size:12px;margin-top:10px;"></div>
-    <div id="rejectBox" style="display:none;margin-top:8px;">
-      <textarea id="rejectReason" placeholder="Nhập lý do từ chối để lái xe biết và sửa lại..." style="width:100%;height:60px;border:1.5px solid #fecaca;border-radius:6px;padding:8px;font-size:13px;font-family:inherit;resize:none;outline:none"></textarea>
-    </div>
-    <div class="m-actions" style="margin-top:10px;">
+    <div class="m-actions">
+      <button class="btn btn-recalc" onclick="recalcFuel()">⛽ Tính lại NL</button>
       <button class="btn btn-gray" onclick="closeModal()">Hủy</button>
-      <button class="btn btn-primary" onclick="saveCost()">💾 Lưu</button>
-      <div id="modalVerifyBtns" style="display:none;display:flex;gap:6px;margin-left:auto">
-        <button id="btnVerify" onclick="verifyDriverCost()" style="height:34px;padding:0 12px;background:#f0fdf4;color:#166534;border:1.5px solid #86efac;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">✅ Xác nhận</button>
-        <button id="btnReject" onclick="openRejectBox()" style="height:34px;padding:0 12px;background:#fef2f2;color:#b91c1c;border:1.5px solid #fecaca;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">❌ Từ chối</button>
-        <button id="btnSendReject" onclick="rejectDriverCostModal()" style="display:none;height:34px;padding:0 12px;background:#b91c1c;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">📤 Gửi</button>
+      <button class="btn btn-primary" onclick="saveCost()">💾 Lưu chi phí</button>
+    </div>
+    <!-- KẾ TOÁN XÁC NHẬN / TỪ CHỐI -->
+    <div id="modalVerifySection" style="display:none;margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Kế toán kiểm tra</div>
+      <div id="modalVerifyStatus" style="margin-bottom:8px;font-size:12px;"></div>
+      <div id="modalVerifyBtns" style="display:flex;gap:8px;">
+        <button onclick="verifyDriverCost()" style="flex:1;height:36px;background:#f0fdf4;color:#166534;border:1.5px solid #86efac;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer">✅ Xác nhận đúng</button>
+        <button onclick="openRejectBox()" style="flex:1;height:36px;background:#fef2f2;color:#b91c1c;border:1.5px solid #fecaca;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer">❌ Từ chối</button>
+      </div>
+      <div id="rejectBox" style="display:none;margin-top:8px;">
+        <textarea id="rejectReason" placeholder="Nhập lý do từ chối để lái xe biết và sửa lại..." style="width:100%;height:70px;border:1.5px solid #fecaca;border-radius:6px;padding:8px;font-size:13px;font-family:inherit;resize:none;outline:none"></textarea>
+        <button onclick="rejectDriverCostModal()" style="width:100%;height:36px;margin-top:6px;background:#b91c1c;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer">📤 Gửi từ chối</button>
       </div>
     </div>
   </div>
@@ -503,7 +508,7 @@ function render(data){
           const cv=costStore[r.id];
           if(!cv) return `<button class="btn btn-cost btn-sm" onclick="openModal('${r.id}')" style="display:block;width:100%">➕ Nhập CP</button>`;
           if(cv.accountantVerified) return `<button class="btn btn-cost btn-sm" onclick="openModal('${r.id}')" style="display:block;width:100%;background:#f0fdf4;color:#166534;border-color:#86efac">✅ Đã XN</button>`;
-          if(cv.driverCostStatus==="rejected") return `<button class="btn btn-cost btn-sm" onclick="openModal('${r.id}')" style="display:block;width:100%;background:#fef2f2;color:#b91c1c;border-color:#fecaca">🔄 Kiểm tra lại</button>`;
+          if(cv.driverCostStatus==="rejected") return `<button class="btn btn-cost btn-sm" onclick="openModal('${r.id}')" style="display:block;width:100%;background:#fef2f2;color:#b91c1c;border-color:#fecaca">❌ LX sửa lại</button>`;
           return `<button class="btn btn-cost btn-sm" onclick="openModal('${r.id}')" style="display:block;width:100%;background:#fffbeb;color:#92400e;border-color:#fcd34d">⏳ KT chưa duyệt</button>`;
         })()}
       </td>`;
@@ -619,28 +624,26 @@ function openModal(trkId){
   calcModal();
   // Hiện section xác nhận nếu lái xe đã nhập CP
   const cv2 = costStore[trkId]||{};
+  const verifySection = document.getElementById("modalVerifySection");
   const verifyBtns = document.getElementById("modalVerifyBtns");
   const verifyStatus = document.getElementById("modalVerifyStatus");
   const rejectBox = document.getElementById("rejectBox");
-  const btnSendReject = document.getElementById("btnSendReject");
-  const btnReject = document.getElementById("btnReject");
-  rejectBox.style.display="none";
-  btnSendReject.style.display="none";
-  btnReject.style.display="";
-  document.getElementById("rejectReason").value="";
   if(costStore[currentTrkId]){
-    verifyBtns.style.display="flex";
+    verifySection.style.display="block";
+    rejectBox.style.display="none";
+    document.getElementById("rejectReason").value="";
     if(cv2.accountantVerified){
       verifyStatus.innerHTML=`<span style="color:#166534;font-weight:600">✅ Đã xác nhận lúc ${(cv2.accountantVerifiedAt||"").slice(0,16).replace("T"," ")}</span>`;
       verifyBtns.style.display="none";
     } else if(cv2.driverCostStatus==="rejected"){
       verifyStatus.innerHTML=`<span style="color:#b91c1c;font-weight:600">❌ Đã từ chối — lý do: ${cv2.driverCostRejectReason||""}</span>`;
+      verifyBtns.style.display="flex";
     } else {
       verifyStatus.innerHTML=`<span style="color:#92400e">⏳ Lái xe đã nhập — chờ kế toán duyệt</span>`;
+      verifyBtns.style.display="flex";
     }
   } else {
-    verifyBtns.style.display="none";
-    verifyStatus.innerHTML="";
+    verifySection.style.display="none";
   }
   document.getElementById("modalBg").classList.add("show");
 }
@@ -752,8 +755,6 @@ async function verifyDriverCost(){
 
 function openRejectBox(){
   document.getElementById("rejectBox").style.display="block";
-  document.getElementById("btnSendReject").style.display="";
-  document.getElementById("btnReject").style.display="none";
   document.getElementById("rejectReason").focus();
 }
 
