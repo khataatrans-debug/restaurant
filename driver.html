@@ -626,7 +626,7 @@ function renderOrders(){
   el.innerHTML = rows.map(r=>{
     const confirmed = r.driverConfirmed;
     const dotClass = confirmed?"dot-confirmed":"dot-new";
-    return `<div class="order-card" onclick="openOrderModal('${r.id}')">
+    return `<div class="order-card" data-id="${r.id}">
       <div class="status-dot ${dotClass}"></div>
       <div class="order-date">${r.planDate||""}</div>
       <div class="order-customer">${r.customer||""}</div>
@@ -639,6 +639,10 @@ function renderOrders(){
       </div>
     </div>`;
   }).join("");
+  // Gắn event sau khi render
+  el.querySelectorAll(".order-card").forEach(card=>{
+    card.addEventListener("click",()=>openOrderModal(card.dataset.id));
+  });
 }
 
 function openOrderModal(trkId){
@@ -692,7 +696,7 @@ function renderCostList(){
   el.innerHTML=rows.map(r=>{
     const c=costStore[r.id]||{};
     const hasCost=!!costStore[r.id];
-    return `<div class="order-card" onclick="openCostModal('${r.id}')">
+    return `<div class="order-card" data-id="${r.id}">
       <div class="status-dot ${hasCost?"dot-confirmed":"dot-new"}"></div>
       <div class="order-date">${r.planDate||""}</div>
       <div class="order-customer">${r.customer||""}</div>
@@ -705,6 +709,9 @@ function renderCostList(){
       </div>
     </div>`;
   }).join("");
+  el.querySelectorAll(".order-card").forEach(card=>{
+    card.addEventListener("click",()=>openCostModal(card.dataset.id));
+  });
 }
 
 function openCostModal(trkId){

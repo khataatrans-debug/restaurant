@@ -435,13 +435,13 @@ function render(data){
     const autoNL = calcAutoFuelCost(r.vehicleNo, r.km, r.planDate);
     const fuelDisplay = hasCostData
       ? fmt(c.fuel)
-      : (autoNL.hasData ? `<span style="color:#16a34a;font-size:10.5px">~${fmt(autoNL.cost)}</span>` : "");
+      : (autoNL.hasData ? `<span style="color:#16a34a;font-size:10.5px">${fmt(autoNL.cost)}</span>` : "");
 
     // ── Lương chuyến tự động từ master ──
     const masterWage = getWageFromMaster(r.customer, r.factory);
     const wageDisplay = (()=>{
       if(hasCostData && c.wage) return fmt(c.wage);           // đã nhập → hiển thị số đã lưu
-      if(masterWage) return `<span style="color:#ea580c;font-size:10.5px">~${fmt(masterWage)}</span>`; // chưa nhập → gợi ý từ master
+      if(masterWage) return `<span style="color:#ea580c;font-size:10.5px">${fmt(masterWage)}</span>`; // chưa nhập → gợi ý từ master
       return "";
     })();
 
@@ -463,7 +463,7 @@ function render(data){
       <td class="num">${(()=>{
         if(r.vcPrice) return fmt(+r.vcPrice);
         const mp=getPriceFromMaster(r.customer,r.factory);
-        return mp?`<span style="color:#ea580c;font-size:10.5px">~${fmt(mp)}</span>`:"";
+        return mp?`<span style="color:#ea580c;font-size:10.5px">${fmt(mp)}</span>`:"";
       })()}</td>
       <td class="tl cost-cell" style="font-size:11px;font-weight:600;color:#0369a1">${c.invoiceNo||""}</td>
       <td class="num cost-cell">${hasCostData?fmt(c.lift):""}</td>
@@ -490,14 +490,14 @@ function render(data){
         if(!tu&&!den)return"";
         return"Cước vận chuyển Container từ "+tu+" đến "+den+(bks?", BKS: "+bks:"");
       })()}</td>
-      <td class="cost-cell sticky-col">
-        <button class="btn btn-cost btn-sm" onclick="openModal('${r.id}')">
+      <td class="cost-cell sticky-col" style="min-width:90px">
+        <button class="btn btn-cost btn-sm" onclick="openModal('${r.id}')" style="display:block;width:100%;margin-bottom:4px">
           ${hasCostData?"✏️ Sửa CP":"➕ Nhập CP"}
         </button>
         ${(costStore[r.id]&&costStore[r.id].updatedByDriver&&costStore[r.id].driverCostStatus!=="rejected")?
-          "<button class=\"btn-reject\" onclick=\"rejectDriverCost(\'"+r.id+"\',\'"+r.driver+"\')\" style=\"background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;margin-left:3px;\">❌</button>":""}
+          "<button onclick=\"rejectDriverCost(\'"+r.id+"\',\'"+r.driver+"\')\" style=\"display:block;width:100%;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:4px;padding:3px 0;font-size:11px;font-weight:600;cursor:pointer;\">❌ Từ chối LX</button>":""}
         ${costStore[r.id]&&costStore[r.id].driverCostStatus==="rejected"?
-          "<span style=\"font-size:10px;color:#b91c1c;display:block\">⏳ LX đang sửa</span>":""}
+          "<span style=\"font-size:10px;color:#b91c1c;display:block;text-align:center\">⏳ LX đang sửa</span>":""}
       </td>`;
     tbody.appendChild(tr);
   });
