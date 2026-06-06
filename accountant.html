@@ -628,7 +628,7 @@ function openModal(trkId){
   const verifyBtns = document.getElementById("modalVerifyBtns");
   const verifyStatus = document.getElementById("modalVerifyStatus");
   const rejectBox = document.getElementById("rejectBox");
-  if(cv2.updatedByDriver || cv2.cost){
+  if(costStore[currentTrkId]){
     verifySection.style.display="block";
     rejectBox.style.display="none";
     document.getElementById("rejectReason").value="";
