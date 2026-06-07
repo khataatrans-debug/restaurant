@@ -138,8 +138,23 @@ tr:hover td{background:#e8eeff!important;}
 </script>
 
 <script src="app-config.js"></script>
+
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
+<script>
+if (!firebase.apps.length) {
+  firebase.initializeApp({
+    apiKey:"AIzaSyAPmHlNgx-w5KfK4LF490pvdYA_mGgcX_k",
+    authDomain:"transportation-6d6f5.firebaseapp.com",
+    databaseURL:"https://transportation-6d6f5-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId:"transportation-6d6f5",
+    storageBucket:"transportation-6d6f5.firebasestorage.app",
+    messagingSenderId:"1097685849973",
+    appId:"1:1097685849973:web:79ad636e3dfd0b12f7653c"
+  });
+}
+</script>
 
 <nav class="nav" id="mainNav">
   <div class="nav-right">
@@ -474,16 +489,6 @@ function buildVehicleDropdowns(){
   }
 }
 buildVehicleDropdowns();
-
-firebase.initializeApp({
-  apiKey:"AIzaSyAPmHlNgx-w5KfK4LF490pvdYA_mGgcX_k",
-  authDomain:"transportation-6d6f5.firebaseapp.com",
-  databaseURL:"https://transportation-6d6f5-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId:"transportation-6d6f5",
-  storageBucket:"transportation-6d6f5.firebasestorage.app",
-  messagingSenderId:"1097685849973",
-  appId:"1:1097685849973:web:79ad636e3dfd0b12f7653c"
-});
 
 window.autoFillDriver=function(){
   const truck=document.getElementById("fuelTruck").value;
