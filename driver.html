@@ -769,7 +769,7 @@ function renderCostList(){
   const month = document.getElementById("costMonth")?.value || thisMonth();
   const filter = document.getElementById("costFilter")?.value || "no";
   let rows = trkStore.filter(r=>r.planDate&&r.planDate.startsWith(month));
-  if(filter==="no") rows=rows.filter(r=>!costStore[r.id]);
+  if(filter==="no") rows=rows.filter(r=>!costStore[r.id] || costStore[r.id].driverCostStatus==="rejected");
   if(filter==="yes") rows=rows.filter(r=>!!costStore[r.id]);
   if(filter==="rejected") rows=rows.filter(r=>costStore[r.id]&&costStore[r.id].driverCostStatus==="rejected");
   const el=document.getElementById("costList");
@@ -794,25 +794,39 @@ function renderCostList(){
     } else {
       statusTag=`<span class="tag" style="background:#f1f5f9;color:#64748b">📝 Chưa nhập CP</span>`;
     }
-    return `<div class="order-card" data-id="${r.id}" style="border:${cardBorder}">
-      <div class="order-date">${r.planDate||""}</div>
-      <div class="order-customer">${r.customer||""}</div>
-      <div class="order-route">🏭 ${r.factory||""} &nbsp;|&nbsp; 📏 ${r.km||0} km</div>
-      <div class="order-tags">
-        ${r.vehicleNo?`<span class="tag tag-blue">🚛 ${r.vehicleNo}</span>`:""}
+    const km = parseFloat(r.km||0);
+    return `<div class="order-card-rich ${isRejected?"ocr-rejected":""}" onclick="openCostModal('${r.id}')" style="border:${cardBorder}">
+      ${isRejected?`<div class="ocr-rejected-banner">❌ Kế toán từ chối — ${c.driverCostRejectReason||"vui lòng kiểm tra lại"} — Nhấn để sửa</div>`:""}
+      <div class="ocr-header">
+        <div>
+          <div class="ocr-date">${r.planDate||""}</div>
+          <div class="ocr-customer">${r.customer||""}</div>
+        </div>
         ${statusTag}
       </div>
+      <div class="ocr-grid">
+        <div class="ocr-item"><span class="ocr-lbl">🏭 Kho</span><span class="ocr-val">${r.factory||"—"}</span></div>
+        <div class="ocr-item"><span class="ocr-lbl">🚛 Xe</span><span class="ocr-val">${r.vehicleNo||"—"}</span></div>
+        <div class="ocr-item"><span class="ocr-lbl">📦 Cont</span><span class="ocr-val">${r.containerNo||"(chưa có)"}</span></div>
+        <div class="ocr-item"><span class="ocr-lbl">📏 KM</span><span class="ocr-val">${km||"—"} km</span></div>
+        <div class="ocr-item ocr-full"><span class="ocr-lbl">📍 Tuyến</span><span class="ocr-val">${r.depot||""} → ${r.port||""}</span></div>
+        <div class="ocr-item"><span class="ocr-lbl">🏷️ Loại DV</span><span class="ocr-val">${r.serviceType||"—"}</span></div>
+      </div>
+      ${hasCost?`<div class="ocr-finance">
+        ${c.wage?`<div class="ocr-fin-item"><span class="ocr-lbl">💵 Lương</span><span class="ocr-fin-val" style="color:var(--green)">${fmt(c.wage)}đ</span></div>`:""}
+        ${c.fuel?`<div class="ocr-fin-item"><span class="ocr-lbl">⛽ Nhiên liệu</span><span class="ocr-fin-val">${fmt(c.fuel)}đ</span></div>`:""}
+        ${c.lift?`<div class="ocr-fin-item"><span class="ocr-lbl">🏗️ Phí nâng</span><span class="ocr-fin-val">${fmt(c.lift)}đ</span></div>`:""}
+        ${c.dropFee?`<div class="ocr-fin-item"><span class="ocr-lbl">⬇️ Phí hạ</span><span class="ocr-fin-val">${fmt(c.dropFee)}đ</span></div>`:""}
+        <div class="ocr-fin-item" style="border-top:1px solid var(--border);padding-top:5px;margin-top:3px">
+          <span class="ocr-lbl">🧾 Tổng CP</span>
+          <span class="ocr-fin-val" style="color:var(--red)">${fmt(c.cost)}đ</span>
+        </div>
+      </div>`:""}
     </div>`;
   }).join("");
-  el.querySelectorAll(".order-card").forEach(card=>{
-    card.addEventListener("click",()=>openCostModal(card.dataset.id));
-  });
 }
 
 function openCostModal(trkId){
-  // Đảm bảo đang ở tab Chi phí
-  const costTab = document.querySelector('.bnav-item[onclick*="cost"]');
-  if(costTab && !costTab.classList.contains('active')) switchPage('cost', costTab);
   currentTrkId=trkId;
   const r=trkStore.find(x=>x.id===trkId)||{};
   const c=costStore[trkId]||{};
