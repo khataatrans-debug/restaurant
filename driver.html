@@ -929,7 +929,9 @@ async function saveDriverCost(){
     truckPrice: c.truckPrice||r.vcPrice||truckPrice,
     revenue: (c.truckPrice||r.vcPrice||truckPrice)+lift+drop+deposit,
     updatedByDriver: true,
-    updatedAt: new Date().toISOString()
+    updatedAt: new Date().toISOString(),
+    driverCostStatus: "pending",
+    driverCostRejectReason: firebase.firestore.FieldValue.delete()
   };
 
   try{
