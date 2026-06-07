@@ -242,7 +242,7 @@ if (!firebase.apps.length) {
     <button class="btn btn-blue btn-sm"  onclick="doFuelSearch()">Lọc</button>
     <button class="btn btn-gray btn-sm"  onclick="clearFuelSearch()">Reset</button>
     <button class="btn btn-excel btn-sm" onclick="exportFuel()">↓ Excel</button>
-    <button class="btn btn-sm" onclick="toggleFuelReqPanel()" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;font-weight:600" id="btnToggleReq">📥 Đề xuất từ LX <span id="fuelReqBadge" style="background:#ef4444;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:3px;display:none">0</span></button>
+    <button class="btn btn-sm" onclick="openFuelReqList()" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;font-weight:600" id="btnToggleReq">📥 Đề xuất từ LX <span id="fuelReqBadge" style="background:#ef4444;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:3px;display:none">0</span></button>
     <div class="pill">
       <strong id="fuelCount">0</strong> lần đổ &nbsp;|&nbsp;
       🛢 <strong id="fuelSumLiters" style="color:var(--accent)">0</strong> L &nbsp;|&nbsp;
@@ -265,28 +265,7 @@ if (!firebase.apps.length) {
     </div>
   </div>
 
-  <!-- PANEL ĐỀ XUẤT TỪ LÁI XE (ẩn mặc định) -->
-  <div id="fuelReqPanel" style="display:none;border-top:2px solid #bfdbfe;margin-top:0;padding:14px 18px;background:#f8faff;">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-      <div style="font-size:13px;font-weight:700;color:var(--navy)">📥 Đề xuất cấp NL từ lái xe</div>
-      <select id="reqFuelStatusFilter" onchange="renderFuelRequests()" style="height:28px;font-size:12px;font-family:inherit;border:1px solid var(--border);border-radius:5px;padding:0 8px">
-        <option value="pending">⏳ Chờ tiếp nhận</option>
-        <option value="approved">✅ Đã duyệt</option>
-        <option value="rejected">❌ Từ chối</option>
-        <option value="">Tất cả</option>
-      </select>
-      <button onclick="renderFuelRequests()" style="height:28px;padding:0 10px;background:#fff;border:1px solid var(--border);border-radius:5px;font-size:12px;cursor:pointer">🔄 Làm mới</button>
-    </div>
-    <div class="tbl-wrap">
-      <table>
-        <thead><tr>
-          <th>#</th><th>Ngày</th><th>Lái xe</th><th>Số xe</th>
-          <th>Số lít đề xuất</th><th>Ghi chú</th><th>Trạng thái</th><th>Thao tác</th>
-        </tr></thead>
-        <tbody id="fuelReqBody"><tr><td colspan="8" style="text-align:center;padding:16px;color:#94a3b8">Nhấn Làm mới để tải</td></tr></tbody>
-      </table>
-    </div>
-  </div>
+
 </div>
 
 <!-- TAB: GIÁ NHIÊN LIỆU -->
@@ -375,6 +354,63 @@ if (!firebase.apps.length) {
   </div>
 </div>
 
+
+<!-- MODAL DANH SÁCH ĐỀ XUẤT NL -->
+<div class="modal-bg" id="modalFuelReqList">
+  <div class="modal-sheet" style="width:780px">
+    <div class="modal-header" style="display:flex;align-items:center;justify-content:space-between">
+      <div class="modal-title" style="margin-bottom:12px">📥 Đề xuất cấp nhiên liệu từ lái xe</div>
+      <select id="reqFuelStatusFilter" onchange="renderFuelRequests()" style="height:28px;font-size:12px;font-family:inherit;border:1px solid var(--border);border-radius:5px;padding:0 8px;margin-bottom:12px">
+        <option value="pending">⏳ Chờ tiếp nhận</option>
+        <option value="approved">✅ Đã duyệt</option>
+        <option value="rejected">❌ Từ chối</option>
+        <option value="">Tất cả</option>
+      </select>
+    </div>
+    <div class="modal-body" style="padding:0 0 0 0">
+      <div class="tbl-wrap" style="margin:0">
+        <table>
+          <thead><tr>
+            <th>#</th><th>Ngày</th><th>Lái xe</th><th>Số xe</th>
+            <th>Số lít đề xuất</th><th>Ghi chú</th><th>Trạng thái</th><th>Thao tác</th>
+          </tr></thead>
+          <tbody id="fuelReqBody"><tr><td colspan="8" style="text-align:center;padding:20px;color:#94a3b8">Đang tải...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="m-actions">
+      <button class="btn btn-gray" onclick="document.getElementById('modalFuelReqList').classList.remove('show')">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL TIẾP NHẬN ĐỀ XUẤT NL -->
+<div class="modal-bg" id="modalFuelReq">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <div class="modal-title">⛽ Tiếp nhận đề xuất cấp nhiên liệu</div>
+    </div>
+    <div class="modal-info" id="fuelReqInfo">—</div>
+    <div class="modal-body">
+      <div class="m-section">Thông tin cấp nhiên liệu</div>
+      <div class="m-grid">
+        <div class="m-field"><label>Số lít thực cấp (L)</label><input id="fuelReqLiter" type="number" placeholder="0"></div>
+        <div class="m-field"><label>Đơn giá (đ/lít)</label><input id="fuelReqPrice" type="number" placeholder="0"></div>
+        <div class="m-field full"><label>Trạm / Cây xăng</label><input id="fuelReqStation" placeholder="Tên trạm xăng, địa chỉ..."></div>
+        <div class="m-field full"><label>Ghi chú phản hồi</label><textarea id="fuelReqNote" placeholder="Ghi chú..."></textarea></div>
+      </div>
+      <div id="fuelReqRejectBox" style="display:none">
+        <div class="m-section" style="color:#b91c1c">Lý do từ chối</div>
+        <textarea id="fuelReqRejectReason" style="width:100%;height:60px;border:1.5px solid #fecaca;border-radius:6px;padding:8px;font-size:13px;font-family:inherit;resize:none;outline:none" placeholder="Nhập lý do từ chối để lái xe biết..."></textarea>
+      </div>
+    </div>
+    <div class="m-actions">
+      <button class="btn btn-gray" onclick="closeFuelReqModal()">Hủy</button>
+      <button style="padding:6px 14px;font-size:13px;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:5px;font-weight:600;cursor:pointer" onclick="showFuelRejectBox()">❌ Từ chối</button>
+      <button style="padding:6px 14px;font-size:13px;background:var(--green);color:#fff;border:none;border-radius:5px;font-weight:600;cursor:pointer" onclick="approveFuelReq()">✅ Duyệt & Tạo phiếu</button>
+    </div>
+  </div>
+</div>
 
 <div class="toast" id="toast"></div>
 
@@ -1052,12 +1088,9 @@ let _fuelReqCurrentId = null;
 let _fuelReqCurrentData = {};
 window._fuelReqStore = {};
 
-function toggleFuelReqPanel(){
-  const panel = document.getElementById("fuelReqPanel");
-  if(!panel) return;
-  const isHidden = panel.style.display==="none";
-  panel.style.display = isHidden ? "block" : "none";
-  if(isHidden) renderFuelRequests();
+function openFuelReqList(){
+  document.getElementById("modalFuelReqList").classList.add("show");
+  renderFuelRequests();
 }
 
 function checkFuelReqBadge(){
@@ -1148,6 +1181,7 @@ function openFuelReqModal(id){
     document.getElementById("fuelReqPrice").value = "";
   }
 
+  document.getElementById("modalFuelReqList").classList.remove("show");
   document.getElementById("modalFuelReq").classList.add("show");
 }
 
@@ -1176,6 +1210,7 @@ async function approveFuelReq(){
       });
       showToast("❌ Đã từ chối đề xuất!");
       closeFuelReqModal(); renderFuelRequests(); checkFuelReqBadge();
+      document.getElementById("modalFuelReqList").classList.add("show");
     }catch(e){showToast("Lỗi: "+e.message,true);}
     return;
   }
@@ -1218,11 +1253,15 @@ async function approveFuelReq(){
     renderFuelRequests();
     renderFuel();
     checkFuelReqBadge();
+    document.getElementById("modalFuelReqList").classList.add("show");
   }catch(e){showToast("Lỗi: "+e.message,true);}
 }
 
 document.getElementById("modalFuelReq").addEventListener("click",function(e){
   if(e.target===this) closeFuelReqModal();
+});
+document.getElementById("modalFuelReqList").addEventListener("click",function(e){
+  if(e.target===this) this.classList.remove("show");
 });
 
 // Badge khi load
