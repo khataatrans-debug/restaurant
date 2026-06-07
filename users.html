@@ -232,10 +232,19 @@ function render(){
 
 /* ── ADD USER — lưu password plain text ── */
 function toggleDriverFields(){
-  const r=document.getElementById("uRole").value;
-  const isDriver=r==="driver";
-  document.getElementById("uDriverName").style.display=isDriver?"":"none";
-  document.getElementById("uTruckNo").style.display=isDriver?"":"none";
+  // Form tạo mới
+  const uRole = document.getElementById("uRole");
+  if(uRole){
+    const isDriver = uRole.value === "driver";
+    document.getElementById("uDriverName").style.display = isDriver ? "" : "none";
+    document.getElementById("uTruckNo").style.display    = isDriver ? "" : "none";
+  }
+  // Modal sửa
+  const newRole = document.getElementById("newRole");
+  if(newRole){
+    const df = document.getElementById("driverFields");
+    if(df) df.style.display = newRole.value === "driver" ? "block" : "none";
+  }
 }
 
 function addUser(){
@@ -289,10 +298,7 @@ function togglePw(i){
 }
 
 /* ── CHANGE PASS ── */
-function toggleDriverFields(){
-  const role=document.getElementById("newRole").value;
-  document.getElementById("driverFields").style.display=role==="driver"?"block":"none";
-}
+
 function openChangePass(i){
   if(_session.role==="viceadmin" && _users[i].role==="admin"){showToast("Không có quyền sửa Admin!",true);return;}
   changePassIdx=i;
