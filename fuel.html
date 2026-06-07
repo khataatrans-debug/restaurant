@@ -341,7 +341,6 @@ if (!firebase.apps.length) {
           <th>Giá (đ/lít)</th>
           <th>Thay đổi so với trước</th>
           <th>Ghi chú</th>
-          <th>Trạng thái</th>
           <th>Cập nhật lúc</th>
           <th>Sửa</th><th>Xóa</th>
         </tr></thead>
@@ -464,11 +463,25 @@ async function pushDB(){
 
 /* ── TAB SWITCH ── */
 function openFuelTab(id, btn){
-  document.getElementById("tab-fuel").style.display = id==="fuel"?"block":"none";
-  document.getElementById("tab-fuelPrice").style.display = id==="fuelPrice"?"block":"none";
+  // Ẩn tất cả tab content
+  ["tab-fuel","tab-fuelPrice","tab-driverReq"].forEach(tid=>{
+    const el=document.getElementById(tid);
+    if(el) el.style.display="none";
+  });
+  // Hiện tab được chọn
+  const target=document.getElementById("tab-"+id);
+  if(target) target.style.display="block";
+  // Cập nhật active trên nav tab buttons
   document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
   if(btn) btn.classList.add("active");
+  else {
+    // Tìm button tương ứng theo onclick
+    document.querySelectorAll(".tab-btn").forEach(b=>{
+      if(b.getAttribute("onclick")&&b.getAttribute("onclick").includes("'"+id+"'")) b.classList.add("active");
+    });
+  }
   if(id==="fuelPrice") renderFuelPrice();
+  if(id==="driverReq"){ renderDReqRepair(); }
 }
 
 function buildVehicleDropdowns(){
@@ -899,7 +912,7 @@ function renderFuelPrice() {
   if (!tbody) return;
 
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="padding:28px;color:var(--muted);text-align:center">Chưa có giá nhiên liệu nào. Hãy thêm giá đầu tiên!</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="padding:28px;color:var(--muted);text-align:center">Chưa có giá nhiên liệu nào. Hãy thêm giá đầu tiên!</td></tr>';
     return;
   }
 
@@ -934,7 +947,6 @@ function renderFuelPrice() {
       <td class="num" style="color:${isLatest ? "var(--green)" : "var(--amber)"};font-weight:700;font-size:13px">${fmt(+f.price || 0)} đ/lít</td>
       <td>${diffCell}</td>
       <td class="tl" style="color:var(--muted)">${f.note || ""}</td>
-      <td>${statusBadge}</td>
       <td style="color:var(--muted);font-size:11px">${updStr}</td>
       <td><button class="btn-edit" onclick="editFuelPrice('${f._key}')">✏️ Sửa</button></td>
       <td><button class="btn-del"  onclick="deleteFuelPrice('${f._key}')">🗑️ Xóa</button></td>
@@ -948,6 +960,9 @@ function renderFuelPrice() {
   const el = document.getElementById("fpDate");
   if (el) el.value = td;
 })();
+
+// Mở tab mặc định khi load trang
+openFuelTab("fuel", document.getElementById("tabBtnFuel"));
 </script>
 
 <!-- ════════════════════════════════════════
@@ -1160,10 +1175,7 @@ async function submitDReq(){
 
 document.getElementById("modalDReq").addEventListener("click",function(e){if(e.target===this)closeDReqModal();});
 
-
-</script>
-
-// Init
+// Init dates
 (function(){
   const td = new Date().toISOString().slice(0,10);
   const el = document.getElementById("fuelDate"); if(el) el.value=td;
