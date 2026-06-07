@@ -242,6 +242,7 @@ if (!firebase.apps.length) {
     <button class="btn btn-blue btn-sm"  onclick="doFuelSearch()">Lọc</button>
     <button class="btn btn-gray btn-sm"  onclick="clearFuelSearch()">Reset</button>
     <button class="btn btn-excel btn-sm" onclick="exportFuel()">↓ Excel</button>
+    <button class="btn btn-sm" onclick="toggleFuelReqPanel()" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;font-weight:600" id="btnToggleReq">📥 Đề xuất từ LX <span id="fuelReqBadge" style="background:#ef4444;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:3px;display:none">0</span></button>
     <div class="pill">
       <strong id="fuelCount">0</strong> lần đổ &nbsp;|&nbsp;
       🛢 <strong id="fuelSumLiters" style="color:var(--accent)">0</strong> L &nbsp;|&nbsp;
@@ -264,24 +265,25 @@ if (!firebase.apps.length) {
     </div>
   </div>
 
-  <!-- SECTION: ĐỀ XUẤT TỪ LÁI XE -->
-  <div style="padding:14px 18px;border-top:2px solid var(--border);margin-top:8px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-      <div style="font-size:13px;font-weight:700;color:var(--navy)">📥 Đề xuất cấp nhiên liệu từ lái xe</div>
+  <!-- PANEL ĐỀ XUẤT TỪ LÁI XE (ẩn mặc định) -->
+  <div id="fuelReqPanel" style="display:none;border-top:2px solid #bfdbfe;margin-top:0;padding:14px 18px;background:#f8faff;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+      <div style="font-size:13px;font-weight:700;color:var(--navy)">📥 Đề xuất cấp NL từ lái xe</div>
       <select id="reqFuelStatusFilter" onchange="renderFuelRequests()" style="height:28px;font-size:12px;font-family:inherit;border:1px solid var(--border);border-radius:5px;padding:0 8px">
         <option value="pending">⏳ Chờ tiếp nhận</option>
         <option value="approved">✅ Đã duyệt</option>
         <option value="rejected">❌ Từ chối</option>
         <option value="">Tất cả</option>
       </select>
+      <button onclick="renderFuelRequests()" style="height:28px;padding:0 10px;background:#fff;border:1px solid var(--border);border-radius:5px;font-size:12px;cursor:pointer">🔄 Làm mới</button>
     </div>
     <div class="tbl-wrap">
       <table>
         <thead><tr>
           <th>#</th><th>Ngày</th><th>Lái xe</th><th>Số xe</th>
-          <th>Số lít đề xuất</th><th>Ghi chú</th><th>Trạng thái</th><th>Tiếp nhận</th>
+          <th>Số lít đề xuất</th><th>Ghi chú</th><th>Trạng thái</th><th>Thao tác</th>
         </tr></thead>
-        <tbody id="fuelReqBody"><tr><td colspan="8" style="text-align:center;padding:16px;color:#94a3b8">Đang tải...</td></tr></tbody>
+        <tbody id="fuelReqBody"><tr><td colspan="8" style="text-align:center;padding:16px;color:#94a3b8">Nhấn Làm mới để tải</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -373,31 +375,6 @@ if (!firebase.apps.length) {
   </div>
 </div>
 
-
-<!-- MODAL TIẾP NHẬN ĐỀ XUẤT NL -->
-<div class="modal-bg" id="modalFuelReq">
-  <div class="modal" style="width:420px;max-height:90vh;overflow-y:auto">
-    <h4 style="margin:0 0 12px;color:var(--navy);font-size:15px">⛽ Tiếp nhận đề xuất cấp NL</h4>
-    <div id="fuelReqInfo" style="background:#f8fafc;border-radius:6px;padding:10px 12px;font-size:12px;color:#475569;line-height:1.8;margin-bottom:14px;"></div>
-    <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">Số lít thực cấp (L)</label>
-    <input id="fuelReqLiter" type="number" style="width:100%;height:32px;border:1px solid var(--border);border-radius:5px;padding:0 10px;font-size:13px;font-family:inherit;margin-bottom:10px" placeholder="Nhập số lít thực cấp">
-    <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">Trạm / Cây xăng</label>
-    <input id="fuelReqStation" type="text" style="width:100%;height:32px;border:1px solid var(--border);border-radius:5px;padding:0 10px;font-size:13px;font-family:inherit;margin-bottom:10px" placeholder="Tên trạm xăng, địa chỉ...">
-    <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">Đơn giá (đ/lít)</label>
-    <input id="fuelReqPrice" type="number" style="width:100%;height:32px;border:1px solid var(--border);border-radius:5px;padding:0 10px;font-size:13px;font-family:inherit;margin-bottom:10px" placeholder="0">
-    <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">Ghi chú phản hồi</label>
-    <textarea id="fuelReqNote" style="width:100%;height:60px;border:1px solid var(--border);border-radius:5px;padding:8px;font-size:13px;font-family:inherit;resize:none;margin-bottom:4px" placeholder="Ghi chú..."></textarea>
-    <div id="fuelReqRejectBox" style="display:none;margin-bottom:10px;">
-      <label style="font-size:11px;font-weight:700;color:#b91c1c;display:block;margin-bottom:4px">Lý do từ chối (bắt buộc)</label>
-      <textarea id="fuelReqRejectReason" style="width:100%;height:60px;border:1.5px solid #fecaca;border-radius:5px;padding:8px;font-size:13px;font-family:inherit;resize:none" placeholder="Nhập lý do từ chối để lái xe biết..."></textarea>
-    </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
-      <button class="btn btn-gray" style="padding:6px 14px;font-size:13px" onclick="closeFuelReqModal()">Hủy</button>
-      <button style="padding:6px 14px;font-size:13px;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:5px;font-weight:600;cursor:pointer" onclick="showFuelRejectBox()">❌ Từ chối</button>
-      <button style="padding:6px 14px;font-size:13px;background:var(--green);color:#fff;border:none;border-radius:5px;font-weight:600;cursor:pointer" onclick="approveFuelReq()">✅ Duyệt & Tạo phiếu</button>
-    </div>
-  </div>
-</div>
 
 <div class="toast" id="toast"></div>
 
@@ -678,6 +655,7 @@ function renderFuel(){
       <td class="num">${r.kmPrev?fmt(r.kmPrev)+" km":""}</td>
       <td class="num">${r.consume?fmt(r.consume)+" km":""}</td>
       <td class="num" style="font-weight:700;color:${rateColor}">${r.rate?r.rate+" L/100km":""}</td>
+      <td style="text-align:center">${r.reqId?`<button class="btn-blue btn-sm" onclick="openFuelReqModal('${r.reqId}')" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer">📋 Xem YC</button>`:"—"}</td>
       <td class="tl">${r.note||""}</td>
       <td><button class="btn-edit" onclick="editFuel(${idxMap[i]})">✏️ Sửa</button></td>
       <td><button class="btn-del"  onclick="deleteFuel(${idxMap[i]})">🗑️ Xóa</button></td>
@@ -686,8 +664,29 @@ function renderFuel(){
   document.getElementById("fuelCount").textContent=rows.length;
   document.getElementById("fuelSumLiters").textContent=sumLiters.toLocaleString("vi-VN");
   document.getElementById("fuelSumTotal").textContent=fmt(sumTotal);
+  // Check badge đề xuất chờ
+  checkFuelReqBadge();
 }
 
+function checkFuelReqBadge(){
+  if(!firebase.firestore) return;
+  firebase.firestore().collection(`requests_fuel_${APP_ID}`)
+    .where("status","==","pending").get()
+    .then(snap=>{
+      const badge = document.getElementById("fuelReqBadge");
+      if(badge){
+        badge.style.display = snap.size>0?"inline":"none";
+        badge.textContent = snap.size;
+      }
+    }).catch(()=>{});
+}
+
+function toggleFuelReqPanel(){
+  const panel = document.getElementById("fuelReqPanel");
+  const isHidden = panel.style.display==="none";
+  panel.style.display = isHidden?"block":"none";
+  if(isHidden) renderFuelRequests();
+}
 window.doFuelSearch  =function(){renderFuel();};
 window.clearFuelSearch=function(){
   ["fFuelKw","fFuelFrom","fFuelTo"].forEach(id=>document.getElementById(id).value="");
@@ -1050,73 +1049,92 @@ openFuelTab("fuel", document.getElementById("tabBtnFuel"));
    ĐỀ XUẤT CẤP NHIÊN LIỆU TỪ LÁI XE
 ══════════════════════════════════════════ */
 let _fuelReqCurrentId = null;
-let _fuelReqCurrentData = null;
+let _fuelReqCurrentData = {};
+window._fuelReqStore = {};
 
-// Lắng nghe real-time đề xuất NL
-const db_fs = firebase.firestore ? firebase.firestore() : null;
+function toggleFuelReqPanel(){
+  const panel = document.getElementById("fuelReqPanel");
+  if(!panel) return;
+  const isHidden = panel.style.display==="none";
+  panel.style.display = isHidden ? "block" : "none";
+  if(isHidden) renderFuelRequests();
+}
 
-// Load Firestore nếu chưa có
-function getFuelRequests(filter, callback){
-  if(!window.firebase || !firebase.firestore) {
-    // Firestore chưa load - dùng fetch thay thế
-    callback([]);
-    return;
-  }
-  let q = firebase.firestore().collection(`requests_fuel_${APP_ID}`).orderBy("createdAt","desc");
-  if(filter) q = q.where("status","==",filter);
-  q.get().then(snap=>{
-    callback(snap.docs.map(d=>({id:d.id,...d.data()})));
-  }).catch(()=>callback([]));
+function checkFuelReqBadge(){
+  if(!window.firebase || !firebase.firestore) return;
+  firebase.firestore().collection(`requests_fuel_${APP_ID}`)
+    .where("status","==","pending").get()
+    .then(snap=>{
+      const badge = document.getElementById("fuelReqBadge");
+      if(badge){
+        badge.style.display = snap.size>0 ? "inline" : "none";
+        badge.textContent = snap.size;
+      }
+    }).catch(()=>{});
 }
 
 async function renderFuelRequests(){
-  const filter = document.getElementById("reqFuelStatusFilter")?.value || "pending";
   const tbody = document.getElementById("fuelReqBody");
   if(!tbody) return;
+  if(!window.firebase || !firebase.firestore){
+    tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:16px;color:#94a3b8">Firestore chưa sẵn sàng</td></tr>';
+    return;
+  }
   tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:12px;color:#94a3b8">Đang tải...</td></tr>';
 
+  const filter = document.getElementById("reqFuelStatusFilter")?.value || "pending";
   const statusMap = {
-    pending:'<span class="badge" style="background:#fffbeb;color:#92400e;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">⏳ Chờ</span>',
-    approved:'<span class="badge" style="background:#f0fdf4;color:#166534;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">✅ Đã duyệt</span>',
-    rejected:'<span class="badge" style="background:#fef2f2;color:#b91c1c;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">❌ Từ chối</span>'
+    pending:'<span style="background:#fffbeb;color:#92400e;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">⏳ Chờ</span>',
+    approved:'<span style="background:#f0fdf4;color:#166534;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">✅ Đã duyệt</span>',
+    rejected:'<span style="background:#fef2f2;color:#b91c1c;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">❌ Từ chối</span>'
   };
 
-  getFuelRequests(filter, rows=>{
-    if(!rows.length){
+  try{
+    let q = firebase.firestore().collection(`requests_fuel_${APP_ID}`).orderBy("createdAt","desc");
+    if(filter) q = firebase.firestore().collection(`requests_fuel_${APP_ID}`).where("status","==",filter).orderBy("createdAt","desc");
+    const snap = await q.get();
+
+    // Lưu vào store
+    window._fuelReqStore = {};
+    snap.docs.forEach(d=>{ window._fuelReqStore[d.id]={id:d.id,...d.data()}; });
+
+    if(snap.empty){
       tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:16px;color:#94a3b8">Không có đề xuất</td></tr>';
       return;
     }
-    tbody.innerHTML = rows.map((a,i)=>`<tr>
-      <td>${i+1}</td>
-      <td>${a.date||""}</td>
-      <td style="font-weight:600">${a.driver||""}</td>
-      <td style="font-family:monospace;font-weight:600">${a.truckNo||""}</td>
-      <td style="font-weight:700;color:var(--accent)">${a.liter||0} L</td>
-      <td class="tl" style="font-size:11px">${a.note||""}</td>
-      <td>${statusMap[a.status]||a.status} ${a.reason?`<br><span style="font-size:10px;color:#64748b">${a.reason}</span>`:""}</td>
-      <td>${a.status==="pending"
-        ?`<button class="btn btn-blue btn-sm" data-id="${a.id}" onclick="openFuelReqModal('${a.id}')">📥 Tiếp nhận</button>`
-        :`<span style="font-size:10px;color:#94a3b8">Đã xử lý</span>`}
-      </td>
-    </tr>`).join("");
-    // Lưu data để dùng trong modal
-    window._fuelReqStore = {};
-    rows.forEach(r=>window._fuelReqStore[r.id]=r);
-  });
+
+    tbody.innerHTML = snap.docs.map((d,i)=>{
+      const a = {id:d.id,...d.data()};
+      return `<tr>
+        <td>${i+1}</td>
+        <td>${a.date||""}</td>
+        <td style="font-weight:600">${a.driver||""}</td>
+        <td style="font-family:monospace;font-weight:600">${a.truckNo||""}</td>
+        <td style="font-weight:700;color:var(--accent);text-align:center">${a.liter||0} L</td>
+        <td class="tl" style="font-size:11px">${a.note||""}</td>
+        <td>${statusMap[a.status]||a.status}${a.reason?`<br><span style="font-size:10px;color:#64748b">${a.reason}</span>`:""}</td>
+        <td style="text-align:center">${a.status==="pending"
+          ?`<button class="btn-edit" data-id="${a.id}" onclick="openFuelReqModal('${a.id}')">📥 Tiếp nhận</button>`
+          :`<span style="font-size:10px;color:#94a3b8">Đã xử lý</span>`}
+        </td>
+      </tr>`;
+    }).join("");
+
+  }catch(e){
+    tbody.innerHTML=`<tr><td colspan="8" style="text-align:center;padding:16px;color:#ef4444">Lỗi: ${e.message}</td></tr>`;
+  }
 }
 
 function openFuelReqModal(id){
   _fuelReqCurrentId = id;
-  _fuelReqCurrentData = (window._fuelReqStore||{})[id] || {};
-  const a = _fuelReqCurrentData;
+  const a = window._fuelReqStore[id] || {};
+  _fuelReqCurrentData = a;
 
-  // Fill info
   document.getElementById("fuelReqInfo").innerHTML =
     `👤 Lái xe: <strong>${a.driver||""}</strong> &nbsp;|&nbsp; 🚛 Xe: <strong>${a.truckNo||""}</strong><br>` +
     `📅 Ngày: <strong>${a.date||""}</strong> &nbsp;|&nbsp; ⛽ Đề xuất: <strong>${a.liter||0} lít</strong>` +
-    (a.note?`<br>💬 Ghi chú: ${a.note}`:"");
+    (a.note?`<br>💬 Ghi chú LX: <em>${a.note}</em>`:"");
 
-  // Pre-fill liter và giá NL mới nhất
   document.getElementById("fuelReqLiter").value = a.liter||"";
   document.getElementById("fuelReqStation").value = "";
   document.getElementById("fuelReqNote").value = "";
@@ -1149,8 +1167,6 @@ async function approveFuelReq(){
   const price = +document.getElementById("fuelReqPrice").value||0;
   const note = document.getElementById("fuelReqNote").value.trim();
   const rejectReason = document.getElementById("fuelReqRejectReason").value.trim();
-
-  // Nếu reject box đang hiện → từ chối
   const isReject = document.getElementById("fuelReqRejectBox").style.display !== "none" && rejectReason;
 
   if(isReject){
@@ -1159,7 +1175,7 @@ async function approveFuelReq(){
         status:"rejected", reason:rejectReason, resolvedAt:new Date().toISOString()
       });
       showToast("❌ Đã từ chối đề xuất!");
-      closeFuelReqModal(); renderFuelRequests();
+      closeFuelReqModal(); renderFuelRequests(); checkFuelReqBadge();
     }catch(e){showToast("Lỗi: "+e.message,true);}
     return;
   }
@@ -1170,17 +1186,18 @@ async function approveFuelReq(){
   const today = new Date().toISOString().slice(0,10);
   const total = Math.round(liter * price);
 
-  // Tạo phiếu cấp NL vào DB
+  // Tạo phiếu cấp NL
   const newFuel = {
     date: a.date||today,
     truck: a.truckNo||"",
     driver: a.driver||"",
     station: station,
     liters: liter,
-    price: price,
+    unitPrice: price,
     total: total,
-    note: note||("Cấp theo đề xuất LX: "+(a.liter||0)+"L"),
-    kmCurrent:0, kmPrev:0, kmUsed:0,
+    note: note||("Cấp theo YC LX: "+(a.liter||0)+"L"),
+    kmAt:0, kmPrev:0, consume:0, rate:0,
+    reqId: _fuelReqCurrentId,
     createdAt: new Date().toISOString()
   };
 
@@ -1189,10 +1206,9 @@ async function approveFuelReq(){
     DB.fuels.unshift(newFuel);
     await pushDB();
 
-    // Cập nhật trạng thái đề xuất
     await firebase.firestore().collection(`requests_fuel_${APP_ID}`).doc(_fuelReqCurrentId).update({
       status:"approved",
-      reason: note||"Đã cấp "+liter+"L",
+      reason: note||("Đã cấp "+liter+"L"),
       approvedLiter: liter,
       resolvedAt: new Date().toISOString()
     });
@@ -1201,21 +1217,16 @@ async function approveFuelReq(){
     closeFuelReqModal();
     renderFuelRequests();
     renderFuel();
+    checkFuelReqBadge();
   }catch(e){showToast("Lỗi: "+e.message,true);}
 }
 
-document.getElementById("modalFuelReq").addEventListener("click",function(e){if(e.target===this)closeFuelReqModal();});
+document.getElementById("modalFuelReq").addEventListener("click",function(e){
+  if(e.target===this) closeFuelReqModal();
+});
 
-// Load đề xuất khi mở tab fuel
-const _origOpenFuelTab = window.openFuelTab || function(){};
-window.openFuelTab = function(id, btn){
-  _origOpenFuelTab(id, btn);
-  if(id==="fuel") renderFuelRequests();
-};
-
-// Load ngay khi trang mở
-setTimeout(renderFuelRequests, 1500);
-
+// Badge khi load
+setTimeout(checkFuelReqBadge, 2000);
 
 </script>
 </body>
