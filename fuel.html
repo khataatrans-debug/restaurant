@@ -122,6 +122,18 @@ tr:hover td{background:#e8eeff!important;}
 .badge-old-price{background:#f1f5f9;color:#64748b;border-radius:20px;padding:1px 10px;font-size:11px;}
 .subtab-btn{padding:7px 14px;font-size:12px;font-weight:600;font-family:inherit;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;transition:.15s;}
 .subtab-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;align-items:center;justify-content:center;}
+.modal-bg.show{display:flex;}
+.modal{background:#fff;padding:22px 24px;border-radius:10px;width:600px;max-width:95vw;box-shadow:0 8px 32px rgba(13,34,72,.2);max-height:90vh;overflow-y:auto;}
+.modal h4{font-size:15px;font-weight:700;color:#0d2248;margin:0 0 10px;}
+.modal-info{background:#f7f9ff;border-radius:6px;padding:10px 14px;margin-bottom:10px;font-size:12px;line-height:1.8;}
+.m-section{font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin:10px 0 6px;border-bottom:1px solid #e2e8f5;padding-bottom:4px;}
+.m-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px;}
+.m-field label{font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;display:block;margin-bottom:2px;}
+.m-field input{height:28px;font-size:12px;font-family:inherit;border:1px solid #e2e8f5;border-radius:5px;padding:0 7px;width:100%;}
+.m-field input:focus{outline:none;border-color:#1d6ef5;}
+.m-field textarea{width:100%;font-size:12px;font-family:inherit;border:1px solid #e2e8f5;border-radius:5px;padding:6px 7px;resize:none;}
+.m-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -357,7 +369,7 @@ if (!firebase.apps.length) {
 
 <!-- MODAL DANH SÁCH ĐỀ XUẤT NL -->
 <div class="modal-bg" id="modalFuelReqList">
-  <div class="modal" style="width:750px;max-width:95vw">
+  <div class="modal" style="width:800px;max-width:98vw;padding:20px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
       <h4 style="margin:0">📥 Đề xuất cấp nhiên liệu từ lái xe</h4>
       <div style="display:flex;gap:8px;align-items:center">
