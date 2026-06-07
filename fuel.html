@@ -408,23 +408,39 @@ const tv=v=>(v||"").trim();
 const fmt=n=>Number(n||0).toLocaleString("vi-VN");
 
 /* ── NAV ── */
-(function buildNav(){
-  const session=JSON.parse(localStorage.getItem(CURRENT_KEY)||"{}");
-  const nav=document.getElementById("mainNav");
-  const nr=nav.querySelector(".nav-right");
-  ALL_NAV.forEach(item=>{
-    if(session.role==="admin"){}
-    else if(session.role==="viceadmin"){}
-    else{if(!(session.pages||[]).includes(item.page)) return;}
-    const a=document.createElement("a");
-    a.href=item.page+(location.search||"");
-    a.textContent=item.label;
-    if(location.pathname.endsWith(item.page)) a.classList.add("active");
-    nav.insertBefore(a,nr);
+(
+function buildNav(){
+  const session = JSON.parse(localStorage.getItem(CURRENT_KEY) || "{}");
+  const nav = document.getElementById("mainNav");
+  const nr = nav.querySelector(".nav-right");
+  const current = location.pathname.split("/").pop().split("?")[0];
+
+  ALL_NAV.forEach(item => {
+
+    const isAllowed =
+      session.role === "admin" ||
+      (session.pages || []).includes(item.page);
+
+    if (!isAllowed) return;
+
+    const a = document.createElement("a");
+    a.href = item.page + (location.search || "");
+    a.textContent = item.label;
+
+    if (current === item.page) a.classList.add("active");
+
+    nav.insertBefore(a, nr);
   });
-  document.getElementById("userInfo").textContent=session.username?`👤 ${session.username}`:"";
-  document.getElementById("btnLogout").onclick=()=>{localStorage.removeItem(CURRENT_KEY);navigate("login.html");};
-})();
+
+  document.getElementById("userInfo").textContent =
+    session.username ? `👤 ${session.username}` : "";
+
+  document.getElementById("btnLogout").onclick = () => {
+    localStorage.removeItem(CURRENT_KEY);
+    location.replace("login.html");
+  };
+}
+
 
 /* ── FIREBASE LOAD ── */
 setSyncStatus("","Đang kết nối...");
@@ -462,24 +478,23 @@ async function pushDB(){
 }
 
 /* ── TAB SWITCH ── */
-function openFuelTab(id, btn){
-  // Ẩn tất cả tab content
-  ["tab-fuel","tab-fuelPrice","tab-driverReq"].forEach(tid=>{
-    const el=document.getElementById(tid);
-    if(el) el.style.display="none";
-  });
-  // Hiện tab được chọn
-  const target=document.getElementById("tab-"+id);
-  if(target) target.style.display="block";
-  // Cập nhật active trên nav tab buttons
-  document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+
+function openTab(id, btn){
+
+  document.querySelectorAll(".tab-content")
+    .forEach(el => el.style.display = "none");
+
+  const target = document.getElementById("tab-" + id);
+  if(target) target.style.display = "block";
+
+  document.querySelectorAll(".tab-btn")
+    .forEach(b => b.classList.remove("active"));
+
   if(btn) btn.classList.add("active");
-  else {
-    // Tìm button tương ứng theo onclick
-    document.querySelectorAll(".tab-btn").forEach(b=>{
-      if(b.getAttribute("onclick")&&b.getAttribute("onclick").includes("'"+id+"'")) b.classList.add("active");
-    });
-  }
+
+  if(id === "fuelPrice") renderFuelPrice();
+}
+
   if(id==="fuelPrice") renderFuelPrice();
   if(id==="driverReq"){ renderDReqRepair(); }
 }
