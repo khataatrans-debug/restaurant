@@ -147,6 +147,10 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
 .ocr-fin-item{display:flex;justify-content:space-between;align-items:center;}
 .ocr-fin-val{font-size:13px;font-weight:700;color:var(--text);}
 .ocr-note{margin-top:8px;padding:7px 10px;background:var(--alt);border-radius:7px;font-size:12px;color:var(--muted);}
+
+/* ── REJECTED CARD ── */
+.order-card-rich.ocr-rejected{border:1.5px solid #fecaca;background:#fff8f8;}
+.ocr-rejected-banner{background:#fef2f2;border-bottom:1px solid #fecaca;margin:-14px -14px 10px -14px;padding:8px 14px;font-size:12px;font-weight:700;color:#b91c1c;border-radius:var(--r) var(--r) 0 0;}
 </style>
 </head>
 <body>
@@ -679,7 +683,12 @@ function renderOrders(){
     const hasCost = !!costStore[r.id];
     const totalCost = c.cost||0;
 
-    return `<div class="order-card-rich" onclick="openOrderModal('${r.id}')">
+    const isRejected = c.driverCostStatus==="rejected";
+    const rejectedBanner = isRejected
+      ? `<div class="ocr-rejected-banner">❌ Kế toán từ chối — ${c.driverCostRejectReason||"vui lòng kiểm tra lại"} — Nhấn để sửa</div>`
+      : "";
+    return `<div class="order-card-rich ${isRejected?"ocr-rejected":""}" onclick="${isRejected?"openCostModal":"openOrderModal"}('${r.id}')">
+      ${rejectedBanner}
       <div class="ocr-header">
         <div>
           <div class="ocr-date">${r.planDate||""}</div>
@@ -710,6 +719,13 @@ function renderOrders(){
 }
 
 function openOrderModal(trkId){
+  // Nếu bị KT từ chối → redirect thẳng sang cost modal để sửa
+  const _c = costStore[trkId]||{};
+  if(_c.driverCostStatus==="rejected"){
+    openCostModal(trkId);
+    return;
+  }
+  
   const r = trkStore.find(x=>x.id===trkId)||{};
   const confirmed = r.driverConfirmed;
   document.getElementById("modalOrderContent").innerHTML=`
