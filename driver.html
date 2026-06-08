@@ -518,6 +518,9 @@ function startApp(){
     renderWage();
   });
 
+  // Khởi động onSnapshot đề xuất NL ngay để badge hoạt động ngay khi login
+  renderReqFuelList();
+
   // Load trucking — load toàn bộ rồi filter client-side (tránh lỗi compound index)
   db.collection(`trucking_plan_${APP_ID}`)
     .onSnapshot(snap=>{
@@ -685,8 +688,8 @@ async function saveReqRepair(){
   }catch(e){showToast("❌ Lỗi: "+e.message,true);}
 }
 
+let _allFuelDocs = [];
 function renderReqFuelList(){
-  let _allFuelDocs = [];
 
   function buildMonthOptions(docs){
     const months = [...new Set(docs.map(a=>(a.date||"").slice(0,7)).filter(Boolean))].sort().reverse();
