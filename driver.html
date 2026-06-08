@@ -223,70 +223,66 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
     <div id="wageList"></div>
   </div>
 
+  <!-- PAGE 4: TẠM ỨNG -->
   <!-- PAGE 5: ĐỀ XUẤT -->
-  <div class="page" id="pageRequest" style="display:flex;flex-direction:column;height:calc(100vh - 120px)">
-    <!-- Sub tabs + badge -->
-    <div style="display:flex;gap:8px;margin-bottom:12px;flex-shrink:0">
-      <button id="reqTab1" class="btn btn-primary" style="flex:1;height:38px;font-size:13px;position:relative" onclick="switchReqTab('fuel')">
-        ⛽ Cấp NL
-        <span id="fuelRejBadge" style="display:none;position:absolute;top:-6px;right:-4px;background:#ef4444;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:800;line-height:18px;text-align:center;box-shadow:0 0 0 2px #fff">0</span>
-      </button>
-      <button id="reqTab2" class="btn btn-gray" style="flex:1;height:38px;font-size:13px" onclick="switchReqTab('repair')">🔧 Sửa chữa</button>
+  <div class="page" id="pageRequest">
+    <div class="page-title">🔧 Đề xuất</div>
+    <!-- Sub tabs -->
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <button id="reqTab1" class="btn btn-primary" style="flex:1;height:36px;font-size:12px;position:relative" onclick="switchReqTab('fuel')">⛽ Cấp nhiên liệu<span id="fuelRejBadge" style="display:none;position:absolute;top:-7px;right:-4px;background:#ef4444;color:#fff;border-radius:50%;min-width:18px;height:18px;font-size:10px;font-weight:800;line-height:18px;text-align:center;padding:0 3px;box-shadow:0 0 0 2px #fff">0</span></button>
+      <button id="reqTab2" class="btn btn-gray" style="flex:1;height:36px;font-size:12px" onclick="switchReqTab('repair')">🔧 Sửa chữa</button>
     </div>
-
-    <!-- FUEL PANEL -->
-    <div id="reqFuelPanel" style="display:flex;flex-direction:column;flex:1;min-height:0">
-      <!-- Form gọn -->
-      <div class="card" style="flex-shrink:0;padding:12px 14px;margin-bottom:10px">
-        <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:10px">⛽ Gửi đề xuất cấp nhiên liệu</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <div class="m-field"><label>Số lít <span style="color:#ef4444">*</span></label><input id="reqFuelLiter" type="number" placeholder="0" oninput="checkKmRequired()"></div>
+    <div id="reqFuelPanel">
+      <div class="card">
+        <div class="card-title">⛽ Đề xuất cấp nhiên liệu</div>
+        <div class="m-grid">
+          <div class="m-field"><label>Số xe</label><input id="reqFuelTruck" readonly style="background:#f8fafc"></div>
+          <div class="m-field"><label>Lái xe</label><input id="reqFuelDriver" readonly style="background:#f8fafc"></div>
+          <div class="m-field"><label>Ngày</label><input id="reqFuelDate" type="date"></div>
+          <div class="m-field"><label>Số lít đề xuất</label><input id="reqFuelLiter" type="number" placeholder="0" oninput="checkKmRequired()"></div>
           <div class="m-field"><label>KM hiện tại <span style="color:#ef4444">*</span></label><input id="reqFuelKmAt" type="number" placeholder="Bắt buộc" oninput="calcReqFuelKm()"></div>
           <div class="m-field"><label>KM kỳ trước</label><input id="reqFuelKmPrev" type="number" readonly style="background:#f8fafc;color:#64748b;font-weight:600"></div>
           <div class="m-field"><label>KM tiêu thụ</label><input id="reqFuelKmUsed" type="number" readonly style="background:#f0fdf4;color:#166634;font-weight:700"></div>
+          <div class="m-field full"><label>NL định mức tháng này</label><input id="reqFuelCalc" readonly style="background:#f0fdf4;color:#166534;font-weight:700"></div>
+          <div class="m-field full"><label>Ghi chú</label><textarea id="reqFuelNote" placeholder="Ghi chú..."></textarea></div>
         </div>
-        <input id="reqFuelTruck" type="hidden"><input id="reqFuelDriver" type="hidden">
-        <input id="reqFuelDate" type="hidden"><input id="reqFuelCalc" type="hidden">
-        <div class="m-field" style="margin-top:6px"><label>Ghi chú</label><textarea id="reqFuelNote" placeholder="Ghi chú..." style="height:48px"></textarea></div>
-        <button class="btn btn-primary" style="width:100%;margin-top:8px;height:42px;font-size:14px" onclick="saveReqFuel()">📤 Gửi đề xuất</button>
+        <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="saveReqFuel()">📤 Gửi đề xuất</button>
       </div>
-
-      <!-- Lịch sử: header + cuộn trong box -->
-      <div style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:4px 2px;margin-bottom:6px">
-        <span style="font-size:13px;font-weight:700;color:var(--navy)">📋 Lịch sử đề xuất</span>
-        <div style="display:flex;align-items:center;gap:6px">
-          <select id="reqFuelMonthFilter" onchange="filterFuelList()" style="height:30px;border:1.5px solid var(--border);border-radius:7px;padding:0 8px;font-size:12px;font-family:inherit;outline:none;background:#fff"></select>
-          <span id="reqFuelCount" style="font-size:11px;color:var(--muted);white-space:nowrap"></span>
-        </div>
+      <!-- Filter tháng -->
+      <div style="display:flex;align-items:center;gap:8px;margin:10px 0 6px">
+        <span style="font-size:12px;font-weight:600;color:var(--muted)">Tháng:</span>
+        <select id="reqFuelMonthFilter" onchange="filterFuelList()" style="flex:1;height:34px;border:1.5px solid var(--border);border-radius:8px;padding:0 8px;font-size:12px;font-family:inherit;outline:none"></select>
+        <span id="reqFuelCount" style="font-size:11px;color:var(--muted)"></span>
       </div>
-      <div id="reqFuelList" style="flex:1;overflow-y:auto;padding-bottom:8px"></div>
+      <div id="reqFuelList"></div>
     </div>
-
-    <!-- REPAIR PANEL -->
-    <div id="reqRepairPanel" style="display:none;flex-direction:column;flex:1;min-height:0">
-      <div class="card" style="flex-shrink:0;padding:12px 14px;margin-bottom:10px">
-        <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:10px">🔧 Gửi đề xuất sửa chữa</div>
+    <div id="reqRepairPanel" style="display:none">
+      <div class="card">
+        <div class="card-title">🔧 Đề xuất sửa chữa / thay thế</div>
         <div class="m-grid">
           <div class="m-field"><label>Số xe</label><input id="reqRepairTruck" readonly style="background:#f8fafc"></div>
           <div class="m-field"><label>Lái xe</label><input id="reqRepairDriver" readonly style="background:#f8fafc"></div>
           <div class="m-field"><label>Ngày</label><input id="reqRepairDate" type="date"></div>
           <div class="m-field"><label>Loại</label>
             <select id="reqRepairType" style="width:100%;height:40px;border:1.5px solid var(--border);border-radius:8px;padding:0 10px;font-size:13px;font-family:inherit;outline:none">
-              <option value="repair">Sửa chữa</option><option value="replace">Thay thế</option><option value="check">Kiểm tra</option>
+              <option value="repair">Sửa chữa</option>
+              <option value="replace">Thay thế</option>
+              <option value="check">Kiểm tra</option>
             </select>
           </div>
-          <div class="m-field full"><label>Bộ phận / Hạng mục</label><input id="reqRepairPart" placeholder="VD: Lốp xe, phanh..."></div>
-          <div class="m-field full"><label>Tình trạng / Yêu cầu</label><textarea id="reqRepairDesc" placeholder="Mô tả hư hỏng..."></textarea></div>
+          <div class="m-field full"><label>Bộ phận / Hạng mục</label><input id="reqRepairPart" placeholder="VD: Lốp xe, phanh, động cơ..."></div>
+          <div class="m-field full"><label>Tình trạng / Diễn giải yêu cầu</label><textarea id="reqRepairDesc" placeholder="Mô tả tình trạng hư hỏng, yêu cầu sửa/thay..."></textarea></div>
           <div class="m-field"><label>Mức độ</label>
             <select id="reqRepairUrgency" style="width:100%;height:40px;border:1.5px solid var(--border);border-radius:8px;padding:0 10px;font-size:13px;font-family:inherit;outline:none">
-              <option value="normal">Bình thường</option><option value="urgent">Khẩn cấp</option>
+              <option value="normal">Bình thường</option>
+              <option value="urgent">Khẩn cấp</option>
             </select>
           </div>
           <div class="m-field"><label>Chi phí ước tính (đ)</label><input id="reqRepairCost" type="number" placeholder="0"></div>
         </div>
         <button class="btn btn-danger" style="width:100%;margin-top:8px" onclick="saveReqRepair()">📤 Gửi đề xuất sửa chữa</button>
       </div>
-      <div id="reqRepairList" style="flex:1;overflow-y:auto;padding-bottom:8px"></div>
+      <div id="reqRepairList"></div>
     </div>
   </div>
 
@@ -369,29 +365,26 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
 </div>
 
 <!-- ══ MODAL: TẠM ỨNG ══ -->
-
-<!-- MODAL: TU CHOI - SUA & GUI LAI -->
+<!-- MODAL: TỪ CHỐI - SỬA & GỬI LẠI -->
 <div class="modal-bg" id="modalFuelRejected">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <div class="modal-title" style="margin:0">❌ Đề xuất bị từ chối</div>
-    </div>
+    <div class="modal-title">❌ Đề xuất bị từ chối</div>
     <div style="background:#fff5f5;border:1px solid #fecaca;border-radius:8px;padding:10px 12px;margin-bottom:12px">
       <div style="font-size:10px;font-weight:700;color:#b91c1c;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">📩 Lý do từ quản lý</div>
-      <div id="rejMsgReason" style="font-size:13px;color:#7f1d1d;font-weight:600;line-height:1.5"></div>
+      <div id="rejModalReason" style="font-size:13px;color:#7f1d1d;font-weight:600;line-height:1.5"></div>
     </div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Điều chỉnh thông tin và gửi lại:</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Điều chỉnh và gửi lại:</div>
     <div class="m-grid">
-      <div class="m-field"><label>Số lít <span style="color:#ef4444">*</span></label><input id="rejMsgLiter" type="number" placeholder="0"></div>
-      <div class="m-field"><label>KM hiện tại <span style="color:#ef4444">*</span></label><input id="rejMsgKmAt" type="number" placeholder="Bắt buộc" oninput="calcRejMsgKm()"></div>
-      <div class="m-field"><label>KM kỳ trước</label><input id="rejMsgKmPrev" type="number" readonly style="background:#f8fafc;color:#64748b;font-weight:600"></div>
-      <div class="m-field"><label>KM tiêu thụ</label><input id="rejMsgKmUsed" type="number" readonly style="background:#f0fdf4;color:#166534;font-weight:700"></div>
-      <div class="m-field full"><label>Ghi chú điều chỉnh</label><textarea id="rejMsgNote" rows="2" placeholder="Ghi chú..."></textarea></div>
+      <div class="m-field"><label>Số lít <span style="color:#ef4444">*</span></label><input id="rejModalLiter" type="number" placeholder="0"></div>
+      <div class="m-field"><label>KM hiện tại <span style="color:#ef4444">*</span></label><input id="rejModalKmAt" type="number" placeholder="Bắt buộc" oninput="calcRejModalKm()"></div>
+      <div class="m-field"><label>KM kỳ trước</label><input id="rejModalKmPrev" type="number" readonly style="background:#f8fafc;color:#64748b;font-weight:600"></div>
+      <div class="m-field"><label>KM tiêu thụ</label><input id="rejModalKmUsed" type="number" readonly style="background:#f0fdf4;color:#166534;font-weight:700"></div>
+      <div class="m-field full"><label>Ghi chú điều chỉnh</label><textarea id="rejModalNote" rows="2" placeholder="Ghi chú..."></textarea></div>
     </div>
     <div class="btn-row">
       <button class="btn btn-gray" onclick="document.getElementById('modalFuelRejected').classList.remove('show')">Đóng</button>
-      <button class="btn btn-primary" onclick="sendResubmit()">📤 Gửi lại</button>
+      <button class="btn btn-primary" onclick="sendRejResubmit()">📤 Gửi lại</button>
     </div>
   </div>
 </div>
@@ -717,26 +710,26 @@ let _rejModalDocId = null;
 function openRejModal(docId){
   _rejModalDocId = docId;
   const a = _allFuelDocs.find(x=>x.id===docId)||{};
-  document.getElementById("rejMsgReason").textContent = a.reason||"Không có lý do";
-  document.getElementById("rejMsgLiter").value = a.liter||"";
-  document.getElementById("rejMsgKmAt").value = "";
-  document.getElementById("rejMsgKmPrev").value = a.kmAt||"";
-  document.getElementById("rejMsgKmUsed").value = "";
-  document.getElementById("rejMsgNote").value = "";
+  document.getElementById("rejModalReason").textContent = a.reason||"Không có lý do";
+  document.getElementById("rejModalLiter").value = a.liter||"";
+  document.getElementById("rejModalKmAt").value = "";
+  document.getElementById("rejModalKmPrev").value = a.kmAt||"";
+  document.getElementById("rejModalKmUsed").value = "";
+  document.getElementById("rejModalNote").value = "";
   document.getElementById("modalFuelRejected").classList.add("show");
 }
-function calcRejMsgKm(){
-  const at=+document.getElementById("rejMsgKmAt").value||0;
-  const prev=+document.getElementById("rejMsgKmPrev").value||0;
-  document.getElementById("rejMsgKmUsed").value = at>prev&&prev>0?at-prev:"";
+function calcRejModalKm(){
+  const at=+document.getElementById("rejModalKmAt").value||0;
+  const prev=+document.getElementById("rejModalKmPrev").value||0;
+  document.getElementById("rejModalKmUsed").value = at>prev&&prev>0?at-prev:"";
 }
-async function sendResubmit(){
-  const liter=+document.getElementById("rejMsgLiter").value||0;
-  const kmAt=+document.getElementById("rejMsgKmAt").value||0;
-  const kmPrev=+document.getElementById("rejMsgKmPrev").value||0;
-  const note=document.getElementById("rejMsgNote").value.trim();
+async function sendRejResubmit(){
+  const liter=+document.getElementById("rejModalLiter").value||0;
+  const kmAt=+document.getElementById("rejModalKmAt").value||0;
+  const kmPrev=+document.getElementById("rejModalKmPrev").value||0;
+  const note=document.getElementById("rejModalNote").value.trim();
   if(!liter){showToast("Nhập số lít!",true);return;}
-  if(!kmAt){showToast("Nhập KM hiện tại!",true);document.getElementById("rejMsgKmAt").focus();return;}
+  if(!kmAt){showToast("Nhập KM hiện tại!",true);document.getElementById("rejModalKmAt").focus();return;}
   const kmUsed=kmAt>kmPrev&&kmPrev>0?kmAt-kmPrev:0;
   try{
     await db.collection(`requests_fuel_${APP_ID}`).add({
