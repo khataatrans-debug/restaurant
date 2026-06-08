@@ -622,12 +622,11 @@ async function saveReqRepair(){
     document.getElementById("reqRepairPart").value="";
     document.getElementById("reqRepairDesc").value="";
     document.getElementById("reqRepairCost").value="";
-    renderReqRepairList();
   }catch(e){showToast("❌ Lỗi: "+e.message,true);}
 }
 
-async function renderReqFuelList(){
-  const snap=await db.collection(`requests_fuel_${APP_ID}`).where("username","==",session.username).get();
+function renderReqFuelList(){
+  db.collection(`requests_fuel_${APP_ID}`).where("username","==",session.username).onSnapshot(snap=>{
   const el=document.getElementById("reqFuelList");
   const docs = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||"")).slice(0,10);
   if(!docs.length){el.innerHTML='<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">Chưa có đề xuất</div></div>';return;}
@@ -664,8 +663,10 @@ function resubmitFuelReq(oldId, liter, kmAt, note){
   showToast("✏️ Đã điền lại thông tin cũ — sửa và gửi lại!");
 }
 
-async function renderReqRepairList(){
-  const snap=await db.collection(`requests_repair_${APP_ID}`).where("username","==",session.username).get();
+  }); // end onSnapshot fuel
+}
+function renderReqRepairList(){
+  db.collection(`requests_repair_${APP_ID}`).where("username","==",session.username).onSnapshot(snap=>{
   const el=document.getElementById("reqRepairList");
   const docs2 = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||"")).slice(0,10);
   if(!docs2.length){el.innerHTML='<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">Chưa có đề xuất</div></div>';return;}
@@ -683,6 +684,8 @@ async function renderReqRepairList(){
   </div>`}).join("");
 }
 
+  }); // end onSnapshot repair
+}
 // ── ORDERS PAGE ──
 function getFilteredTrips(monthInputId, filterInputId, driverFilter){
   const month = document.getElementById(monthInputId)?.value || thisMonth();
