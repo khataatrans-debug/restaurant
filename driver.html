@@ -642,6 +642,7 @@ function renderReqFuelList(){
     ${a.reason?`<div style="margin-top:6px;padding:6px 10px;background:${isRej?"#fff5f5":"#f0fdf4"};border-radius:6px;font-size:12px;color:${isRej?"#b91c1c":"#166534"};font-weight:600">📩 Phản hồi: ${a.reason}</div>`:""}
     ${isRej?`<button onclick="resubmitFuelReq('${a.id}',${a.liter||0},${a.kmAt||0},'${a.note||""}')" style="margin-top:10px;width:100%;height:38px;background:#1d6ef5;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">🔄 Sửa & Gửi lại</button>`:""}
   </div>`}).join("");
+  }); // end onSnapshot fuel
 }
 
 function resubmitFuelReq(oldId, liter, kmAt, note){
