@@ -245,7 +245,7 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
           <div class="m-field"><label>Số xe</label><input id="reqFuelTruck" readonly style="background:#f8fafc"></div>
           <div class="m-field"><label>Lái xe</label><input id="reqFuelDriver" readonly style="background:#f8fafc"></div>
           <div class="m-field"><label>Ngày</label><input id="reqFuelDate" type="date"></div>
-          <div class="m-field"><label>Số lít đề xuất</label><input id="reqFuelLiter" type="number" placeholder="0"></div>
+          <div class="m-field"><label>Số lít đề xuất</label><input id="reqFuelLiter" type="number" placeholder="0" oninput="checkKmRequired()"></div>
           <div class="m-field"><label>KM hiện tại <span style="color:#ef4444">*</span></label><input id="reqFuelKmAt" type="number" placeholder="Bắt buộc" oninput="calcReqFuelKm()"></div>
           <div class="m-field"><label>KM kỳ trước</label><input id="reqFuelKmPrev" type="number" readonly style="background:#f8fafc;color:#64748b;font-weight:600"></div>
           <div class="m-field"><label>KM tiêu thụ</label><input id="reqFuelKmUsed" type="number" readonly style="background:#f0fdf4;color:#166534;font-weight:700"></div>
@@ -536,7 +536,7 @@ function switchReqTab(tab){
   document.getElementById("reqTab2").className="btn "+(tab==="repair"?"btn-danger":"btn-gray");
 }
 
-function initRequestPage(){
+async function initRequestPage(){
   const today=new Date().toISOString().slice(0,10);
   document.getElementById("reqFuelTruck").value=session.truckNo||"";
   document.getElementById("reqFuelDriver").value=session.driverName||session.username;
@@ -567,6 +567,20 @@ function initRequestPage(){
   renderReqRepairList();
 }
 
+function checkKmRequired(){
+  const liter=+document.getElementById("reqFuelLiter").value||0;
+  const kmEl=document.getElementById("reqFuelKmAt");
+  if(liter>0 && !+kmEl.value){
+    kmEl.style.border="2px solid #ef4444";
+    kmEl.style.background="#fff5f5";
+    kmEl.placeholder="Bắt buộc nhập !";
+  } else {
+    kmEl.style.border="";
+    kmEl.style.background="";
+    kmEl.placeholder="Bắt buộc";
+  }
+}
+
 function calcReqFuelKm(){
   const kmAt=+document.getElementById("reqFuelKmAt").value||0;
   const kmPrev=+document.getElementById("reqFuelKmPrev").value||0;
@@ -580,7 +594,14 @@ async function saveReqFuel(){
   const kmPrev=+document.getElementById("reqFuelKmPrev").value||0;
   const note=document.getElementById("reqFuelNote").value.trim();
   if(!liter){showToast("❌ Nhập số lít đề xuất!",true);return;}
-  if(!kmAt){showToast("❌ Phải nhập KM hiện tại mới gửi được!",true);document.getElementById("reqFuelKmAt").focus();return;}
+  if(!kmAt){
+    showToast("❌ Phải nhập KM hiện tại mới gửi được!",true);
+    const el=document.getElementById("reqFuelKmAt");
+    el.style.border="2px solid #ef4444";
+    el.focus();
+    setTimeout(()=>{el.style.border="";},3000);
+    return;
+  }
   const kmUsed=kmAt>kmPrev&&kmPrev>0?kmAt-kmPrev:0;
   try{
     await db.collection(`requests_fuel_${APP_ID}`).add({
