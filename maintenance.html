@@ -166,7 +166,6 @@ tr:hover td{background:#e8eeff!important;}
   <button class="tab-btn"        onclick="openTab('repairOv',this)">📋 Tổng chi phí BD</button>
   <button class="tab-btn"        onclick="openTab('tyre',this)">🔴 Quản lý vỏ xe</button>
   <button class="tab-btn"        onclick="openTab('overview',this)">📊 Tổng quan</button>
-  <button class="tab-btn"        onclick="openTab('driverReq',this)">🚛 Đề xuất lái xe</button>
 </div>
 
 <!-- ════════════════════════════════════════
@@ -784,7 +783,6 @@ window.openTab=function(id,el){
   if(id==="overview")   renderOverview();
   if(id==="fuel")       autoFillLatestFuelPrice();
   if(id==="repairOv"){  buildRovDropdowns(); renderRepairOv(); }
-  if(id==="driverReq"){ renderDReqRepair(); renderDReqFuel(); }
 };
 
 /* ══════════════════════════════════════════
@@ -1216,17 +1214,18 @@ window.clearTyreSearch=function(){
 /* ══ ĐỀ XUẤT SỬA CHỮA TỪ LÁI XE ══ */
 let _repairReqCurrentId = null;
 let _repairReqCache = {};
+let _repairReqUnsubscribe = null;
 
 function checkRepairReqBadge(){
   _fs.collection(`requests_repair_${APP_ID}`)
     .where("status","==","pending")
-    .get().then(snap=>{
+    .onSnapshot(snap=>{
       const badge = document.getElementById("repairReqBadge");
       if(badge){
         badge.style.display = snap.size>0 ? "inline" : "none";
         badge.textContent = snap.size;
       }
-    }).catch(()=>{});
+    }, ()=>{});
 }
 
 function openRepairReqList(){
@@ -1241,9 +1240,11 @@ function refreshRepairReqList(){ renderRepairReqList(); }
 function renderRepairReqList(){
   const body = document.getElementById("repairReqListBody");
   body.innerHTML = '<div style="text-align:center;color:#64748b;padding:20px">Đang tải...</div>';
-  _fs.collection(`requests_repair_${APP_ID}`)
+  _repairReqUnsubscribe && _repairReqUnsubscribe();
+  _repairReqUnsubscribe = _fs.collection(`requests_repair_${APP_ID}`)
     .where("status","==","pending")
-    .get().then(snap=>{
+    .onSnapshot(snap=>{
+      const body = document.getElementById("repairReqListBody");
       const docs = snap.docs.map(d=>({id:d.id,...d.data()}))
         .sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));
       docs.forEach(a=>{ _repairReqCache[a.id]=a; });
@@ -1271,7 +1272,7 @@ function renderRepairReqList(){
             <button onclick="openRepairReqModal('${a.id}')" style="margin-left:10px;flex-shrink:0;height:30px;padding:0 12px;background:#0d2248;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">Xử lý</button>
           </div>
         </div>`).join("");
-    }).catch(e=>{ body.innerHTML=`<div style="color:#b91c1c;padding:10px">Lỗi: ${e.message}</div>`; });
+    }, e=>{ body.innerHTML=`<div style="color:#b91c1c;padding:10px">Lỗi: ${e.message}</div>`; });
 }
 
 function openRepairReqModal(id){
