@@ -385,6 +385,7 @@ let APP_ID  = window.APP_ID || "DEFAULT";
 let trkStore  = [];         // chuyến của lái xe này
 let costStore = {};         // chi phí đã nhập
 let masterData = {};        // master RTDB
+let fuelStore  = [];         // lịch sử cấp nhiên liệu
 let currentTrkId = null;
 let _autoFuelCost = 0;
 
@@ -444,6 +445,17 @@ function startApp(){
   // Load master data
   rtdb.ref(`master_data_${APP_ID}`).on("value", snap=>{
     masterData = snap.exists() ? snap.val() : {};
+  });
+
+  // Load lịch sử cấp nhiên liệu từ maintenance_data
+  rtdb.ref(`maintenance_data_${APP_ID}/fuels`).on("value", snap=>{
+    if(snap.exists()){
+      const raw = snap.val();
+      fuelStore = Array.isArray(raw) ? raw : Object.values(raw||{});
+    } else {
+      fuelStore = [];
+    }
+    renderWage();
   });
 
   // Load trucking — load toàn bộ rồi filter client-side (tránh lỗi compound index)
@@ -992,10 +1004,9 @@ function renderWage(){
   fuels.sort((a,b)=>(b.date||"").localeCompare(a.date||""));
 
   let totalWage=0, totalKm=0, totalFuelActual=0, totalFuelCalc=0;
-  // Tính NL thực đổ từ lịch sử cấp nhiên liệu (DB.fuels)
-  const fuelLogs = typeof DB !== "undefined" ? (DB.fuels||[]) : [];
-  const monthFuelActual = fuelLogs
-    .filter(f=>(f.truck||f.vehicleNo||"").trim()===(session.truckNo||"").trim() && (f.date||"").startsWith(month))
+  // Tính NL thực đổ từ lịch sử cấp nhiên liệu
+  const monthFuelActual = fuelStore
+    .filter(f=>(f.truck||"").trim()===(session.truckNo||"").trim() && (f.date||"").startsWith(month))
     .reduce((s,f)=>s+(+f.liters||0), 0);
   const khoKeys=[{f:"factory",w:"wage"},{f:"factory2",w:"wage2"},{f:"factory3",w:"wage3"},{f:"factory4",w:"wage4"}];
 
