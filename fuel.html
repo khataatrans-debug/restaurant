@@ -1096,13 +1096,13 @@ function openFuelReqList(){
 
 function checkFuelReqBadge(){
   if(!window.firebase || !firebase.firestore) return;
-  firebase.firestore().collection(`requests_fuel_${APP_ID}`)
-    .where("status","==","pending").get()
+  firebase.firestore().collection(`requests_fuel_${APP_ID}`).get()
     .then(snap=>{
       const badge = document.getElementById("fuelReqBadge");
       if(badge){
-        badge.style.display = snap.size>0 ? "inline" : "none";
-        badge.textContent = snap.size;
+        const count = snap.docs.filter(d=>d.data().status==="pending").length;
+        badge.style.display = count>0 ? "inline" : "none";
+        badge.textContent = count;
       }
     }).catch(()=>{});
 }
@@ -1124,21 +1124,22 @@ async function renderFuelRequests(){
   };
 
   try{
-    let q = firebase.firestore().collection(`requests_fuel_${APP_ID}`).orderBy("createdAt","desc");
-    if(filter) q = firebase.firestore().collection(`requests_fuel_${APP_ID}`).where("status","==",filter).orderBy("createdAt","desc");
-    const snap = await q.get();
+    // Lấy tất cả không dùng orderBy để tránh cần index
+    const snap = await firebase.firestore().collection(`requests_fuel_${APP_ID}`).get();
 
-    // Lưu vào store
+    // Filter + sort client-side
     window._fuelReqStore = {};
-    snap.docs.forEach(d=>{ window._fuelReqStore[d.id]={id:d.id,...d.data()}; });
+    let allRows = snap.docs.map(d=>({id:d.id,...d.data()}));
+    allRows.forEach(r=>{ window._fuelReqStore[r.id]=r; });
+    if(filter) allRows = allRows.filter(r=>r.status===filter);
+    allRows.sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));
 
-    if(snap.empty){
+    if(!allRows.length){
       tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:16px;color:#94a3b8">Không có đề xuất</td></tr>';
       return;
     }
 
-    tbody.innerHTML = snap.docs.map((d,i)=>{
-      const a = {id:d.id,...d.data()};
+    tbody.innerHTML = allRows.map((a,i)=>{
       return `<tr>
         <td>${i+1}</td>
         <td>${a.date||""}</td>
