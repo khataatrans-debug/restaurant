@@ -630,15 +630,37 @@ async function renderReqFuelList(){
   const snap=await db.collection(`requests_fuel_${APP_ID}`).where("username","==",session.username).orderBy("createdAt","desc").limit(10).get();
   const el=document.getElementById("reqFuelList");
   if(snap.empty){el.innerHTML='<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">Chưa có đề xuất</div></div>';return;}
-  el.innerHTML=snap.docs.map(d=>{const a=d.data();return`<div class="advance-card">
+  el.innerHTML=snap.docs.map(d=>{const a={id:d.id,...d.data()};const isRej=a.status==="rejected";return`
+  <div class="advance-card" style="border:1.5px solid ${isRej?"#fecaca":a.status==="approved"?"#86efac":"#fcd34d"};margin-bottom:10px">
+    ${isRej?`<div style="background:#fef2f2;margin:-14px -14px 10px;padding:8px 14px;border-radius:8px 8px 0 0;font-size:12px;font-weight:700;color:#b91c1c">❌ Bị từ chối — nhấn Gửi lại để điều chỉnh</div>`:""}
     <div style="display:flex;justify-content:space-between;align-items:center">
       <div class="advance-amount">⛽ ${a.liter} lít</div>
-      <span class="tag ${a.status==="approved"?"tag-green":a.status==="rejected"?"tag-red":"tag-amber"}">${a.status==="approved"?"✅ Duyệt":a.status==="rejected"?"❌ Từ chối":"⏳ Chờ"}</span>
+      <span class="tag ${a.status==="approved"?"tag-green":isRej?"tag-red":"tag-amber"}">${a.status==="approved"?"✅ Duyệt":isRej?"❌ Từ chối":"⏳ Chờ"}</span>
     </div>
-    <div class="advance-date">${a.date}${a.kmAt?` &nbsp;|&nbsp; KM: ${a.kmAt}`:""}</div>
-    ${a.note?`<div class="advance-note">${a.note}</div>`:""}
-    ${a.reason?`<div style="margin-top:4px;padding:5px 8px;background:${a.status==="rejected"?"#fff5f5":"#f0fdf4"};border-radius:6px;font-size:11.5px;color:${a.status==="rejected"?"#b91c1c":"#166534"};font-weight:600">📩 ${a.reason}</div>`:""}
+    <div class="advance-date">${a.date}${a.kmAt?` &nbsp;|&nbsp; 📏 KM: ${a.kmAt.toLocaleString("vi-VN")}`:""}${a.liter?` &nbsp;|&nbsp; ${a.liter}L`:""}</div>
+    ${a.note?`<div class="advance-note">💬 ${a.note}</div>`:""}
+    ${a.reason?`<div style="margin-top:6px;padding:6px 10px;background:${isRej?"#fff5f5":"#f0fdf4"};border-radius:6px;font-size:12px;color:${isRej?"#b91c1c":"#166534"};font-weight:600">📩 Phản hồi: ${a.reason}</div>`:""}
+    ${isRej?`<button onclick="resubmitFuelReq('${a.id}',${a.liter||0},${a.kmAt||0},'${a.note||""}')" style="margin-top:10px;width:100%;height:38px;background:#1d6ef5;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">🔄 Sửa & Gửi lại</button>`:""}
   </div>`}).join("");
+}
+
+function resubmitFuelReq(oldId, liter, kmAt, note){
+  // Điền sẵn form với data cũ
+  const litEl = document.getElementById("reqFuelLiter");
+  const kmEl  = document.getElementById("reqFuelKmAt");
+  const noteEl= document.getElementById("reqFuelNote");
+  if(litEl) litEl.value = liter||"";
+  if(kmEl)  kmEl.value  = kmAt||"";
+  if(noteEl)noteEl.value= note||"";
+  // Cuộn lên form và highlight
+  const panel = document.getElementById("reqFuelPanel");
+  if(panel){
+    panel.style.display="";
+    panel.scrollIntoView({behavior:"smooth"});
+    panel.style.border="2px solid #1d6ef5";
+    setTimeout(()=>{panel.style.border="";},2000);
+  }
+  showToast("✏️ Đã điền lại thông tin cũ — sửa và gửi lại!");
 }
 
 async function renderReqRepairList(){
