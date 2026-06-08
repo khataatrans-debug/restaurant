@@ -224,12 +224,6 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
   </div>
 
   <!-- PAGE 4: TẠM ỨNG -->
-  <div class="page" id="pageAdvance">
-    <div class="page-title">💳 Tạm ứng</div>
-    <button class="btn btn-primary" style="width:100%;margin-bottom:14px;height:44px;font-size:14px" onclick="openAdvanceModal()">+ Yêu cầu tạm ứng</button>
-    <div id="advanceList"><div class="loading-spinner">⏳ Đang tải...</div></div>
-  </div>
-
   <!-- PAGE 5: ĐỀ XUẤT -->
   <div class="page" id="pageRequest">
     <div class="page-title">🔧 Đề xuất</div>
@@ -300,10 +294,6 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
       <span class="bnav-icon">💵</span>
       <span class="bnav-label">Lương</span>
     </button>
-    <button class="bnav-item" onclick="switchPage('advance',this)">
-      <span class="bnav-icon">💳</span>
-      <span class="bnav-label">Tạm ứng</span>
-    </button>
     <button class="bnav-item" onclick="switchPage('request',this)">
       <span class="bnav-icon">🔧</span>
       <span class="bnav-label">Đề xuất</span>
@@ -368,21 +358,6 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
 </div>
 
 <!-- ══ MODAL: TẠM ỨNG ══ -->
-<div class="modal-bg" id="modalAdvance">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div class="modal-title">💳 Yêu cầu tạm ứng</div>
-    <div class="m-grid">
-      <div class="m-field full"><label>Số tiền tạm ứng (đ)</label><input id="advAmount" type="number" placeholder="0"></div>
-      <div class="m-field full"><label>Lý do</label><textarea id="advNote" placeholder="Nhập lý do tạm ứng..."></textarea></div>
-    </div>
-    <div class="btn-row">
-      <button class="btn btn-gray" onclick="closeAdvModal()">Hủy</button>
-      <button class="btn btn-primary" onclick="saveAdvance()">Gửi yêu cầu</button>
-    </div>
-  </div>
-</div>
-
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -410,7 +385,6 @@ let APP_ID  = window.APP_ID || "DEFAULT";
 let trkStore  = [];         // chuyến của lái xe này
 let costStore = {};         // chi phí đã nhập
 let masterData = {};        // master RTDB
-let advanceStore = [];      // tạm ứng
 let currentTrkId = null;
 let _autoFuelCost = 0;
 
@@ -496,15 +470,6 @@ function startApp(){
     renderWage();
   });
 
-  // Load advance — load toàn bộ rồi filter client-side (tránh lỗi compound index)
-  db.collection(`advances_${APP_ID}`)
-    .onSnapshot(snap=>{
-      advanceStore = snap.docs
-        .map(d=>({id:d.id,...d.data()}))
-        .filter(a=>(a.driver||"").trim() === session.driverName.trim())
-        .sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));
-      renderAdvance();
-    });
 
   // PWA service worker
   if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
@@ -525,7 +490,6 @@ function switchPage(name, btn){
   if(name==="orders")  renderOrders();
   if(name==="cost")    renderCostList();
   if(name==="wage")    renderWage();
-  if(name==="advance") renderAdvance();
   if(name==="request") initRequestPage();
 }
 
@@ -1066,9 +1030,6 @@ function renderWage(){
     </div>`;
   }).join("");
 
-  // Tổng tạm ứng trong tháng
-  const totalAdv = advanceStore.filter(a=>(a.createdAt||"").startsWith(month)).reduce((s,a)=>s+(+a.amount||0),0);
-
   document.getElementById("wageSummary").innerHTML=`
     <div class="wage-summary">
       <div class="wage-card highlight"><div class="wc-val">${fmt(totalWage)}đ</div><div class="wc-label">Tổng lương</div></div>
@@ -1076,49 +1037,10 @@ function renderWage(){
       <div class="wage-card"><div class="wc-val">${fmt(totalKm)} km</div><div class="wc-label">Tổng KM</div></div>
       <div class="wage-card"><div class="wc-val">${totalFuelActual.toFixed(0)} L</div><div class="wc-label">NL thực đổ</div></div>
       <div class="wage-card"><div class="wc-val">${totalFuelCalc.toFixed(0)} L</div><div class="wc-label">NL định mức</div></div>
-      <div class="wage-card"><div class="wc-val" style="color:var(--amber)">${fmt(totalAdv)}đ</div><div class="wc-label">Tạm ứng</div></div>
     </div>`;
   document.getElementById("wageList").innerHTML = tripRows || '<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">Không có dữ liệu</div></div>';
 }
 
-// ── ADVANCE PAGE ──
-function renderAdvance(){
-  const el=document.getElementById("advanceList");
-  if(!advanceStore.length){el.innerHTML='<div class="empty"><div class="empty-icon">💳</div><div class="empty-text">Chưa có yêu cầu tạm ứng</div></div>';return;}
-  el.innerHTML=advanceStore.map(a=>`
-    <div class="advance-card">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div class="advance-amount">${fmt(a.amount)}đ</div>
-        <span class="tag ${a.status==="approved"?"tag-green":a.status==="rejected"?"tag-red":"tag-amber"}">
-          ${a.status==="approved"?"✅ Đã duyệt":a.status==="rejected"?"❌ Từ chối":"⏳ Chờ duyệt"}
-        </span>
-      </div>
-      <div class="advance-date">${(a.createdAt||"").slice(0,10)}</div>
-      ${a.note?`<div class="advance-note">${a.note}</div>`:""}
-    </div>`).join("");
-}
-
-function openAdvanceModal(){document.getElementById("modalAdvance").classList.add("show");}
-function closeAdvModal(){document.getElementById("modalAdvance").classList.remove("show");}
-
-async function saveAdvance(){
-  const amount=+document.getElementById("advAmount").value||0;
-  const note=document.getElementById("advNote").value.trim();
-  if(!amount){showToast("❌ Nhập số tiền tạm ứng!",true);return;}
-  try{
-    await db.collection(`advances_${APP_ID}`).add({
-      driver: session.driverName,
-      username: session.username,
-      amount, note,
-      status:"pending",
-      createdAt: new Date().toISOString()
-    });
-    showToast("✅ Đã gửi yêu cầu tạm ứng!");
-    document.getElementById("advAmount").value="";
-    document.getElementById("advNote").value="";
-    closeAdvModal();
-  }catch(e){showToast("❌ Lỗi: "+e.message,true);}
-}
 
 // Close modals on backdrop click
 document.querySelectorAll(".modal-bg").forEach(m=>{
