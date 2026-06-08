@@ -269,7 +269,7 @@ if (!firebase.apps.length) {
           <th>#</th><th>Ngày</th><th>Số xe</th><th>Lái xe</th><th>Trạm đổ</th>
           <th>Số lít (L)</th><th>Đơn giá</th><th>Thành tiền</th>
           <th>KM hiện tại</th><th>KM lần trước</th><th>KM tiêu thụ</th>
-          <th>L/100km</th><th>Ghi chú</th>
+          <th>L/100km</th><th>YC LX</th><th>Ghi chú</th>
           <th>Sửa</th><th>Xóa</th>
         </tr></thead>
         <tbody id="fuelBody"></tbody>
@@ -404,6 +404,9 @@ if (!firebase.apps.length) {
       <div class="m-field"><label>Số lít thực cấp (L)</label><input id="fuelReqLiter" type="number" placeholder="0"></div>
       <div class="m-field"><label>Đơn giá (đ/lít)</label><input id="fuelReqPrice" type="number" placeholder="0"></div>
       <div class="m-field"><label>Trạm / Cây xăng</label><input id="fuelReqStation" placeholder="Tên trạm..."></div>
+      <div class="m-field"><label>KM hiện tại</label><input id="fuelReqKmAt" type="number" placeholder="0" oninput="calcFuelReqKm()"></div>
+      <div class="m-field"><label>KM lần trước</label><input id="fuelReqKmPrev" type="number" placeholder="0" oninput="calcFuelReqKm()"></div>
+      <div class="m-field"><label>KM tiêu thụ</label><input id="fuelReqKmUsed" type="number" placeholder="0" readonly style="background:#f0fdf4;color:#166534;font-weight:700"></div>
     </div>
     <div class="m-field" style="margin-bottom:8px"><label>Ghi chú phản hồi</label><textarea id="fuelReqNote" rows="2" placeholder="Ghi chú..."></textarea></div>
     <div id="fuelReqRejectBox" style="display:none;margin-bottom:8px">
@@ -1160,6 +1163,12 @@ async function renderFuelRequests(){
   }
 }
 
+function calcFuelReqKm(){
+  const at = +document.getElementById("fuelReqKmAt").value||0;
+  const prev = +document.getElementById("fuelReqKmPrev").value||0;
+  document.getElementById("fuelReqKmUsed").value = at>prev ? at-prev : 0;
+}
+
 function openFuelReqModal(id){
   _fuelReqCurrentId = id;
   const a = window._fuelReqStore[id] || {};
@@ -1173,6 +1182,9 @@ function openFuelReqModal(id){
   document.getElementById("fuelReqLiter").value = a.liter||"";
   document.getElementById("fuelReqStation").value = "";
   document.getElementById("fuelReqNote").value = "";
+  document.getElementById("fuelReqKmAt").value = "";
+  document.getElementById("fuelReqKmPrev").value = "";
+  document.getElementById("fuelReqKmUsed").value = "";
   document.getElementById("fuelReqRejectBox").style.display = "none";
   document.getElementById("fuelReqRejectReason").value = "";
 
@@ -1224,6 +1236,10 @@ async function approveFuelReq(){
   const total = Math.round(liter * price);
 
   // Tạo phiếu cấp NL
+  const kmAt = +document.getElementById("fuelReqKmAt").value||0;
+  const kmPrev = +document.getElementById("fuelReqKmPrev").value||0;
+  const kmUsed = kmAt>kmPrev ? kmAt-kmPrev : 0;
+  const rate = liter&&kmUsed ? Math.round(liter/kmUsed*100*10)/10 : 0;
   const newFuel = {
     date: a.date||today,
     truck: a.truckNo||"",
@@ -1233,7 +1249,7 @@ async function approveFuelReq(){
     unitPrice: price,
     total: total,
     note: note||("Cấp theo YC LX: "+(a.liter||0)+"L"),
-    kmAt:0, kmPrev:0, consume:0, rate:0,
+    kmAt, kmPrev, consume:kmUsed, rate,
     reqId: _fuelReqCurrentId,
     createdAt: new Date().toISOString()
   };
