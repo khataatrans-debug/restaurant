@@ -246,6 +246,7 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
           <div class="m-field"><label>Lái xe</label><input id="reqFuelDriver" readonly style="background:#f8fafc"></div>
           <div class="m-field"><label>Ngày</label><input id="reqFuelDate" type="date"></div>
           <div class="m-field"><label>Số lít đề xuất</label><input id="reqFuelLiter" type="number" placeholder="0"></div>
+          <div class="m-field"><label>KM hiện tại</label><input id="reqFuelKmAt" type="number" placeholder="0"></div>
           <div class="m-field full"><label>NL định mức tháng này</label><input id="reqFuelCalc" readonly style="background:#f0fdf4;color:#166534;font-weight:700"></div>
           <div class="m-field full"><label>Ghi chú</label><textarea id="reqFuelNote" placeholder="Ghi chú..."></textarea></div>
         </div>
@@ -565,12 +566,14 @@ async function saveReqFuel(){
       truckNo:session.truckNo,
       liter, note,
       date:document.getElementById("reqFuelDate").value,
+      kmAt: +document.getElementById("reqFuelKmAt").value||0,
       status:"pending",
       createdAt:new Date().toISOString()
     });
     showToast("✅ Đã gửi đề xuất nhiên liệu!");
     document.getElementById("reqFuelLiter").value="";
     document.getElementById("reqFuelNote").value="";
+    document.getElementById("reqFuelKmAt").value="";
     renderReqFuelList();
   }catch(e){showToast("❌ Lỗi: "+e.message,true);}
 }

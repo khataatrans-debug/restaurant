@@ -1177,12 +1177,13 @@ function openFuelReqModal(id){
   document.getElementById("fuelReqInfo").innerHTML =
     `👤 Lái xe: <strong>${a.driver||""}</strong> &nbsp;|&nbsp; 🚛 Xe: <strong>${a.truckNo||""}</strong><br>` +
     `📅 Ngày: <strong>${a.date||""}</strong> &nbsp;|&nbsp; ⛽ Đề xuất: <strong>${a.liter||0} lít</strong>` +
+    (a.kmAt?` &nbsp;|&nbsp; 📏 KM hiện tại: <strong>${a.kmAt.toLocaleString("vi-VN")} km</strong>`:"") +
     (a.note?`<br>💬 Ghi chú LX: <em>${a.note}</em>`:"");
 
   document.getElementById("fuelReqLiter").value = a.liter||"";
   document.getElementById("fuelReqStation").value = "";
   document.getElementById("fuelReqNote").value = "";
-  document.getElementById("fuelReqKmAt").value = "";
+  document.getElementById("fuelReqKmAt").value = a.kmAt||"";
   document.getElementById("fuelReqKmPrev").value = "";
   document.getElementById("fuelReqKmUsed").value = "";
   document.getElementById("fuelReqRejectBox").style.display = "none";
