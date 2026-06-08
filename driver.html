@@ -627,10 +627,11 @@ async function saveReqRepair(){
 }
 
 async function renderReqFuelList(){
-  const snap=await db.collection(`requests_fuel_${APP_ID}`).where("username","==",session.username).orderBy("createdAt","desc").limit(10).get();
+  const snap=await db.collection(`requests_fuel_${APP_ID}`).where("username","==",session.username).get();
   const el=document.getElementById("reqFuelList");
-  if(snap.empty){el.innerHTML='<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">Chưa có đề xuất</div></div>';return;}
-  el.innerHTML=snap.docs.map(d=>{const a={id:d.id,...d.data()};const isRej=a.status==="rejected";return`
+  const docs = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||"")).slice(0,10);
+  if(!docs.length){el.innerHTML='<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">Chưa có đề xuất</div></div>';return;}
+  el.innerHTML=docs.map(a=>{const isRej=a.status==="rejected";return`
   <div class="advance-card" style="border:1.5px solid ${isRej?"#fecaca":a.status==="approved"?"#86efac":"#fcd34d"};margin-bottom:10px">
     ${isRej?`<div style="background:#fef2f2;margin:-14px -14px 10px;padding:8px 14px;border-radius:8px 8px 0 0;font-size:12px;font-weight:700;color:#b91c1c">❌ Bị từ chối — nhấn Gửi lại để điều chỉnh</div>`:""}
     <div style="display:flex;justify-content:space-between;align-items:center">
@@ -664,10 +665,11 @@ function resubmitFuelReq(oldId, liter, kmAt, note){
 }
 
 async function renderReqRepairList(){
-  const snap=await db.collection(`requests_repair_${APP_ID}`).where("username","==",session.username).orderBy("createdAt","desc").limit(10).get();
+  const snap=await db.collection(`requests_repair_${APP_ID}`).where("username","==",session.username).get();
   const el=document.getElementById("reqRepairList");
-  if(snap.empty){el.innerHTML='<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">Chưa có đề xuất</div></div>';return;}
-  el.innerHTML=snap.docs.map(d=>{const a=d.data();return`<div class="advance-card">
+  const docs2 = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||"")).slice(0,10);
+  if(!docs2.length){el.innerHTML='<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">Chưa có đề xuất</div></div>';return;}
+  el.innerHTML=docs2.map(a=>{return`<div class="advance-card">
     <div style="display:flex;justify-content:space-between;align-items:center">
       <div style="font-weight:700;color:var(--navy)">${a.part}</div>
       <span class="tag ${a.urgency==="urgent"?"tag-red":"tag-amber"}">${a.urgency==="urgent"?"🚨 Khẩn":"🔧 Thường"}</span>
