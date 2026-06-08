@@ -791,6 +791,10 @@ async function sendRejResubmit(){
       kmAt, kmPrev, kmConsume:kmUsed, resubOf:_rejModalDocId,
       status:"pending", createdAt:new Date().toISOString()
     });
+    // Đánh dấu phiếu cũ là đã gửi lại → không còn đếm trong badge
+    if(_rejModalDocId){
+      await db.collection(`requests_fuel_${APP_ID}`).doc(_rejModalDocId).update({status:"resubmitted"});
+    }
     showToast("✅ Đã gửi lại đề xuất!");
     document.getElementById("modalFuelRejected").classList.remove("show");
   }catch(e){showToast("Lỗi: "+e.message,true);}
