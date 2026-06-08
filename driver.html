@@ -664,8 +664,6 @@ function resubmitFuelReq(oldId, liter, kmAt, note){
   showToast("✏️ Đã điền lại thông tin cũ — sửa và gửi lại!");
 }
 
-  }); // end onSnapshot fuel
-}
 function renderReqRepairList(){
   db.collection(`requests_repair_${APP_ID}`).where("username","==",session.username).onSnapshot(snap=>{
   const el=document.getElementById("reqRepairList");
