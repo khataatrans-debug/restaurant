@@ -139,6 +139,7 @@ tr:hover td{background:#e8eeff!important;}
 <script src="app-config.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 
 <!-- ══ HTML ══ -->
@@ -232,6 +233,7 @@ tr:hover td{background:#e8eeff!important;}
     <button class="btn btn-blue btn-sm" onclick="doRepairSearch()">Lọc</button>
     <button class="btn btn-gray btn-sm" onclick="clearRepairSearch()">Reset</button>
     <button class="btn btn-excel btn-sm" onclick="exportRepair()">↓ Excel</button>
+    <button class="btn btn-sm" onclick="openRepairReqList()" style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;font-weight:600" id="btnToggleRepairReq">🔧 Đề xuất từ LX <span id="repairReqBadge" style="background:#ef4444;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:3px;display:none">0</span></button>
     <div class="pill">Tổng: <strong id="repairCount">0</strong> phiếu &nbsp;|&nbsp; Chi phí: <strong id="repairTotal" style="color:var(--orange)">0</strong> đ</div>
   </div>
 
@@ -530,6 +532,7 @@ if(!firebase.apps.length){
   });
 }
 const _db   = firebase.database();
+const _fs   = firebase.firestore();
 const _ref  = (path) => _db.ref(path);
 const _onValue = (r,cb,eb) => r.on("value",cb,eb);
 const _set     = (r,val) => r.set(val);
@@ -1209,6 +1212,179 @@ window.clearTyreSearch=function(){
 ══════════════════════════════════════════ */
 /* Auto-fill lái xe từ master khi chọn xe */
 // Fuel functions moved to fuel.html
+
+/* ══ ĐỀ XUẤT SỬA CHỮA TỪ LÁI XE ══ */
+let _repairReqCurrentId = null;
+let _repairReqCache = {};
+
+function checkRepairReqBadge(){
+  _fs.collection(`requests_repair_${APP_ID}`)
+    .where("status","==","pending")
+    .get().then(snap=>{
+      const badge = document.getElementById("repairReqBadge");
+      if(badge){
+        badge.style.display = snap.size>0 ? "inline" : "none";
+        badge.textContent = snap.size;
+      }
+    }).catch(()=>{});
+}
+
+function openRepairReqList(){
+  document.getElementById("modalRepairReqList").style.display = "flex";
+  renderRepairReqList();
+}
+function closeRepairReqList(){
+  document.getElementById("modalRepairReqList").style.display = "none";
+}
+function refreshRepairReqList(){ renderRepairReqList(); }
+
+function renderRepairReqList(){
+  const body = document.getElementById("repairReqListBody");
+  body.innerHTML = '<div style="text-align:center;color:#64748b;padding:20px">Đang tải...</div>';
+  _fs.collection(`requests_repair_${APP_ID}`)
+    .where("status","==","pending")
+    .get().then(snap=>{
+      const docs = snap.docs.map(d=>({id:d.id,...d.data()}))
+        .sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));
+      docs.forEach(a=>{ _repairReqCache[a.id]=a; });
+      if(!docs.length){
+        body.innerHTML='<div style="text-align:center;color:#64748b;padding:24px">✅ Không có đề xuất nào đang chờ</div>';
+        return;
+      }
+      body.innerHTML = docs.map(a=>`
+        <div style="border:1px solid #e2e8f0;border-radius:9px;padding:11px 13px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div style="flex:1">
+              <div style="font-weight:700;color:#0d2248;font-size:13px">${a.part||"—"}</div>
+              <div style="font-size:11.5px;color:#64748b;margin-top:2px">
+                👤 ${a.driver||""} &nbsp;|&nbsp; 🚛 ${a.truckNo||""} &nbsp;|&nbsp; 📅 ${a.date||""}
+              </div>
+              <div style="font-size:12px;color:#475569;margin-top:3px">${a.desc||""}</div>
+              <div style="margin-top:4px">
+                <span style="background:${a.urgency==="urgent"?"#fef2f2":"#f8fafc"};color:${a.urgency==="urgent"?"#b91c1c":"#64748b"};border-radius:5px;padding:2px 8px;font-size:11px;font-weight:600">
+                  ${a.urgency==="urgent"?"🚨 Khẩn":"🔧 Thường"}
+                </span>
+                <span style="font-size:11px;color:#64748b;margin-left:6px">${a.type==="repair"?"Sửa chữa":a.type==="replace"?"Thay thế":"Kiểm tra"}</span>
+                ${a.cost?`<span style="font-size:11px;color:#92400e;margin-left:6px">~${(+a.cost).toLocaleString("vi-VN")}đ</span>`:""}
+              </div>
+            </div>
+            <button onclick="openRepairReqModal('${a.id}')" style="margin-left:10px;flex-shrink:0;height:30px;padding:0 12px;background:#0d2248;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">Xử lý</button>
+          </div>
+        </div>`).join("");
+    }).catch(e=>{ body.innerHTML=`<div style="color:#b91c1c;padding:10px">Lỗi: ${e.message}</div>`; });
+}
+
+function openRepairReqModal(id){
+  _repairReqCurrentId = id;
+  const a = _repairReqCache[id]||{};
+  document.getElementById("repairReqInfo").innerHTML =
+    `👤 Lái xe: <strong>${a.driver||""}</strong> &nbsp;|&nbsp; 🚛 Xe: <strong>${a.truckNo||""}</strong><br>`+
+    `📅 Ngày: <strong>${a.date||""}</strong> &nbsp;|&nbsp; 🔧 Hạng mục: <strong>${a.part||""}</strong><br>`+
+    `📋 ${a.type==="repair"?"Sửa chữa":a.type==="replace"?"Thay thế":"Kiểm tra"}`+
+    ` &nbsp;|&nbsp; <span style="color:${a.urgency==="urgent"?"#b91c1c":"#166534"};font-weight:700">${a.urgency==="urgent"?"🚨 Khẩn cấp":"✅ Bình thường"}</span>`+
+    (a.cost?`<br>💰 Ước tính: <strong>${(+a.cost).toLocaleString("vi-VN")}đ</strong>`:"")+
+    (a.desc?`<br>📝 <em>${a.desc}</em>`:"");
+  document.getElementById("repairReqNote").value="";
+  document.getElementById("repairReqRejectBox").style.display="none";
+  document.getElementById("repairReqRejectReason").value="";
+  document.getElementById("btnRepairRejectToggle").textContent="❌ Từ chối";
+  document.getElementById("btnRepairSendReject").style.display="none";
+  document.getElementById("btnRepairApprove").style.display="";
+  document.getElementById("modalRepairReq").style.display="flex";
+}
+
+function closeRepairReqModal(){
+  document.getElementById("modalRepairReq").style.display="none";
+}
+
+function toggleRepairRejectBox(){
+  const box=document.getElementById("repairReqRejectBox");
+  const show=box.style.display==="none";
+  box.style.display=show?"block":"none";
+  document.getElementById("btnRepairRejectToggle").textContent=show?"↩ Quay lại":"❌ Từ chối";
+  document.getElementById("btnRepairSendReject").style.display=show?"":"none";
+  document.getElementById("btnRepairApprove").style.display=show?"none":"";
+  if(show) document.getElementById("repairReqRejectReason").focus();
+}
+
+async function submitRepairReject(){
+  const reason=document.getElementById("repairReqRejectReason").value.trim();
+  if(!reason){alert("Nhập lý do từ chối!");return;}
+  try{
+    await _fs.collection(`requests_repair_${APP_ID}`).doc(_repairReqCurrentId).update({
+      status:"rejected", reason, resolvedAt:new Date().toISOString()
+    });
+    showToast("📩 Đã gửi từ chối cho lái xe!");
+    closeRepairReqModal();
+    renderRepairReqList();
+    checkRepairReqBadge();
+  }catch(e){showToast("Lỗi: "+e.message,true);}
+}
+
+async function approveRepairReq(){
+  const note=document.getElementById("repairReqNote").value.trim();
+  try{
+    await _fs.collection(`requests_repair_${APP_ID}`).doc(_repairReqCurrentId).update({
+      status:"approved", reason:note||"Đã tiếp nhận", resolvedAt:new Date().toISOString()
+    });
+    showToast("✅ Đã tiếp nhận đề xuất sửa chữa!");
+    closeRepairReqModal();
+    renderRepairReqList();
+    checkRepairReqBadge();
+  }catch(e){showToast("Lỗi: "+e.message,true);}
+}
+
+// Click ngoài đóng modal
+document.getElementById("modalRepairReq").addEventListener("click",function(e){if(e.target===this)closeRepairReqModal();});
+document.getElementById("modalRepairReqList").addEventListener("click",function(e){if(e.target===this)closeRepairReqList();});
+
+// Realtime badge khi load
+function renderDReqRepair(){ renderRepairReqList(); }
+function renderDReqFuel(){ checkRepairReqBadge(); }
+
+// Gọi badge khi load
+(function(){ checkRepairReqBadge(); })();
+
 </script>
+
+<!-- MODAL: DANH SÁCH ĐỀ XUẤT SỬA CHỮA TỪ LÁI XE -->
+<div id="modalRepairReqList" style="display:none;position:fixed;inset:0;background:rgba(13,34,72,.45);z-index:400;align-items:flex-start;justify-content:flex-end;padding:60px 16px 0">
+  <div style="background:#fff;border-radius:12px;width:520px;max-width:96vw;max-height:80vh;overflow-y:auto;box-shadow:0 8px 40px rgba(13,34,72,.2);font-family:inherit">
+    <div style="background:linear-gradient(135deg,#0d2248,#ef4444);border-radius:12px 12px 0 0;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:1">
+      <div style="color:#fff;font-size:13px;font-weight:700">🔧 Đề xuất sửa chữa từ lái xe</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button onclick="refreshRepairReqList()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer">🔄 Làm mới</button>
+        <button onclick="closeRepairReqList()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:6px;width:26px;height:26px;font-size:16px;cursor:pointer">×</button>
+      </div>
+    </div>
+    <div id="repairReqListBody" style="padding:12px 14px"><div style="text-align:center;color:#64748b;padding:20px">Đang tải...</div></div>
+  </div>
+</div>
+
+<!-- MODAL: DUYỆT ĐỀ XUẤT SỬA CHỮA -->
+<div id="modalRepairReq" style="display:none;position:fixed;inset:0;background:rgba(13,34,72,.45);z-index:500;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;width:520px;max-width:96vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(13,34,72,.2);font-family:inherit">
+    <div style="background:linear-gradient(135deg,#0d2248,#ef4444);border-radius:12px 12px 0 0;padding:14px 18px;display:flex;justify-content:space-between;align-items:center">
+      <div style="color:#fff;font-size:14px;font-weight:700">🔧 Duyệt đề xuất sửa chữa</div>
+      <button onclick="closeRepairReqModal()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:6px;width:26px;height:26px;font-size:16px;cursor:pointer">×</button>
+    </div>
+    <div style="padding:16px 18px">
+      <div id="repairReqInfo" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12.5px;line-height:2"></div>
+      <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Ghi chú phản hồi</div>
+      <textarea id="repairReqNote" rows="2" placeholder="Ghi chú cho lái xe..." style="width:100%;font-size:12.5px;font-family:inherit;border:1px solid #e2e8f0;border-radius:7px;padding:8px 10px;resize:none;box-sizing:border-box;margin-bottom:10px"></textarea>
+      <div id="repairReqRejectBox" style="display:none;background:#fff5f5;border:1px solid #fecaca;border-radius:8px;padding:10px 12px;margin-bottom:10px">
+        <div style="font-size:10px;font-weight:700;color:#b91c1c;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Lý do từ chối *</div>
+        <textarea id="repairReqRejectReason" rows="2" placeholder="Nhập lý do từ chối..." style="width:100%;font-size:12.5px;font-family:inherit;border:1px solid #fecaca;border-radius:7px;padding:8px 10px;resize:none;box-sizing:border-box"></textarea>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;border-top:1px solid #e2e8f0;padding-top:12px">
+        <button onclick="closeRepairReqModal()" style="height:34px;padding:0 16px;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:7px;font-size:12px;font-family:inherit;font-weight:600;cursor:pointer">Hủy</button>
+        <button id="btnRepairRejectToggle" onclick="toggleRepairRejectBox()" style="height:34px;padding:0 16px;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:7px;font-size:12px;font-family:inherit;font-weight:600;cursor:pointer">❌ Từ chối</button>
+        <button id="btnRepairSendReject" onclick="submitRepairReject()" style="display:none;height:34px;padding:0 16px;background:#ef4444;color:#fff;border:none;border-radius:7px;font-size:12px;font-family:inherit;font-weight:700;cursor:pointer">📩 Gửi từ chối</button>
+        <button id="btnRepairApprove" onclick="approveRepairReq()" style="height:34px;padding:0 20px;background:linear-gradient(135deg,#166534,#15803d);color:#fff;border:none;border-radius:7px;font-size:12px;font-family:inherit;font-weight:700;cursor:pointer">✅ Tiếp nhận</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
