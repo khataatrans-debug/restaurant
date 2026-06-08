@@ -246,7 +246,9 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
           <div class="m-field"><label>Lái xe</label><input id="reqFuelDriver" readonly style="background:#f8fafc"></div>
           <div class="m-field"><label>Ngày</label><input id="reqFuelDate" type="date"></div>
           <div class="m-field"><label>Số lít đề xuất</label><input id="reqFuelLiter" type="number" placeholder="0"></div>
-          <div class="m-field"><label>KM hiện tại</label><input id="reqFuelKmAt" type="number" placeholder="0"></div>
+          <div class="m-field"><label>KM hiện tại <span style="color:#ef4444">*</span></label><input id="reqFuelKmAt" type="number" placeholder="Bắt buộc" oninput="calcReqFuelKm()"></div>
+          <div class="m-field"><label>KM kỳ trước</label><input id="reqFuelKmPrev" type="number" readonly style="background:#f8fafc;color:#64748b;font-weight:600"></div>
+          <div class="m-field"><label>KM tiêu thụ</label><input id="reqFuelKmUsed" type="number" readonly style="background:#f0fdf4;color:#166534;font-weight:700"></div>
           <div class="m-field full"><label>NL định mức tháng này</label><input id="reqFuelCalc" readonly style="background:#f0fdf4;color:#166534;font-weight:700"></div>
           <div class="m-field full"><label>Ghi chú</label><textarea id="reqFuelNote" placeholder="Ghi chú..."></textarea></div>
         </div>
@@ -551,14 +553,35 @@ function initRequestPage(){
   const totalKm=rows.reduce((s,r)=>s+parseFloat(r.km||0),0);
   const calcLiter=fuelRate&&totalKm?Math.round(totalKm*fuelRate/100):0;
   document.getElementById("reqFuelCalc").value=calcLiter?`${calcLiter} lít (${rows.length} chuyến × ${fuelRate}L/100km)`:"Chưa có dữ liệu";
+  // Auto-fill KM kỳ trước từ đề xuất đã duyệt gần nhất
+  try{
+    const snap=await db.collection(`requests_fuel_${APP_ID}`)
+      .where("username","==",session.username)
+      .where("status","==","approved")
+      .get();
+    let lastKm=0;
+    snap.docs.forEach(d=>{const km=+(d.data().kmAt||0);if(km>lastKm)lastKm=km;});
+    if(lastKm>0) document.getElementById("reqFuelKmPrev").value=lastKm;
+  }catch(e){}
   renderReqFuelList();
   renderReqRepairList();
 }
 
+function calcReqFuelKm(){
+  const kmAt=+document.getElementById("reqFuelKmAt").value||0;
+  const kmPrev=+document.getElementById("reqFuelKmPrev").value||0;
+  const used=kmAt>kmPrev&&kmPrev>0?kmAt-kmPrev:0;
+  document.getElementById("reqFuelKmUsed").value=used||"";
+}
+
 async function saveReqFuel(){
   const liter=+document.getElementById("reqFuelLiter").value||0;
+  const kmAt=+document.getElementById("reqFuelKmAt").value||0;
+  const kmPrev=+document.getElementById("reqFuelKmPrev").value||0;
   const note=document.getElementById("reqFuelNote").value.trim();
   if(!liter){showToast("❌ Nhập số lít đề xuất!",true);return;}
+  if(!kmAt){showToast("❌ Phải nhập KM hiện tại mới gửi được!",true);document.getElementById("reqFuelKmAt").focus();return;}
+  const kmUsed=kmAt>kmPrev&&kmPrev>0?kmAt-kmPrev:0;
   try{
     await db.collection(`requests_fuel_${APP_ID}`).add({
       driver:session.driverName||session.username,
@@ -566,7 +589,7 @@ async function saveReqFuel(){
       truckNo:session.truckNo,
       liter, note,
       date:document.getElementById("reqFuelDate").value,
-      kmAt: +document.getElementById("reqFuelKmAt").value||0,
+      kmAt, kmPrev, kmConsume:kmUsed,
       status:"pending",
       createdAt:new Date().toISOString()
     });
@@ -574,6 +597,7 @@ async function saveReqFuel(){
     document.getElementById("reqFuelLiter").value="";
     document.getElementById("reqFuelNote").value="";
     document.getElementById("reqFuelKmAt").value="";
+    document.getElementById("reqFuelKmUsed").value="";
     renderReqFuelList();
   }catch(e){showToast("❌ Lỗi: "+e.message,true);}
 }
@@ -612,8 +636,9 @@ async function renderReqFuelList(){
       <div class="advance-amount">⛽ ${a.liter} lít</div>
       <span class="tag ${a.status==="approved"?"tag-green":a.status==="rejected"?"tag-red":"tag-amber"}">${a.status==="approved"?"✅ Duyệt":a.status==="rejected"?"❌ Từ chối":"⏳ Chờ"}</span>
     </div>
-    <div class="advance-date">${a.date}</div>
+    <div class="advance-date">${a.date}${a.kmAt?` &nbsp;|&nbsp; KM: ${a.kmAt}`:""}  </div>
     ${a.note?`<div class="advance-note">${a.note}</div>`:""}
+    ${a.reason?`<div style="margin-top:4px;padding:5px 8px;background:${a.status==="rejected"?"#fff5f5":"#f0fdf4"};border-radius:6px;font-size:11.5px;color:${a.status==="rejected"?"#b91c1c":"#166534"};font-weight:600">📩 ${a.reason}</div>`:""}
   </div>`}).join("");
 }
 

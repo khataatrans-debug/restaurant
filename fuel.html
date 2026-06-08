@@ -415,8 +415,9 @@ if (!firebase.apps.length) {
     </div>
     <div class="m-actions">
       <button class="btn btn-gray" onclick="closeFuelReqModal()">Hủy</button>
-      <button style="padding:5px 14px;font-size:12px;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:5px;font-weight:600;cursor:pointer" onclick="showFuelRejectBox()">❌ Từ chối</button>
-      <button style="padding:5px 14px;font-size:12px;background:var(--green);color:#fff;border:none;border-radius:5px;font-weight:600;cursor:pointer" onclick="approveFuelReq()">✅ Duyệt & Tạo phiếu</button>
+      <button id="btnFuelReject" style="padding:5px 14px;font-size:12px;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:5px;font-weight:600;cursor:pointer" onclick="toggleFuelRejectBox()">❌ Từ chối</button>
+      <button id="btnFuelSendReject" style="display:none;padding:5px 14px;font-size:12px;background:#ef4444;color:#fff;border:none;border-radius:5px;font-weight:600;cursor:pointer" onclick="submitFuelReject()">📩 Gửi từ chối</button>
+      <button id="btnFuelApprove" style="padding:5px 14px;font-size:12px;background:var(--green);color:#fff;border:none;border-radius:5px;font-weight:600;cursor:pointer" onclick="approveFuelReq()">✅ Duyệt & Tạo phiếu</button>
     </div>
   </div>
 </div>
@@ -1197,6 +1198,11 @@ function openFuelReqModal(id){
   }
 
   document.getElementById("modalFuelReqList").classList.remove("show");
+  document.getElementById("fuelReqRejectBox").style.display = "none";
+  document.getElementById("fuelReqRejectReason").value = "";
+  document.getElementById("btnFuelReject").textContent = "❌ Từ chối";
+  document.getElementById("btnFuelSendReject").style.display = "none";
+  document.getElementById("btnFuelApprove").style.display = "";
   document.getElementById("modalFuelReq").classList.add("show");
 }
 
@@ -1205,9 +1211,26 @@ function closeFuelReqModal(){
   _fuelReqCurrentId = null;
 }
 
-function showFuelRejectBox(){
-  document.getElementById("fuelReqRejectBox").style.display = "block";
-  document.getElementById("fuelReqRejectReason").focus();
+function toggleFuelRejectBox(){
+  const box = document.getElementById("fuelReqRejectBox");
+  const show = box.style.display==="none" || !box.style.display;
+  box.style.display = show ? "block" : "none";
+  document.getElementById("btnFuelReject").textContent = show ? "↩ Quay lại" : "❌ Từ chối";
+  document.getElementById("btnFuelSendReject").style.display = show ? "" : "none";
+  document.getElementById("btnFuelApprove").style.display = show ? "none" : "";
+  if(show) document.getElementById("fuelReqRejectReason").focus();
+}
+
+async function submitFuelReject(){
+  const reason = document.getElementById("fuelReqRejectReason").value.trim();
+  if(!reason){showToast("⚠️ Nhập lý do từ chối!",true);document.getElementById("fuelReqRejectReason").focus();return;}
+  try{
+    await firebase.firestore().collection(`requests_fuel_${APP_ID}`).doc(_fuelReqCurrentId).update({
+      status:"rejected", reason, resolvedAt:new Date().toISOString()
+    });
+    showToast("📩 Đã gửi từ chối cho lái xe!");
+    closeFuelReqModal(); renderFuelRequests(); checkFuelReqBadge();
+  }catch(e){showToast("Lỗi: "+e.message,true);}
 }
 
 async function approveFuelReq(){
@@ -1215,21 +1238,6 @@ async function approveFuelReq(){
   const station = document.getElementById("fuelReqStation").value.trim();
   const price = +document.getElementById("fuelReqPrice").value||0;
   const note = document.getElementById("fuelReqNote").value.trim();
-  const rejectReason = document.getElementById("fuelReqRejectReason").value.trim();
-  const isReject = document.getElementById("fuelReqRejectBox").style.display !== "none" && rejectReason;
-
-  if(isReject){
-    try{
-      await firebase.firestore().collection(`requests_fuel_${APP_ID}`).doc(_fuelReqCurrentId).update({
-        status:"rejected", reason:rejectReason, resolvedAt:new Date().toISOString()
-      });
-      showToast("❌ Đã từ chối đề xuất!");
-      closeFuelReqModal(); renderFuelRequests(); checkFuelReqBadge();
-      document.getElementById("modalFuelReqList").classList.add("show");
-    }catch(e){showToast("Lỗi: "+e.message,true);}
-    return;
-  }
-
   if(!liter){showToast("Nhập số lít thực cấp!",true);return;}
 
   const a = _fuelReqCurrentData;
