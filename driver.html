@@ -229,8 +229,10 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
     <div class="page-title">🔧 Đề xuất</div>
     <!-- Sub tabs -->
     <div style="display:flex;gap:8px;margin-bottom:14px;">
-      <button id="reqTab1" class="btn btn-primary" style="flex:1;height:36px;font-size:12px;position:relative" onclick="switchReqTab('fuel')">⛽ Cấp nhiên liệu<span id="fuelRejBadge" onclick="event.stopPropagation();openRejListModal()" style="display:none;position:absolute;top:-7px;right:-4px;background:#ef4444;color:#fff;border-radius:50%;min-width:18px;height:18px;font-size:10px;font-weight:800;line-height:18px;text-align:center;padding:0 3px;box-shadow:0 0 0 2px #fff;cursor:pointer">0</span></button>
-      <button id="reqTab2" class="btn btn-gray" style="flex:1;height:36px;font-size:12px" onclick="switchReqTab('repair')">🔧 Sửa chữa</button>
+      <button id="reqTab1" style="flex:1;height:40px;font-size:13px;font-weight:700;border:none;border-radius:10px;cursor:pointer;position:relative;background:#1d6ef5;color:#fff" onclick="switchReqTab('fuel')">⛽ Cấp nhiên liệu
+        <span id="fuelRejBadge" onclick="event.stopPropagation();openRejListModal()" style="display:none;position:absolute;top:-7px;right:-4px;background:#ef4444;color:#fff;border-radius:50%;min-width:18px;height:18px;font-size:10px;font-weight:800;line-height:18px;text-align:center;padding:0 3px;box-shadow:0 0 0 2px #fff;cursor:pointer">0</span>
+      </button>
+      <button id="reqTab2" style="flex:1;height:40px;font-size:13px;font-weight:700;border:none;border-radius:10px;cursor:pointer;background:#e2e8f0;color:#64748b" onclick="switchReqTab('repair')">🔧 Sửa chữa</button>
     </div>
     <div id="reqFuelPanel">
       <div class="card">
@@ -276,7 +278,6 @@ body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--te
         </div>
         <button class="btn btn-danger" style="width:100%;margin-top:8px" onclick="saveReqRepair()">📤 Gửi đề xuất sửa chữa</button>
       </div>
-      <div id="reqRepairList"></div>
     </div>
   </div>
 
@@ -800,25 +801,7 @@ async function sendRejResubmit(){
   }catch(e){showToast("Lỗi: "+e.message,true);}
 }
 
-function renderReqRepairList(){
-  db.collection(`requests_repair_${APP_ID}`).where("username","==",session.username).onSnapshot(snap=>{
-  const el=document.getElementById("reqRepairList");
-  const docs2 = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||"")).slice(0,10);
-  if(!docs2.length){el.innerHTML='<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">Chưa có đề xuất</div></div>';return;}
-  el.innerHTML=docs2.map(a=>{return`<div class="advance-card">
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <div style="font-weight:700;color:var(--navy)">${a.part}</div>
-      <span class="tag ${a.urgency==="urgent"?"tag-red":"tag-amber"}">${a.urgency==="urgent"?"🚨 Khẩn":"🔧 Thường"}</span>
-    </div>
-    <div class="advance-date">${a.date} | ${a.type==="repair"?"Sửa":a.type==="replace"?"Thay":"Kiểm tra"}</div>
-    <div class="advance-note">${a.desc}</div>
-    <div style="display:flex;justify-content:space-between;margin-top:4px">
-      ${a.cost?`<span style="font-size:11px;color:var(--amber)">Ước tính: ${fmt(a.cost)}đ</span>`:"<span></span>"}
-      <span class="tag ${a.status==="approved"?"tag-green":a.status==="rejected"?"tag-red":"tag-amber"}">${a.status==="approved"?"✅ Duyệt":a.status==="rejected"?"❌ Từ chối":"⏳ Chờ"}</span>
-    </div>
-  </div>`}).join("");
-  }); // end onSnapshot repair
-}
+function renderReqRepairList(){} // list removed
 // ── ORDERS PAGE ──
 function getFilteredTrips(monthInputId, filterInputId, driverFilter){
   const month = document.getElementById(monthInputId)?.value || thisMonth();
