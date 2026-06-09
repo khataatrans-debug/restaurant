@@ -393,14 +393,15 @@ function renderAll(){
 
 /* SUMMARY */
 function updateSummary(){
-  let rev=0,cost=0,km=0;
+  let rev=0,revVC=0,cost=0,km=0;
   filteredTrk.forEach(r=>{
     const c=costStore[r.id]||{};
     rev+=+c.revenue||0;
+    revVC+=+c.truckPrice||0;
     cost+=+c.cost||0;
     km+=+r.km||0;
   });
-  const profit=rev-cost;
+  const profit=(revVC||rev)-cost;
   document.getElementById("totalRev").textContent=fmt(rev);
   document.getElementById("totalCost").textContent=fmt(cost);
   document.getElementById("totalProfit").textContent=fmt(profit);
@@ -579,16 +580,18 @@ function renderKhach(){
   const map={};
   filteredTrk.forEach(r=>{
     const key=(r.customer||"(chưa có KH)").trim();
-    if(!map[key]) map[key]={customer:key,cusCode:r.cusCode||"",trips:0,km:0,rev:0,wage:0,fuel:0,toll:0,repair:0,other:0};
+    if(!map[key]) map[key]={customer:key,cusCode:r.cusCode||"",trips:0,km:0,rev:0,revVC:0,chiHo:0,wage:0,fuel:0,toll:0,repair:0,other:0};
     const c=costStore[r.id]||{};
     map[key].trips++;
     map[key].km   +=+r.km||0;
-    map[key].rev  +=+c.revenue||0;
-    map[key].wage +=+c.wage   ||0;
-    map[key].fuel +=+c.fuel   ||0;
-    map[key].toll +=+c.toll   ||0;
-    map[key].repair+=+c.repair||0;
-    map[key].other+=+c.other  ||0;
+    map[key].rev   +=+c.revenue||0;
+    map[key].revVC +=+c.truckPrice||0;
+    map[key].chiHo +=(+c.lift||0)+(+c.dropFee||0)+(+c.deposit||0);
+    map[key].wage  +=+c.wage   ||0;
+    map[key].fuel  +=+c.fuel   ||0;
+    map[key].toll  +=+c.toll   ||0;
+    map[key].repair+=+c.repair ||0;
+    map[key].other +=+c.other  ||0;
     if(r.cusCode) map[key].cusCode=r.cusCode;
   });
   const rows=Object.values(map).sort((a,b)=>b.rev-a.rev);
@@ -619,8 +622,8 @@ function renderKhach(){
   if(!rows.length){tbody.innerHTML='<tr><td colspan="18" class="loading">Không có dữ liệu</td></tr>';return;}
   tbody.innerHTML=rows.map(r=>{
     const totalC=r.wage+r.fuel+r.toll+r.repair+r.other;
-    const profit=r.rev-totalC;
-    const pln=r.rev?Math.round(profit/r.rev*100):0;
+    const profit=(r.revVC||r.rev)-totalC;
+    const pln=(r.revVC||r.rev)?Math.round(profit/(r.revVC||r.rev)*100):0;
     const pDt=tRev?Math.round(r.rev/tRev*100):0;
     return `<tr>
       <td class="tl" style="font-weight:700;white-space:nowrap">${r.customer}</td>
@@ -629,6 +632,8 @@ function renderKhach(){
       <td class="num" style="color:var(--amber);font-weight:600">${fmt(r.km)} km</td>
       <td class="num" style="color:var(--accent);font-weight:700">${fmt(r.rev)}</td>
       <td><span style="background:#1d6ef518;border:1px solid #1d6ef544;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700;color:#1d6ef5">${pDt}%</span></td>
+      <td class="num" style="color:#1d4ed8;font-weight:700">${fmtC(r.revVC)}</td>
+      <td class="num" style="color:#7e3af2;font-weight:600">${fmtC(r.chiHo)}</td>
       <td class="num" style="color:#7c3aed">${fmtC(r.wage)}</td><td>${colP(r.wage,r.rev)}</td>
       <td class="num" style="color:#e67700">${fmtC(r.fuel)}</td><td>${colP(r.fuel,r.rev)}</td>
       <td class="num" style="color:#0369a1">${fmtC(r.toll)}</td><td>${colP(r.toll,r.rev)}</td>
