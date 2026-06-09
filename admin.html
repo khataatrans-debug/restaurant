@@ -505,8 +505,7 @@ async function saveCompany(){
 
 // ── UTILS ──
 async function deleteCompany(id, appId){
-  if(!confirm('Xóa công ty ' + appId + '?
-Hành động này không thể hoàn tác!')) return;
+  if(!confirm('Xóa công ty ' + appId + '? Hành động này không thể hoàn tác!')) return;
   try{
     await db.collection('companies').doc(id).delete();
     showToast('✅ Đã xóa ' + appId);
