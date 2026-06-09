@@ -99,6 +99,20 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .back-link{text-align:center;margin-top:14px;font-size:12px;color:var(--muted);}
 .back-link a{color:rgba(255,255,255,.4);text-decoration:none;font-weight:600;}
 .back-link a:hover{color:var(--blue2);}
+
+/* MODULE GRID */
+.module-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px;}
+.module-card{background:rgba(255,255,255,.04);border:1.5px solid rgba(255,255,255,.1);border-radius:10px;padding:10px 12px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:10px;user-select:none;}
+.module-card:hover{border-color:rgba(29,94,248,.4);background:rgba(29,94,248,.08);}
+.module-card.selected{border-color:var(--blue);background:rgba(29,94,248,.15);box-shadow:0 0 0 3px rgba(29,94,248,.15);}
+.module-card input[type=checkbox]{width:15px;height:15px;accent-color:var(--blue);cursor:pointer;flex-shrink:0;}
+.module-card-info{flex:1;}
+.module-card-name{font-size:12.5px;font-weight:700;color:var(--text);}
+.module-card-desc{font-size:10px;color:var(--muted);margin-top:1px;}
+.module-card-icon{font-size:18px;flex-shrink:0;}
+.plan-row{display:flex;gap:8px;margin-bottom:16px;}
+.plan-btn{flex:1;padding:8px;border-radius:8px;border:1.5px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:.2s;text-align:center;}
+.plan-btn.active{border-color:var(--amber);background:rgba(251,191,36,.1);color:var(--amber);}
 </style>
 </head>
 <body>
@@ -119,14 +133,18 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
   <div class="steps-bar">
     <div class="step-item active" id="si1">
       <div class="step-num" id="sn1">1</div>
-      <div class="step-label">Mã công ty</div>
+      <div class="step-label">Mã CTY</div>
     </div>
     <div class="step-item" id="si2">
       <div class="step-num" id="sn2">2</div>
-      <div class="step-label">Tài khoản Admin</div>
+      <div class="step-label">Admin</div>
     </div>
     <div class="step-item" id="si3">
       <div class="step-num" id="sn3">3</div>
+      <div class="step-label">Modules</div>
+    </div>
+    <div class="step-item" id="si4">
+      <div class="step-num" id="sn4">4</div>
       <div class="step-label">Hoàn tất</div>
     </div>
   </div>
@@ -190,8 +208,73 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
     <button class="btn btn-outline" onclick="backToStep1()">← Đổi mã công ty</button>
   </div>
 
-  <!-- PANEL 3: Hoàn tất -->
+  <!-- PANEL 3: Chọn Modules -->
   <div class="panel" id="panel3">
+    <div class="panel-title">Chọn modules & gói dịch vụ</div>
+    <div class="panel-desc">Tick các tính năng công ty <strong id="p3code" style="color:var(--blue2)"></strong> được sử dụng.</div>
+
+    <div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">Gói dịch vụ</div>
+    <div class="plan-row">
+      <button class="plan-btn" id="planBasic" onclick="setPlan('basic')">⚡ Basic</button>
+      <button class="plan-btn active" id="planPro" onclick="setPlan('pro')">🚀 Pro</button>
+      <button class="plan-btn" id="planEnterprise" onclick="setPlan('enterprise')">👑 Enterprise</button>
+    </div>
+
+    <div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">Modules</div>
+    <div class="module-grid" id="moduleGrid">
+      <label class="module-card selected" id="mc_trucking">
+        <input type="checkbox" checked onchange="toggleModule('trucking',this)">
+        <span class="module-card-icon">🚚</span>
+        <div class="module-card-info"><div class="module-card-name">Trucking</div><div class="module-card-desc">Quản lý chuyến xe</div></div>
+      </label>
+      <label class="module-card selected" id="mc_accountant">
+        <input type="checkbox" checked onchange="toggleModule('accountant',this)">
+        <span class="module-card-icon">📒</span>
+        <div class="module-card-info"><div class="module-card-name">Accountant</div><div class="module-card-desc">Kế toán chi phí</div></div>
+      </label>
+      <label class="module-card selected" id="mc_performance">
+        <input type="checkbox" checked onchange="toggleModule('performance',this)">
+        <span class="module-card-icon">📈</span>
+        <div class="module-card-info"><div class="module-card-name">Performance</div><div class="module-card-desc">Hiệu suất vận hành</div></div>
+      </label>
+      <label class="module-card selected" id="mc_overview">
+        <input type="checkbox" checked onchange="toggleModule('overview',this)">
+        <span class="module-card-icon">📊</span>
+        <div class="module-card-info"><div class="module-card-name">Overview</div><div class="module-card-desc">Tổng quan báo cáo</div></div>
+      </label>
+      <label class="module-card selected" id="mc_master">
+        <input type="checkbox" checked onchange="toggleModule('master',this)">
+        <span class="module-card-icon">📂</span>
+        <div class="module-card-info"><div class="module-card-name">Master Data</div><div class="module-card-desc">Danh mục dữ liệu</div></div>
+      </label>
+      <label class="module-card selected" id="mc_maintenance">
+        <input type="checkbox" checked onchange="toggleModule('maintenance',this)">
+        <span class="module-card-icon">🔧</span>
+        <div class="module-card-info"><div class="module-card-name">Bảo dưỡng</div><div class="module-card-desc">Sửa chữa xe</div></div>
+      </label>
+      <label class="module-card selected" id="mc_fuel">
+        <input type="checkbox" checked onchange="toggleModule('fuel',this)">
+        <span class="module-card-icon">⛽</span>
+        <div class="module-card-info"><div class="module-card-name">Nhiên liệu</div><div class="module-card-desc">Quản lý NL</div></div>
+      </label>
+      <label class="module-card selected" id="mc_driver">
+        <input type="checkbox" checked onchange="toggleModule('driver',this)">
+        <span class="module-card-icon">🚛</span>
+        <div class="module-card-info"><div class="module-card-name">Driver App</div><div class="module-card-desc">App lái xe</div></div>
+      </label>
+      <label class="module-card selected" id="mc_users" style="grid-column:1/-1">
+        <input type="checkbox" checked onchange="toggleModule('users',this)">
+        <span class="module-card-icon">👑</span>
+        <div class="module-card-info"><div class="module-card-name">Users & Phân quyền</div><div class="module-card-desc">Quản lý tài khoản</div></div>
+      </label>
+    </div>
+
+    <button class="btn btn-green" onclick="doSaveModules()">💾 Lưu & Hoàn tất →</button>
+    <button class="btn btn-outline" onclick="backToStep2()">← Đổi tài khoản</button>
+  </div>
+
+  <!-- PANEL 4: Hoàn tất -->
+  <div class="panel" id="panel4">
     <div class="success-icon">✅</div>
     <div class="success-title">Khởi tạo thành công!</div>
     <div class="success-sub">Hệ thống đã sẵn sàng cho công ty của bạn. Đăng nhập ngay để bắt đầu sử dụng.</div>
@@ -210,8 +293,8 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
         <div class="info-cell-val" id="donePass">—</div>
       </div>
       <div class="info-cell">
-        <div class="info-cell-label">Quyền</div>
-        <div class="info-cell-val">ADMIN</div>
+        <div class="info-cell-label">Gói & Modules</div>
+        <div class="info-cell-val" id="donePlan">—</div>
       </div>
     </div>
 
@@ -246,10 +329,25 @@ firebase.initializeApp({
 });
 const db = firebase.database();
 
-const ALL_PAGES = ["index.html","accountant.html","performance.html","overview.html","maintenance.html","users.html","master.html"];
+const ALL_PAGES = ["index.html","accountant.html","performance.html","overview.html","maintenance.html","fuel.html","users.html","master.html"];
+
+const MODULE_MAP = {
+  trucking:    "index.html",
+  accountant:  "accountant.html",
+  performance: "performance.html",
+  overview:    "overview.html",
+  master:      "master.html",
+  maintenance: "maintenance.html",
+  fuel:        "fuel.html",
+  driver:      "driver.html",
+  users:       "users.html"
+};
 
 let currentCode = "";
 let checkTimer  = null;
+let currentPlan = "pro";
+let selectedModules = Object.keys(MODULE_MAP).reduce((o,k)=>{o[k]=true;return o;},{});
+let createdUser = "", createdPass = "";
 
 /* ══ BƯỚC 1: NHẬP MÃ ══ */
 function onCodeInput(el){
@@ -352,10 +450,11 @@ function doCreate(){
     .then(() => {
       sb2.className="status-box free";
       sb2.innerHTML="✅ Tạo thành công!";
-      // Lưu vào localStorage luôn cho tiện
+      // Lưu vào localStorage
       localStorage.setItem(`app_users_${currentCode}`, JSON.stringify(adminUser));
-      // Qua bước 3
-      setTimeout(() => goStep3(u, p), 500);
+      createdUser = u; createdPass = p;
+      // Qua bước 3 (Modules)
+      setTimeout(() => goStep3Modules(), 500);
     })
     .catch(err => {
       sb2.className="status-box taken";
@@ -364,7 +463,94 @@ function doCreate(){
     });
 }
 
-/* ══ BƯỚC 3: HOÀN TẤT ══ */
+/* ══ BƯỚC 3: MODULES ══ */
+function goStep3Modules(){
+  setStepDone(2); setStepActive(3);
+  document.getElementById("panel2").classList.remove("active");
+  document.getElementById("panel3").classList.add("active");
+  document.getElementById("p3code").textContent = currentCode;
+}
+
+function backToStep2(){
+  setStepActive(2); setStepPending(3); setStepPending(4);
+  document.getElementById("panel3").classList.remove("active");
+  document.getElementById("panel2").classList.add("active");
+}
+
+function setPlan(plan){
+  currentPlan = plan;
+  ["basic","pro","enterprise"].forEach(p=>{
+    document.getElementById("plan"+p.charAt(0).toUpperCase()+p.slice(1)).classList.toggle("active", p===plan);
+  });
+  // Auto-tick modules theo gói
+  if(plan==="basic"){
+    ["trucking","accountant","master","users"].forEach(m=>setModule(m,true));
+    ["performance","overview","maintenance","fuel","driver"].forEach(m=>setModule(m,false));
+  } else if(plan==="pro"){
+    Object.keys(MODULE_MAP).forEach(m=>setModule(m,true));
+    setModule("driver",false);
+  } else {
+    Object.keys(MODULE_MAP).forEach(m=>setModule(m,true));
+  }
+}
+
+function setModule(key, checked){
+  selectedModules[key] = checked;
+  const card = document.getElementById("mc_"+key);
+  if(card){
+    card.classList.toggle("selected", checked);
+    card.querySelector("input").checked = checked;
+  }
+}
+
+function toggleModule(key, el){
+  selectedModules[key] = el.checked;
+  document.getElementById("mc_"+key).classList.toggle("selected", el.checked);
+}
+
+async function doSaveModules(){
+  // Lưu config modules vào Firebase
+  const modules = {...selectedModules};
+  const pages = Object.entries(MODULE_MAP)
+    .filter(([k])=>modules[k])
+    .map(([,v])=>v);
+
+  const config = {
+    plan: currentPlan,
+    modules,
+    pages,
+    createdAt: new Date().toISOString(),
+    active: true
+  };
+
+  try{
+    await db.ref(`app_config_${currentCode}`).set(config);
+    // Cập nhật lại admin user với pages đúng
+    const adminUser = [{username:createdUser,password:createdPass,role:"admin",pages:[...ALL_PAGES]}];
+    await db.ref(`app_users_${currentCode}`).set(adminUser);
+    goStep4();
+  }catch(e){
+    alert("Lỗi lưu config: "+e.message);
+  }
+}
+
+/* ══ BƯỚC 4: HOÀN TẤT ══ */
+function goStep4(){
+  setStepDone(3); setStepActive(4);
+  document.getElementById("panel3").classList.remove("active");
+  document.getElementById("panel4").classList.add("active");
+  document.getElementById("doneCode").textContent = currentCode;
+  document.getElementById("doneUser").textContent = createdUser;
+  document.getElementById("donePass").textContent = createdPass;
+  const mCount = Object.values(selectedModules).filter(Boolean).length;
+  document.getElementById("donePlan").textContent = currentPlan.toUpperCase()+" ("+mCount+" modules)";
+  const base = location.origin + location.pathname.replace("setup.html","");
+  const link = `${base}landing.html`;
+  document.getElementById("shareLink").textContent = link;
+  document.getElementById("btnGoLogin").dataset.link = `${base}login.html`;
+}
+
+/* ══ BƯỚC 3 (cũ) → đổi thành goStep3 unused ══ */
 function goStep3(username, password){
   setStepDone(2); setStepActive(3);
   document.getElementById("panel2").classList.remove("active");
