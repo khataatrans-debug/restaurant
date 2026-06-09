@@ -105,9 +105,8 @@
 
   /* ─────────────────────────────────────────
      7. MODULE CONFIG
-     Đọc app_config_APPID từ Firebase RTDB
-     Nếu chưa có → tạo mặc định (tất cả modules)
-     window.APP_MODULES = { trucking: true, ... }
+     Đọc từ Firestore collection "companies" (quản lý bởi admin.html)
+     Fallback: RTDB app_config_APPID → default all modules
   ───────────────────────────────────────── */
   const DEFAULT_MODULES = {
     trucking: true, accountant: true, performance: true,
@@ -117,35 +116,49 @@
 
   window.APP_MODULES = {...DEFAULT_MODULES}; // default trước khi load
 
-  // Đọc config từ RTDB sau khi Firebase init
   window.addEventListener("load", function() {
     if (!window.firebase || !APP_ID) return;
     try {
-      const db = firebase.database();
-      db.ref("app_config_" + APP_ID).once("value").then(function(snap) {
-        if (snap.exists()) {
-          const cfg = snap.val();
-          window.APP_MODULES = cfg.modules || DEFAULT_MODULES;
-          window.APP_PLAN    = cfg.plan || "pro";
-          window.APP_ACTIVE  = cfg.active !== false;
+      const fs = firebase.firestore();
+      // Tìm trong companies theo appId
+      fs.collection("companies").where("appId","==",APP_ID).limit(1).get()
+        .then(function(snap) {
+          if (!snap.empty) {
+            const cfg = snap.docs[0].data();
+            // Nếu bị khóa → đăng xuất
+            if (cfg.status === "inactive") {
+              alert("Tài khoản công ty đã bị khóa. Liên hệ quản trị viên.");
+              sessionStorage.clear();
+              location.href = "landing.html";
+              return;
+            }
+            // Build modules object từ array
+            const mods = {};
+            Object.keys(DEFAULT_MODULES).forEach(k => mods[k] = false);
+            (cfg.modules || []).forEach(m => mods[m] = true);
+            window.APP_MODULES = mods;
+            window.APP_PLAN    = cfg.plan || "pro";
+            window.APP_ACTIVE  = true;
+            console.log("[app-config] Loaded from Firestore companies:", cfg.plan, cfg.modules);
+            applyModuleVisibility();
+          } else {
+            // Chưa có trong companies → fallback RTDB
+            const rtdb = firebase.database();
+            rtdb.ref("app_config_" + APP_ID).once("value").then(function(s) {
+              if (s.exists()) {
+                const cfg2 = s.val();
+                window.APP_MODULES = cfg2.modules || DEFAULT_MODULES;
+                window.APP_PLAN    = cfg2.plan || "pro";
+              } else {
+                window.APP_MODULES = {...DEFAULT_MODULES};
+                window.APP_PLAN    = "pro";
+              }
+              applyModuleVisibility();
+            }).catch(function() { applyModuleVisibility(); });
+          }
+        }).catch(function() {
           applyModuleVisibility();
-        } else {
-          // Chưa có → tạo mặc định
-          const defaultCfg = {
-            active: true, plan: "pro",
-            createdAt: new Date().toISOString(),
-            modules: DEFAULT_MODULES
-          };
-          db.ref("app_config_" + APP_ID).set(defaultCfg);
-          window.APP_MODULES = DEFAULT_MODULES;
-          window.APP_PLAN    = "pro";
-          console.log("[app-config] Created default config for", APP_ID);
-          applyModuleVisibility();
-        }
-      }).catch(function() {
-        // Firebase chưa sẵn sàng → dùng default
-        applyModuleVisibility();
-      });
+        });
     } catch(e) {
       applyModuleVisibility();
     }
