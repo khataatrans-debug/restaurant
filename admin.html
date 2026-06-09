@@ -445,10 +445,17 @@ function openEditModal(id){
   document.getElementById("modalCompany").classList.add("show");
 }
 
-function closeModal(){ document.getElementById("modalCompany").classList.remove("show"); }
+function closeModal(){
+  document.getElementById("modalCompany").classList.remove("show");
+  const btn=document.getElementById('btnSave');
+  if(btn){btn.disabled=false;btn.textContent='💾 Lưu';}
+}
 
 // ── SAVE ──
 async function saveCompany(){
+  const btn = document.getElementById('btnSave');
+  if(btn.disabled) return;
+  btn.disabled = true; btn.textContent = '⏳ Đang lưu...';
   const appId = document.getElementById("fAppId").value.trim().toUpperCase();
   const name  = document.getElementById("fName").value.trim();
   const admin = document.getElementById("fAdmin").value.trim();
@@ -489,7 +496,10 @@ async function saveCompany(){
       by:"superadmin", at:new Date().toISOString()
     });
     closeModal(); loadAll();
-  }catch(e){showToast("Lỗi: "+e.message,true);}
+  }catch(e){
+    showToast("Lỗi: "+e.message,true);
+    btn.disabled=false; btn.textContent='💾 Lưu';
+  }
 }
 
 // ── UTILS ──
