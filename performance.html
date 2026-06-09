@@ -600,6 +600,7 @@ function renderKhach(){
 
   // KPI
   const tRev=rows.reduce((s,r)=>s+r.rev,0);
+  const tRevVC=rows.reduce((s,r)=>s+(r.revVC||0),0);
   const tWage=rows.reduce((s,r)=>s+r.wage,0);
   const tFuel=rows.reduce((s,r)=>s+r.fuel,0);
   const tToll=rows.reduce((s,r)=>s+r.toll,0);
@@ -626,7 +627,7 @@ function renderKhach(){
     const totalC=r.wage+r.fuel+r.toll+r.repair+r.other;
     const profit=(r.revVC||r.rev)-totalC;
     const pln=(r.revVC||r.rev)?Math.round(profit/(r.revVC||r.rev)*100):0;
-    const pDt=tRev?Math.round(r.rev/tRev*100):0;
+    const pDt=(tRevVC||tRev)?Math.round((r.revVC||r.rev)/(tRevVC||tRev)*100):0;
     return `<tr>
       <td class="tl" style="font-weight:700;white-space:nowrap">${r.customer}</td>
       <td style="font-family:monospace;font-size:11px;color:var(--muted)">${r.cusCode||"—"}</td>
