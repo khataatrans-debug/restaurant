@@ -247,6 +247,7 @@ tr:last-child td{border-bottom:none}
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script>
 // ── FIREBASE CONFIG ──
 firebase.initializeApp({
@@ -258,6 +259,7 @@ firebase.initializeApp({
   appId:"1:1097685849973:web:79ad636e3dfd0b12f7653c"
 });
 const db = firebase.firestore();
+const rtdb = firebase.database();
 
 // ── SUPERADMIN CREDENTIALS (có thể đổi) ──
 const SA_USERS = { "superadmin": "Admin@2025!", "admin": "Admin@2025!" };
@@ -490,6 +492,16 @@ async function saveCompany(){
       await db.collection("companies").add(data);
       showToast("✅ Đã tạo công ty mới: "+appId);
     }
+    // Sync modules/plan/status sang RTDB để app-config.js đọc được
+    const modulesObj = {};
+    [..._mods].forEach(m => modulesObj[m] = true);
+    await rtdb.ref("app_config_" + appId).set({
+      active: (data.status !== "inactive"),
+      plan: _plan,
+      modules: modulesObj,
+      updatedAt: new Date().toISOString()
+    });
+
     // Log
     await db.collection("admin_logs").add({
       action: _editId?"EDIT":"CREATE", appId,
