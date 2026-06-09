@@ -371,7 +371,8 @@ function renderTable(rows){
       <td><span class="badge badge-${c.status==="inactive"?"inactive":"active"}">${c.status==="inactive"?"Khóa":"Active"}</span></td>
       <td>
         <button class="btn-sm btn-primary" style="margin-right:4px" onclick="openEditModal('${c.id}')">✏️ Sửa</button>
-        <button class="btn-sm btn-gray" onclick="copyLoginLink('${c.appId||c.id}')">🔗</button>
+        <button class="btn-sm btn-gray" style="margin-right:4px" onclick="copyLoginLink('${c.appId||c.id}')">🔗</button>
+        <button class="btn-sm btn-danger" onclick="deleteCompany('${c.id}','${c.appId||c.id}')">🗑️</button>
       </td>
     </tr>`).join("");
 }
@@ -503,6 +504,16 @@ async function saveCompany(){
 }
 
 // ── UTILS ──
+async function deleteCompany(id, appId){
+  if(!confirm('Xóa công ty ' + appId + '?
+Hành động này không thể hoàn tác!')) return;
+  try{
+    await db.collection('companies').doc(id).delete();
+    showToast('✅ Đã xóa ' + appId);
+    loadAll();
+  }catch(e){showToast('Lỗi: '+e.message,true);}
+}
+
 function copyLoginLink(appId){
   const url = `${location.origin}/landing.html?app=${appId}`;
   navigator.clipboard.writeText(url).then(()=>showToast("✅ Đã copy link đăng nhập!"));
