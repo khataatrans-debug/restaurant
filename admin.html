@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SuperAdmin — Quản trị hệ thống</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+/* ── LOGIN ── */
+#loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#0f172a,#1e293b)}
+.login-box{background:#1e293b;border:1px solid #334155;border-radius:16px;padding:40px;width:380px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.login-logo{text-align:center;margin-bottom:28px}
+.login-logo div{font-size:32px;margin-bottom:8px}
+.login-logo h2{font-size:20px;font-weight:700;color:#fff}
+.login-logo p{font-size:12px;color:#64748b;margin-top:4px}
+.login-field{margin-bottom:16px}
+.login-field label{display:block;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.login-field input{width:100%;height:42px;background:#0f172a;border:1.5px solid #334155;border-radius:8px;padding:0 14px;color:#fff;font-size:14px;font-family:inherit;outline:none;transition:.2s}
+.login-field input:focus{border-color:#3b82f6}
+.btn-login{width:100%;height:44px;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px}
+.login-err{color:#f87171;font-size:12px;text-align:center;margin-top:10px;min-height:18px}
+/* ── MAIN ── */
+#mainScreen{display:none}
+.topbar{background:#1e293b;border-bottom:1px solid #334155;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.topbar-left{display:flex;align-items:center;gap:12px}
+.topbar-logo{font-size:20px}
+.topbar-title{font-size:15px;font-weight:700;color:#fff}
+.topbar-sub{font-size:11px;color:#64748b}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.btn-sm{height:32px;padding:0 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:none;font-family:inherit}
+.btn-primary{background:#2563eb;color:#fff}
+.btn-gray{background:#334155;color:#94a3b8}
+.btn-danger{background:#dc2626;color:#fff}
+.btn-green{background:#16a34a;color:#fff}
+.container{padding:24px;max-width:1400px;margin:0 auto}
+/* Stats */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat-card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:18px 20px}
+.stat-val{font-size:28px;font-weight:800;margin-bottom:4px}
+.stat-label{font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.06em}
+/* Tabs */
+.tabs{display:flex;gap:4px;margin-bottom:20px;background:#1e293b;padding:4px;border-radius:10px;width:fit-content}
+.tab{height:34px;padding:0 18px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;border:none;background:transparent;color:#64748b;font-family:inherit;transition:.15s}
+.tab.active{background:#2563eb;color:#fff}
+/* Table */
+.table-wrap{background:#1e293b;border:1px solid #334155;border-radius:12px;overflow:hidden}
+.table-header{padding:14px 18px;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between}
+.table-header h3{font-size:14px;font-weight:700;color:#fff}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{background:#0f172a;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.06em;font-size:10px;padding:10px 14px;text-align:left;border-bottom:1px solid #334155}
+td{padding:12px 14px;border-bottom:1px solid #1e293b;color:#e2e8f0;vertical-align:middle}
+tr:hover td{background:#1e293b40}
+tr:last-child td{border-bottom:none}
+/* Badge */
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.badge-basic{background:#1e3a5f;color:#60a5fa}
+.badge-pro{background:#1e3a27;color:#34d399}
+.badge-enterprise{background:#3b1d52;color:#c084fc}
+.badge-active{background:#14532d;color:#86efac}
+.badge-inactive{background:#450a0a;color:#fca5a5}
+/* Module pills */
+.mod-pill{display:inline-block;background:#1e293b;border:1px solid #334155;border-radius:5px;padding:2px 8px;font-size:10px;color:#94a3b8;margin:2px}
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:#1e293b;border:1px solid #334155;border-radius:16px;width:600px;max-width:96vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.modal-head{background:linear-gradient(135deg,#1e3a8a,#2563eb);border-radius:16px 16px 0 0;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0}
+.modal-head h3{color:#fff;font-size:15px;font-weight:700}
+.modal-close{background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;width:28px;height:28px;font-size:18px;cursor:pointer;line-height:1}
+.modal-body{padding:20px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.field label{display:block;font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
+.field input,.field select,.field textarea{width:100%;height:38px;background:#0f172a;border:1.5px solid #334155;border-radius:7px;padding:0 12px;color:#e2e8f0;font-size:13px;font-family:inherit;outline:none;transition:.2s}
+.field input:focus,.field select:focus{border-color:#3b82f6}
+.field.full{grid-column:1/-1}
+/* Plan selector */
+.plan-row{display:flex;gap:8px;margin-bottom:14px}
+.plan-btn{flex:1;height:40px;border-radius:8px;border:2px solid #334155;background:transparent;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s}
+.plan-btn.active{border-color:#f59e0b;background:#451a03;color:#fbbf24}
+/* Module grid */
+.mod-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.mod-item{background:#0f172a;border:2px solid #334155;border-radius:8px;padding:10px 12px;cursor:pointer;transition:.15s;display:flex;align-items:center;gap:10px}
+.mod-item.checked{border-color:#22c55e;background:#052e16}
+.mod-item .mod-icon{font-size:18px}
+.mod-item .mod-name{font-size:12px;font-weight:700;color:#e2e8f0}
+.mod-item .mod-desc{font-size:10px;color:#64748b}
+.mod-check{width:18px;height:18px;border-radius:4px;border:2px solid #334155;background:transparent;margin-left:auto;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+.mod-item.checked .mod-check{background:#22c55e;border-color:#22c55e;color:#fff}
+/* Modal footer */
+.modal-foot{display:flex;gap:8px;justify-content:flex-end;border-top:1px solid #334155;padding-top:16px;margin-top:4px}
+/* Search */
+.search-bar{display:flex;gap:8px;margin-bottom:16px;align-items:center}
+.search-bar input,.search-bar select{height:36px;background:#1e293b;border:1.5px solid #334155;border-radius:8px;padding:0 12px;color:#e2e8f0;font-size:13px;font-family:inherit;outline:none}
+.search-bar input{flex:1}
+/* Toast */
+.toast{position:fixed;bottom:24px;right:24px;background:#1e293b;border:1px solid #334155;border-radius:10px;padding:12px 18px;font-size:13px;color:#e2e8f0;z-index:999;opacity:0;transition:.3s;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.toast.show{opacity:1}
+.toast.err{border-color:#dc2626;color:#fca5a5}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">
+      <div>🛡️</div>
+      <h2>SuperAdmin</h2>
+      <p>Quản trị hệ thống tổng</p>
+    </div>
+    <div class="login-field"><label>Username</label><input id="saUser" type="text" placeholder="superadmin" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <div class="login-field"><label>Password</label><input id="saPass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <button class="btn-login" onclick="doLogin()">🔐 Đăng nhập</button>
+    <div class="login-err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="mainScreen">
+  <div class="topbar">
+    <div class="topbar-left">
+      <span class="topbar-logo">🛡️</span>
+      <div>
+        <div class="topbar-title">SuperAdmin Console</div>
+        <div class="topbar-sub" id="topbarSub">—</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button class="btn-sm btn-primary" onclick="openCreateModal()">+ Tạo công ty</button>
+      <button class="btn-sm btn-gray" onclick="loadAll()">🔄 Làm mới</button>
+      <button class="btn-sm btn-gray" onclick="doLogout()">⬅ Đăng xuất</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-val" id="stTotal" style="color:#60a5fa">—</div><div class="stat-label">Tổng công ty</div></div>
+      <div class="stat-card"><div class="stat-val" id="stActive" style="color:#34d399">—</div><div class="stat-label">Đang hoạt động</div></div>
+      <div class="stat-card"><div class="stat-val" id="stPro" style="color:#c084fc">—</div><div class="stat-label">Gói Pro+</div></div>
+      <div class="stat-card"><div class="stat-val" id="stBasic" style="color:#fbbf24">—</div><div class="stat-label">Gói Basic</div></div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('companies',this)">🏢 Công ty</button>
+      <button class="tab" onclick="switchTab('logs',this)">📋 Lịch sử</button>
+    </div>
+
+    <!-- Companies tab -->
+    <div id="tab-companies">
+      <div class="table-wrap">
+        <div class="table-header">
+          <h3>🏢 Danh sách công ty</h3>
+          <div class="search-bar" style="margin:0">
+            <input id="searchInput" placeholder="🔍 Tìm mã, tên công ty..." oninput="filterTable()" style="width:220px">
+            <select id="filterPlan" onchange="filterTable()">
+              <option value="">Tất cả gói</option>
+              <option value="basic">Basic</option>
+              <option value="pro">Pro</option>
+              <option value="enterprise">Enterprise</option>
+            </select>
+            <select id="filterStatus" onchange="filterTable()">
+              <option value="">Tất cả trạng thái</option>
+              <option value="active">Hoạt động</option>
+              <option value="inactive">Tạm khóa</option>
+            </select>
+          </div>
+        </div>
+        <table>
+          <thead><tr>
+            <th>#</th><th>Mã CТY</th><th>Tên công ty</th><th>Admin</th>
+            <th>Gói</th><th>Modules</th><th>Ngày tạo</th>
+            <th>Trạng thái</th><th>Thao tác</th>
+          </tr></thead>
+          <tbody id="companyTbody"><tr><td colspan="9" style="text-align:center;padding:30px;color:#64748b">Đang tải...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Logs tab -->
+    <div id="tab-logs" style="display:none">
+      <div class="table-wrap">
+        <div class="table-header"><h3>📋 Lịch sử thay đổi</h3></div>
+        <table>
+          <thead><tr><th>Thời gian</th><th>Hành động</th><th>Công ty</th><th>Chi tiết</th><th>Admin</th></tr></thead>
+          <tbody id="logsTbody"><tr><td colspan="5" style="text-align:center;padding:30px;color:#64748b">Đang tải...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: TẠO / CHỈNH SỬA CÔNG TY -->
+<div class="modal-overlay" id="modalCompany">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modalTitle">🏢 Tạo công ty mới</h3>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field"><label>Mã công ty (APP_ID) *</label><input id="fAppId" placeholder="VD: TIENPHATVT" oninput="this.value=this.value.toUpperCase().replace(/\s/g,'')"></div>
+        <div class="field"><label>Tên công ty</label><input id="fName" placeholder="VD: Tiến Phát VT"></div>
+        <div class="field"><label>Username Admin *</label><input id="fAdmin" placeholder="VD: admin"></div>
+        <div class="field"><label>Mật khẩu Admin *</label><input id="fPass" type="password" placeholder="Mật khẩu đăng nhập"></div>
+        <div class="field"><label>Email</label><input id="fEmail" type="email" placeholder="contact@company.com"></div>
+        <div class="field"><label>Số điện thoại</label><input id="fPhone" placeholder="0909..."></div>
+        <div class="field full"><label>Ghi chú</label><input id="fNote" placeholder="Ghi chú thêm..."></div>
+      </div>
+
+      <!-- Plan -->
+      <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Gói dịch vụ</div>
+      <div class="plan-row">
+        <button class="plan-btn" id="planBasic" onclick="selectPlan('basic')">⚡ Basic</button>
+        <button class="plan-btn active" id="planPro" onclick="selectPlan('pro')">🚀 Pro</button>
+        <button class="plan-btn" id="planEnterprise" onclick="selectPlan('enterprise')">👑 Enterprise</button>
+      </div>
+
+      <!-- Modules -->
+      <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Modules kích hoạt</div>
+      <div class="mod-grid" id="modGrid">
+        <!-- generated by JS -->
+      </div>
+
+      <!-- Status (chỉ khi edit) -->
+      <div id="statusRow" style="display:none;margin-bottom:14px">
+        <div class="field"><label>Trạng thái tài khoản</label>
+          <select id="fStatus">
+            <option value="active">✅ Hoạt động</option>
+            <option value="inactive">🔒 Tạm khóa</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-foot">
+        <button class="btn-sm btn-gray" onclick="closeModal()">Hủy</button>
+        <button class="btn-sm btn-primary" id="btnSave" onclick="saveCompany()">💾 Lưu</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+// ── FIREBASE CONFIG ──
+firebase.initializeApp({
+  apiKey:"AIzaSyBsq9UmgFvuvMayhY2SB08J0mUSJ_EUkdY",
+  authDomain:"transportation-6d6f5.firebaseapp.com",
+  projectId:"transportation-6d6f5",
+  storageBucket:"transportation-6d6f5.firebasestorage.app",
+  messagingSenderId:"1097685849973",
+  appId:"1:1097685849973:web:79ad636e3dfd0b12f7653c"
+});
+const db = firebase.firestore();
+
+// ── SUPERADMIN CREDENTIALS (có thể đổi) ──
+const SA_USERS = { "superadmin": "Admin@2025!", "admin": "Admin@2025!" };
+
+// ── MODULES LIST ──
+const ALL_MODULES = [
+  {id:"trucking",    icon:"🚛", name:"Trucking",       desc:"Quản lý chuyến xe"},
+  {id:"accountant",  icon:"💰", name:"Accountant",     desc:"Kế toán chi phí"},
+  {id:"performance", icon:"📊", name:"Performance",    desc:"Hiệu suất vận hành"},
+  {id:"overview",    icon:"🗂️", name:"Overview",       desc:"Tổng quan báo cáo"},
+  {id:"master",      icon:"📁", name:"Master Data",    desc:"Danh mục dữ liệu"},
+  {id:"maintenance", icon:"🔧", name:"Bảo dưỡng",      desc:"Sửa chữa xe"},
+  {id:"fuel",        icon:"⛽", name:"Nhiên liệu",     desc:"Quản lý NL"},
+  {id:"driver",      icon:"🚗", name:"Driver App",     desc:"App lái xe"},
+  {id:"users",       icon:"👑", name:"Users & Phân quyền", desc:"Quản lý tài khoản"},
+];
+const PLAN_MODULES = {
+  basic:      ["trucking","accountant","master","users"],
+  pro:        ["trucking","accountant","performance","overview","master","maintenance","fuel","driver","users"],
+  enterprise: ALL_MODULES.map(m=>m.id)
+};
+
+// ── STATE ──
+let _companies = [];
+let _editId    = null;
+let _plan      = "pro";
+let _mods      = new Set(PLAN_MODULES.pro);
+
+// ── LOGIN ──
+function doLogin(){
+  const u=document.getElementById("saUser").value.trim();
+  const p=document.getElementById("saPass").value;
+  if(SA_USERS[u]===p){
+    document.getElementById("loginScreen").style.display="none";
+    document.getElementById("mainScreen").style.display="";
+    document.getElementById("topbarSub").textContent="Đăng nhập: "+u+" — "+new Date().toLocaleString("vi-VN");
+    loadAll();
+  } else {
+    document.getElementById("loginErr").textContent="❌ Sai tài khoản hoặc mật khẩu";
+  }
+}
+function doLogout(){
+  document.getElementById("mainScreen").style.display="none";
+  document.getElementById("loginScreen").style.display="flex";
+  document.getElementById("saUser").value="";
+  document.getElementById("saPass").value="";
+  document.getElementById("loginErr").textContent="";
+}
+
+// ── LOAD DATA ──
+async function loadAll(){
+  try{
+    const snap = await db.collection("companies").orderBy("createdAt","desc").get();
+    _companies = snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderStats();
+    renderTable(_companies);
+    loadLogs();
+  }catch(e){
+    // Nếu chưa có index, fallback không orderBy
+    const snap = await db.collection("companies").get();
+    _companies = snap.docs.map(d=>({id:d.id,...d.data()}))
+      .sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));
+    renderStats();
+    renderTable(_companies);
+    loadLogs();
+  }
+}
+
+async function loadLogs(){
+  try{
+    const snap = await db.collection("admin_logs").orderBy("at","desc").limit(50).get();
+    const tbody = document.getElementById("logsTbody");
+    if(snap.empty){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:24px;color:#64748b">Chưa có lịch sử</td></tr>';return;}
+    tbody.innerHTML = snap.docs.map(d=>{
+      const a=d.data();
+      return `<tr>
+        <td style="color:#64748b;font-size:11px">${(a.at||"").slice(0,16).replace("T"," ")}</td>
+        <td><span class="badge badge-active">${a.action||""}</span></td>
+        <td style="font-weight:600">${a.appId||""}</td>
+        <td style="color:#94a3b8;font-size:11px">${a.detail||""}</td>
+        <td style="color:#64748b">${a.by||""}</td>
+      </tr>`;
+    }).join("");
+  }catch(e){}
+}
+
+// ── RENDER ──
+function renderStats(){
+  const total  = _companies.length;
+  const active = _companies.filter(c=>c.status!=="inactive").length;
+  const pro    = _companies.filter(c=>c.plan==="pro"||c.plan==="enterprise").length;
+  const basic  = _companies.filter(c=>c.plan==="basic").length;
+  document.getElementById("stTotal").textContent  = total;
+  document.getElementById("stActive").textContent = active;
+  document.getElementById("stPro").textContent    = pro;
+  document.getElementById("stBasic").textContent  = basic;
+}
+
+function renderTable(rows){
+  const tbody = document.getElementById("companyTbody");
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:30px;color:#64748b">Không có dữ liệu</td></tr>';return;}
+  tbody.innerHTML = rows.map((c,i)=>`
+    <tr>
+      <td style="color:#64748b">${i+1}</td>
+      <td><strong style="color:#60a5fa">${c.appId||c.id}</strong></td>
+      <td>${c.name||"—"}</td>
+      <td style="color:#94a3b8">${c.adminUser||"—"}</td>
+      <td><span class="badge badge-${c.plan||"basic"}">${(c.plan||"basic").toUpperCase()}</span></td>
+      <td style="max-width:220px">${(c.modules||[]).map(m=>`<span class="mod-pill">${m}</span>`).join("")}</td>
+      <td style="color:#64748b;font-size:11px">${(c.createdAt||"").slice(0,10)}</td>
+      <td><span class="badge badge-${c.status==="inactive"?"inactive":"active"}">${c.status==="inactive"?"Khóa":"Active"}</span></td>
+      <td>
+        <button class="btn-sm btn-primary" style="margin-right:4px" onclick="openEditModal('${c.id}')">✏️ Sửa</button>
+        <button class="btn-sm btn-gray" onclick="copyLoginLink('${c.appId||c.id}')">🔗</button>
+      </td>
+    </tr>`).join("");
+}
+
+function filterTable(){
+  const kw = document.getElementById("searchInput").value.toLowerCase();
+  const plan = document.getElementById("filterPlan").value;
+  const status = document.getElementById("filterStatus").value;
+  const rows = _companies.filter(c=>{
+    const matchKw = !kw || (c.appId||"").toLowerCase().includes(kw) || (c.name||"").toLowerCase().includes(kw);
+    const matchPlan = !plan || c.plan===plan;
+    const matchStatus = !status || (status==="active"?c.status!=="inactive":c.status==="inactive");
+    return matchKw && matchPlan && matchStatus;
+  });
+  renderTable(rows);
+}
+
+// ── MODULE GRID ──
+function buildModGrid(){
+  document.getElementById("modGrid").innerHTML = ALL_MODULES.map(m=>`
+    <div class="mod-item ${_mods.has(m.id)?"checked":""}" id="mod_${m.id}" onclick="toggleMod('${m.id}')">
+      <span class="mod-icon">${m.icon}</span>
+      <div><div class="mod-name">${m.name}</div><div class="mod-desc">${m.desc}</div></div>
+      <div class="mod-check">${_mods.has(m.id)?"✓":""}</div>
+    </div>`).join("");
+}
+
+function toggleMod(id){
+  if(_mods.has(id)) _mods.delete(id); else _mods.add(id);
+  buildModGrid();
+}
+
+function selectPlan(p){
+  _plan=p;
+  _mods=new Set(PLAN_MODULES[p]);
+  ["basic","pro","enterprise"].forEach(x=>{
+    document.getElementById("plan"+x.charAt(0).toUpperCase()+x.slice(1))
+      .classList.toggle("active",x===p);
+  });
+  buildModGrid();
+}
+
+// ── MODAL ──
+function openCreateModal(){
+  _editId=null; _plan="pro"; _mods=new Set(PLAN_MODULES.pro);
+  document.getElementById("modalTitle").textContent="🏢 Tạo công ty mới";
+  document.getElementById("fAppId").value=""; document.getElementById("fAppId").disabled=false;
+  document.getElementById("fName").value=""; document.getElementById("fAdmin").value="";
+  document.getElementById("fPass").value=""; document.getElementById("fEmail").value="";
+  document.getElementById("fPhone").value=""; document.getElementById("fNote").value="";
+  document.getElementById("statusRow").style.display="none";
+  selectPlan("pro");
+  document.getElementById("modalCompany").classList.add("show");
+}
+
+function openEditModal(id){
+  const c=_companies.find(x=>x.id===id); if(!c) return;
+  _editId=id; _plan=c.plan||"pro"; _mods=new Set(c.modules||PLAN_MODULES[_plan]);
+  document.getElementById("modalTitle").textContent="✏️ Chỉnh sửa: "+(c.appId||id);
+  document.getElementById("fAppId").value=c.appId||id; document.getElementById("fAppId").disabled=true;
+  document.getElementById("fName").value=c.name||""; document.getElementById("fAdmin").value=c.adminUser||"";
+  document.getElementById("fPass").value=""; document.getElementById("fEmail").value=c.email||"";
+  document.getElementById("fPhone").value=c.phone||""; document.getElementById("fNote").value=c.note||"";
+  document.getElementById("fStatus").value=c.status||"active";
+  document.getElementById("statusRow").style.display="";
+  ["basic","pro","enterprise"].forEach(x=>{
+    document.getElementById("plan"+x.charAt(0).toUpperCase()+x.slice(1))
+      .classList.toggle("active",x===_plan);
+  });
+  buildModGrid();
+  document.getElementById("modalCompany").classList.add("show");
+}
+
+function closeModal(){ document.getElementById("modalCompany").classList.remove("show"); }
+
+// ── SAVE ──
+async function saveCompany(){
+  const appId = document.getElementById("fAppId").value.trim().toUpperCase();
+  const name  = document.getElementById("fName").value.trim();
+  const admin = document.getElementById("fAdmin").value.trim();
+  const pass  = document.getElementById("fPass").value;
+  if(!appId){showToast("Nhập Mã công ty!",true);return;}
+  if(!admin){showToast("Nhập Username admin!",true);return;}
+  if(!_editId && !pass){showToast("Nhập mật khẩu admin!",true);return;}
+
+  const data = {
+    appId, name,
+    adminUser: admin,
+    plan: _plan,
+    modules: [..._mods],
+    email: document.getElementById("fEmail").value.trim(),
+    phone: document.getElementById("fPhone").value.trim(),
+    note:  document.getElementById("fNote").value.trim(),
+    status: _editId ? document.getElementById("fStatus").value : "active",
+    updatedAt: new Date().toISOString(),
+  };
+  if(!_editId){ data.createdAt=new Date().toISOString(); data.adminPass=pass; }
+  else if(pass){ data.adminPass=pass; }
+
+  try{
+    if(_editId){
+      await db.collection("companies").doc(_editId).update(data);
+      showToast("✅ Đã cập nhật công ty!");
+    } else {
+      // Check trùng
+      const exist = await db.collection("companies").where("appId","==",appId).get();
+      if(!exist.empty){showToast("❌ Mã công ty đã tồn tại!",true);return;}
+      await db.collection("companies").add(data);
+      showToast("✅ Đã tạo công ty mới: "+appId);
+    }
+    // Log
+    await db.collection("admin_logs").add({
+      action: _editId?"EDIT":"CREATE", appId,
+      detail: `Plan: ${_plan} | Modules: ${[..._mods].join(",")}`,
+      by:"superadmin", at:new Date().toISOString()
+    });
+    closeModal(); loadAll();
+  }catch(e){showToast("Lỗi: "+e.message,true);}
+}
+
+// ── UTILS ──
+function copyLoginLink(appId){
+  const url = `${location.origin}/landing.html?app=${appId}`;
+  navigator.clipboard.writeText(url).then(()=>showToast("✅ Đã copy link đăng nhập!"));
+}
+
+function switchTab(id, btn){
+  ["companies","logs"].forEach(t=>document.getElementById("tab-"+t).style.display="none");
+  document.getElementById("tab-"+id).style.display="";
+  document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  if(id==="logs") loadLogs();
+}
+
+function showToast(msg,err=false){
+  const t=document.getElementById("toast");
+  t.textContent=msg; t.className="toast show"+(err?" err":"");
+  setTimeout(()=>t.className="toast",3000);
+}
+
+document.getElementById("modalCompany").addEventListener("click",e=>{if(e.target===document.getElementById("modalCompany"))closeModal();});
+buildModGrid();
+</script>
+</body>
+</html>
