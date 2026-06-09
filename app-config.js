@@ -102,4 +102,88 @@
   });
 
   console.log("[app-config] APP_ID =", window.APP_ID, "| Keys:", window.DB_KEYS);
+
+  /* ─────────────────────────────────────────
+     7. MODULE CONFIG
+     Đọc app_config_APPID từ Firebase RTDB
+     Nếu chưa có → tạo mặc định (tất cả modules)
+     window.APP_MODULES = { trucking: true, ... }
+  ───────────────────────────────────────── */
+  const DEFAULT_MODULES = {
+    trucking: true, accountant: true, performance: true,
+    overview: true, master: true, maintenance: true,
+    fuel: true, driver: true, users: true
+  };
+
+  window.APP_MODULES = {...DEFAULT_MODULES}; // default trước khi load
+
+  // Đọc config từ RTDB sau khi Firebase init
+  window.addEventListener("load", function() {
+    if (!window.firebase || !APP_ID) return;
+    try {
+      const db = firebase.database();
+      db.ref("app_config_" + APP_ID).once("value").then(function(snap) {
+        if (snap.exists()) {
+          const cfg = snap.val();
+          window.APP_MODULES = cfg.modules || DEFAULT_MODULES;
+          window.APP_PLAN    = cfg.plan || "pro";
+          window.APP_ACTIVE  = cfg.active !== false;
+          applyModuleVisibility();
+        } else {
+          // Chưa có → tạo mặc định
+          const defaultCfg = {
+            active: true, plan: "pro",
+            createdAt: new Date().toISOString(),
+            modules: DEFAULT_MODULES
+          };
+          db.ref("app_config_" + APP_ID).set(defaultCfg);
+          window.APP_MODULES = DEFAULT_MODULES;
+          window.APP_PLAN    = "pro";
+          console.log("[app-config] Created default config for", APP_ID);
+          applyModuleVisibility();
+        }
+      }).catch(function() {
+        // Firebase chưa sẵn sàng → dùng default
+        applyModuleVisibility();
+      });
+    } catch(e) {
+      applyModuleVisibility();
+    }
+  });
+
+  /* Map module → file nav */
+  const MODULE_NAV_MAP = {
+    trucking:    "index.html",
+    accountant:  "accountant.html",
+    performance: "performance.html",
+    overview:    "overview.html",
+    master:      "master.html",
+    maintenance: "maintenance.html",
+    fuel:        "fuel.html",
+    users:       "users.html"
+    // driver: không có trong nav desktop
+  };
+
+  function applyModuleVisibility() {
+    // Ẩn các nav link không được phép
+    document.querySelectorAll("nav a[href]").forEach(function(a) {
+      const href = a.getAttribute("href") || "";
+      const page = href.replace(/\?.*$/, ""); // bỏ query string
+      const module = Object.keys(MODULE_NAV_MAP).find(k => MODULE_NAV_MAP[k] === page);
+      if (module && window.APP_MODULES[module] === false) {
+        a.style.display = "none";
+      }
+    });
+    // Dispatch event để các trang khác lắng nghe
+    window.dispatchEvent(new CustomEvent("appModulesLoaded", {
+      detail: { modules: window.APP_MODULES, plan: window.APP_PLAN }
+    }));
+  }
+
+  // Helper để kiểm tra module từ bất kỳ trang nào
+  window.hasModule = function(module) {
+    return window.APP_MODULES ? window.APP_MODULES[module] !== false : true;
+  };
+
+  console.log("[app-config] APP_ID =", window.APP_ID, "| Keys:", window.DB_KEYS);
 })();
