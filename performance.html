@@ -171,7 +171,9 @@ tr:hover td{background:#e8eeff!important;}
         <th>Mã KH</th>
         <th>Chuyến</th>
         <th>KM</th>
-        <th>Doanh thu</th><th>%Tổng DT</th>
+        <th style="background:#1d4ed8;color:#fff">DT Vận chuyển</th>
+        <th style="background:#7e3af2;color:#fff">Chi hộ</th>
+        <th style="background:#0ea5e9;color:#fff">Tổng DT</th><th>%Tổng DT</th>
         <th style="background:#7c3aed;color:#fff">Lương</th><th style="background:#7c3aed;color:#fff">%DT</th>
         <th style="background:#e67700;color:#fff">Nhiên liệu</th><th style="background:#e67700;color:#fff">%DT</th>
         <th style="background:#0369a1;color:#fff">Cầu đường</th><th style="background:#0369a1;color:#fff">%DT</th>
@@ -619,7 +621,7 @@ function renderKhach(){
   const fmtC=v=>v?`<span style="font-weight:600">${fmt(v)}</span>`:'<span style="color:#94a3b8">—</span>';
 
   const tbody=document.getElementById("tbody-khach");
-  if(!rows.length){tbody.innerHTML='<tr><td colspan="18" class="loading">Không có dữ liệu</td></tr>';return;}
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="20" class="loading">Không có dữ liệu</td></tr>';return;}
   tbody.innerHTML=rows.map(r=>{
     const totalC=r.wage+r.fuel+r.toll+r.repair+r.other;
     const profit=(r.revVC||r.rev)-totalC;
@@ -630,14 +632,14 @@ function renderKhach(){
       <td style="font-family:monospace;font-size:11px;color:var(--muted)">${r.cusCode||"—"}</td>
       <td style="font-weight:600">${r.trips}</td>
       <td class="num" style="color:var(--amber);font-weight:600">${fmt(r.km)} km</td>
-      <td class="num" style="color:var(--accent);font-weight:700">${fmt(r.rev)}</td>
-      <td><span style="background:#1d6ef518;border:1px solid #1d6ef544;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700;color:#1d6ef5">${pDt}%</span></td>
       <td class="num" style="color:#1d4ed8;font-weight:700">${fmtC(r.revVC)}</td>
       <td class="num" style="color:#7e3af2;font-weight:600">${fmtC(r.chiHo)}</td>
-      <td class="num" style="color:#7c3aed">${fmtC(r.wage)}</td><td>${colP(r.wage,r.rev)}</td>
-      <td class="num" style="color:#e67700">${fmtC(r.fuel)}</td><td>${colP(r.fuel,r.rev)}</td>
-      <td class="num" style="color:#0369a1">${fmtC(r.toll)}</td><td>${colP(r.toll,r.rev)}</td>
-      <td class="num" style="color:#dc2626;font-weight:700">${fmtC(r.repair)}</td><td>${colP(r.repair,r.rev)}</td>
+      <td class="num" style="color:#0ea5e9;font-weight:700">${fmt(r.rev)}</td>
+      <td><span style="background:#1d6ef518;border:1px solid #1d6ef544;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700;color:#1d6ef5">${pDt}%</span></td>
+      <td class="num" style="color:#7c3aed">${fmtC(r.wage)}</td><td>${colP(r.wage,r.revVC||r.rev)}</td>
+      <td class="num" style="color:#e67700">${fmtC(r.fuel)}</td><td>${colP(r.fuel,r.revVC||r.rev)}</td>
+      <td class="num" style="color:#0369a1">${fmtC(r.toll)}</td><td>${colP(r.toll,r.revVC||r.rev)}</td>
+      <td class="num" style="color:#dc2626;font-weight:700">${fmtC(r.repair)}</td><td>${colP(r.repair,r.revVC||r.rev)}</td>
       <td class="num" style="color:#64748b">${fmtC(r.other)}</td>
       <td class="num" style="color:var(--red);font-weight:700">${fmt(totalC)}</td>
       <td class="num" style="color:${profit>=0?"var(--green)":"var(--red)"};font-weight:700">${fmt(profit)}</td>
@@ -848,10 +850,10 @@ function renderSuaChua(){
       <td class="tl" style="white-space:nowrap">${r.driver}</td>
       <td style="font-weight:600">${r.trips||"—"}</td>
       <td class="num" style="color:var(--accent);font-weight:700">${fmt(r.rev)}</td>
-      <td class="num" style="color:#7c3aed">${fmtC(r.wage)}</td><td>${colP(r.wage,r.rev)}</td>
-      <td class="num" style="color:#e67700">${fmtC(r.fuel)}</td><td>${colP(r.fuel,r.rev)}</td>
-      <td class="num" style="color:#0369a1">${fmtC(r.toll)}</td><td>${colP(r.toll,r.rev)}</td>
-      <td class="num" style="color:#dc2626;font-weight:700">${fmtC(r.repair)}</td><td>${colP(r.repair,r.rev)}</td>
+      <td class="num" style="color:#7c3aed">${fmtC(r.wage)}</td><td>${colP(r.wage,r.revVC||r.rev)}</td>
+      <td class="num" style="color:#e67700">${fmtC(r.fuel)}</td><td>${colP(r.fuel,r.revVC||r.rev)}</td>
+      <td class="num" style="color:#0369a1">${fmtC(r.toll)}</td><td>${colP(r.toll,r.revVC||r.rev)}</td>
+      <td class="num" style="color:#dc2626;font-weight:700">${fmtC(r.repair)}</td><td>${colP(r.repair,r.revVC||r.rev)}</td>
       <td class="num" style="color:#64748b">${fmtC(r.other)}</td>
       <td class="num" style="color:var(--red);font-weight:700">${fmt(totalC)}</td>
       <td class="num" style="color:${profit>=0?"var(--green)":"var(--red)"};font-weight:700">${fmt(profit)}</td>
