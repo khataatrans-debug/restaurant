@@ -292,7 +292,7 @@ function doLogin(){
   const p=document.getElementById("saPass").value;
   if(SA_USERS[u]===p){
     document.getElementById("loginScreen").style.display="none";
-    document.getElementById("mainScreen").style.display="";
+    document.getElementById("mainScreen").style.display="block";
     document.getElementById("topbarSub").textContent="Đăng nhập: "+u+" — "+new Date().toLocaleString("vi-VN");
     loadAll();
   } else {
