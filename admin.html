@@ -102,7 +102,7 @@ tr:last-child td{border-bottom:none}
 <body>
 
 <!-- LOGIN -->
-<div id="loginScreen">
+<div id="loginScreen" style="display:flex">
   <div class="login-box">
     <div class="login-logo">
       <div>🛡️</div>
@@ -117,7 +117,7 @@ tr:last-child td{border-bottom:none}
 </div>
 
 <!-- MAIN -->
-<div id="mainScreen">
+<div id="mainScreen" style="display:none">
   <div class="topbar">
     <div class="topbar-left">
       <span class="topbar-logo">🛡️</span>
@@ -260,7 +260,7 @@ firebase.initializeApp({
 const db = firebase.firestore();
 
 // ── SUPERADMIN CREDENTIALS (có thể đổi) ──
-const SA_USERS = { "superadmin": "Kevin@354944!", "admin": "Khat354944!" };
+const SA_USERS = { "superadmin": "Admin@2025!", "admin": "Admin@2025!" };
 
 // ── MODULES LIST ──
 const ALL_MODULES = [
