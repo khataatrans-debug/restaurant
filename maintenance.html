@@ -1324,14 +1324,36 @@ async function submitRepairReject(){
 
 async function approveRepairReq(){
   const note=document.getElementById("repairReqNote").value.trim();
+  const a=_repairReqCache[_repairReqCurrentId]||{};
   try{
+    // 1. Update Firestore status
     await _fs.collection(`requests_repair_${APP_ID}`).doc(_repairReqCurrentId).update({
       status:"approved", reason:note||"Đã tiếp nhận", resolvedAt:new Date().toISOString()
     });
-    showToast("✅ Đã tiếp nhận đề xuất sửa chữa!");
+    // 2. Tạo bản ghi vào lịch sử bảo dưỡng (Realtime DB)
+    const o={
+      date:       a.date||new Date().toISOString().slice(0,10),
+      truck:      a.truckNo||"",
+      mooc:       "",
+      desc:       a.part||"",
+      norm:       "",
+      isNew:      a.type==="replace"?"Thay mới":"Sửa chữa",
+      repair:     a.part||"",
+      repairCode: "",
+      warranty:   "",
+      unit:       "",
+      qty:        0,
+      unitPrice:  a.cost||0,
+      total:      a.cost||0,
+      proposer:   a.driver||"",
+      approver:   note||"Đã tiếp nhận",
+      fromReq:    _repairReqCurrentId,
+    };
+    DB.repairs.push(o);
+    saveDB();
+    renderRepair();
+    showToast("✅ Đã tiếp nhận & lưu vào lịch sử bảo dưỡng!");
     closeRepairReqModal();
-    renderRepairReqList();
-    checkRepairReqBadge();
   }catch(e){showToast("Lỗi: "+e.message,true);}
 }
 
