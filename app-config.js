@@ -169,20 +169,36 @@
   };
 
   // Chờ Firebase SDK — hỗ trợ cả 2 loại:
-  //   Modular  : trang set window.__fbReady = true  (index.html, master.html)
-  //   Compat   : trang load firebase-app-compat.js  → window.firebase tồn tại
-  function waitForFirebase(cb, attempt) {
-    attempt = attempt || 0;
+  //   Modular : module script gọi window.__fbReadyCb() ngay khi xong (zero delay)
+  //   Compat  : window.firebase tồn tại ngay sau <script> compat load xong
+  function waitForFirebase(cb) {
     const hasModular = window.__fbReady && window.__fbFS && window.__fbRTDB;
-    const hasCompat  = window.firebase && window.firebase.firestore;
+    const hasCompat  = window.firebase  && window.firebase.firestore;
     if (hasModular || hasCompat) {
+      // Sẵn rồi — chạy ngay
       cb();
-    } else if (attempt < 100) {
-      setTimeout(function () { waitForFirebase(cb, attempt + 1); }, 100);
-    } else {
-      console.warn("[app-config] Firebase SDK không load được, dùng default modules");
-      applyModuleVisibility();
+      return;
     }
+    // Chưa sẵn → đăng ký callback, module script sẽ gọi khi xong
+    window.__fbReadyCb = function() {
+      window.__fbReadyCb = null;
+      cb();
+    };
+    // Polling fallback cho compat SDK (không gọi callback)
+    var attempt = 0;
+    var tid = setInterval(function() {
+      const m = window.__fbReady && window.__fbFS && window.__fbRTDB;
+      const c = window.firebase  && window.firebase.firestore;
+      if (m || c) {
+        clearInterval(tid);
+        window.__fbReadyCb = null;
+        cb();
+      } else if (++attempt >= 100) {
+        clearInterval(tid);
+        console.warn("[app-config] Firebase SDK timeout");
+        applyModuleVisibility();
+      }
+    }, 100);
   }
 
   function loadModules() {

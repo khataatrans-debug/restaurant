@@ -123,6 +123,8 @@ tr:hover td{background:#e8eeff!important;}
   window.__fbFS   = { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy, where, limit, getDocs };
   window.__fbRTDB = { getDatabase, ref, onValue, get };
   window.__fbReady = true;
+  // Notify app-config.js ngay lập tức (không cần polling)
+  if (window.__fbReadyCb) window.__fbReadyCb();
 </script>
 <!-- app-config: APP_ID + module filter — đặt SAU Firebase SDK -->
 <script src="app-config.js"></script>
