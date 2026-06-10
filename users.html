@@ -2,6 +2,10 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
+<link rel="preconnect" href="https://www.gstatic.com">
+<link rel="preconnect" href="https://transportation-6d6f5-default-rtdb.asia-southeast1.firebasedatabase.app">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>👨‍💼 Quản lý User</title>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
@@ -49,9 +53,9 @@ tr:hover td{background:#e8eeff!important;}
 </style>
 </head>
 <body>
+<script src="app-config.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
-<script src="app-config.js"></script>
 
 <nav class="nav" id="mainNav">
   <div class="nav-right">
@@ -118,6 +122,7 @@ tr:hover td{background:#e8eeff!important;}
 
 <script>
 const CURRENT_KEY = "LOGIN_USER";
+// APP_ID từ app-config.js → window.APP_ID
 const USERS_KEY   = `app_users_${window.APP_ID}`;
 const USERS_REF   = `app_users_${window.APP_ID}`;
 const PAGES = ["index.html","accountant.html","performance.html","overview.html","master.html","maintenance.html","users.html"];
@@ -126,10 +131,10 @@ const ALL_NAV = [
   {page:"accountant.html",  label:"📒 Accountant"},
   {page:"performance.html", label:"📈 Performance"},
   {page:"overview.html",    label:"📊 Overview"},
-  {page:"master.html",      label:"📂 Master"},
-  {page:"maintenance.html", label:"🔧 Bảo dưỡng"},
-  {page:"fuel.html",        label:"⛽ Nhiên liệu"},
-  {page:"users.html",       label:"👑 Users"},
+  {page:"master.html",      label:"📂 Master",      adminOnly:true},
+  {page:"maintenance.html", label:"🔧 Bảo dưỡng",  adminOnly:true},
+  {page:"fuel.html",        label:"⛽ Nhiên liệu",  adminOnly:true},
+  {page:"users.html",       label:"👑 Users",        adminOnly:true},
 ];
 
 /* ── GUARD ── */
@@ -138,44 +143,25 @@ if (!_session.username) { navigate("login.html"); }
 else if (_session.role !== "admin" && _session.role !== "viceadmin") { navigate((_session.pages&&_session.pages[0])||"login.html"); }
 
 /* ── FIREBASE ── */
-// Dùng lại Firebase instance đã init từ app-config.js (tránh init 2 lần)
-if (!firebase.apps.length) {
-  firebase.initializeApp({
-    apiKey:            "AIzaSyAPmHlNgx-w5KfK4LF490pvdYA_mGgcX_k",
-    authDomain:        "transportation-6d6f5.firebaseapp.com",
-    databaseURL:       "https://transportation-6d6f5-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId:         "transportation-6d6f5",
-    storageBucket:     "transportation-6d6f5.firebasestorage.app",
-    messagingSenderId: "1097685849973",
-    appId:             "1:1097685849973:web:79ad636e3dfd0b12f7653c"
-  });
-}
+firebase.initializeApp({
+  apiKey:            "AIzaSyAPmHlNgx-w5KfK4LF490pvdYA_mGgcX_k",
+  authDomain:        "transportation-6d6f5.firebaseapp.com",
+  databaseURL:       "https://transportation-6d6f5-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "transportation-6d6f5",
+  storageBucket:     "transportation-6d6f5.firebasestorage.app",
+  messagingSenderId: "1097685849973",
+  appId:             "1:1097685849973:web:79ad636e3dfd0b12f7653c"
+});
 const db = firebase.database();
-
-/* ── HELPERS ── */
-async function hashPass(str){
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
-}
-
-async function auditLog(action, detail){
-  try{
-    await db.ref("audit_log_" + window.APP_ID).push({
-      action, detail,
-      username: _session.username || "?",
-      at: new Date().toISOString()
-    });
-  }catch(e){}
-}
-
 let _users = [], changePassIdx = null, pwState = {};
 
 /* ── NAV ── */
 (function(){
   const nav=document.getElementById("mainNav"), nr=nav.querySelector(".nav-right");
   ALL_NAV.forEach(item=>{
-    if(_session.role==="admin" || _session.role==="viceadmin"){/* hiện tất cả */}
-    else{ if(!(_session.pages||[]).includes(item.page)) return; }
+    if(_session.role==="admin"){/* hiện tất cả */}
+    else if(_session.role==="viceadmin"){/* hiện tất cả */}
+    else{if(!(_session.pages||[]).includes(item.page)) return;}
     const a=document.createElement("a"); a.href=item.page; a.textContent=item.label;
     if(location.pathname.endsWith(item.page)) a.classList.add("active");
     nav.insertBefore(a,nr);
@@ -191,42 +177,52 @@ function showToast(msg,err=false){
   clearTimeout(t._t); t._t=setTimeout(()=>{t.className="toast";},2500);
 }
 
+/* ── HASH PASSWORD ── */
+async function hashPass(str){
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+
 /* ── SAVE ── */
-function saveUsers(arr){
-  _users = arr;
-  localStorage.setItem(USERS_KEY, JSON.stringify(arr));
-  const byUsername = {};
-  arr.forEach(x=>{ if(x.username) byUsername[x.username]=x; });
+function saveUsers(u){
+  const arr=Array.isArray(u)?u:Object.values(u||{});
+  _users=arr;
+  localStorage.setItem(USERS_KEY,JSON.stringify(arr));
+  // Sync sang users_APP_ID dạng {username: {...}} để driver.html đọc được
+  const byUsername={};
+  arr.forEach(x=>{if(x.username) byUsername[x.username]=x;});
   return Promise.all([
     db.ref(USERS_REF).set(arr),
     db.ref(`users_${window.APP_ID}`).set(byUsername)
-  ]).then(()=>showToast("✅ Đã lưu"))
-    .catch(e=>showToast("Lỗi: "+e.message, true));
+  ])
+    .then(()=>showToast("✅ Đã lưu"))
+    .catch(e=>showToast("Lỗi: "+e.message,true));
 }
 
 /* ── FIREBASE LISTENER ── */
-db.ref(USERS_REF).on("value", snap=>{
-  const val = snap.exists() ? snap.val() : [];
-  _users = Array.isArray(val) ? val : Object.values(val||{});
-  localStorage.setItem(USERS_KEY, JSON.stringify(_users));
+db.ref(USERS_REF).on("value",snap=>{
+  const val=snap.exists()?snap.val():[];
+  _users=Array.isArray(val)?val:Object.values(val||{});
+  localStorage.setItem(USERS_KEY,JSON.stringify(_users));
   render();
 });
 
 /* ── RENDER ── */
 function render(){
-  const tbody = document.getElementById("tbody");
-  tbody.innerHTML = "";
-  let rowNum = 0;
-  _users.forEach((u, i)=>{
+  const tbody=document.getElementById("tbody");
+  tbody.innerHTML="";
+  let rowNum=0;
+  _users.forEach((u, realIdx)=>{
+    // Phó admin không thấy dòng admin
     if(_session.role==="viceadmin" && u.role==="admin") return;
     rowNum++;
-    const isSelf   = _session.username === u.username;
-    const isAdmin  = u.role === "admin";
-    const isVice   = u.role === "viceadmin";
-    const isDriver = u.role === "driver";
-    const roleBg    = isAdmin?"#dbeafe":isVice?"#fef3c7":isDriver?"#f0fdf4":"#f1f5f9";
-    const roleColor = isAdmin?"#1d4ed8":isVice?"#92400e":isDriver?"#166534":"#475569";
-    const roleLabel = isAdmin?"Admin":isVice?"Administrator":isDriver?"🚛 Lái xe":"User";
+    const isSelf=_session.username===u.username;
+    const isAdmin=u.role==="admin";
+    const isVice=u.role==="viceadmin";
+    const isDriver=u.role==="driver";
+    const roleBg=isAdmin?"#dbeafe":isVice?"#fef3c7":isDriver?"#f0fdf4":"#f1f5f9";
+    const roleColor=isAdmin?"#1d4ed8":isVice?"#92400e":isDriver?"#166534":"#475569";
+    const roleLabel=isAdmin?"Admin":isVice?"Administrator":isDriver?"🚛 Lái xe":"User";
     tbody.insertAdjacentHTML("beforeend",`
       <tr>
         <td>${rowNum}</td>
@@ -235,147 +231,126 @@ function render(){
         <td style="font-size:12px">${u.driverName||""}</td>
         <td style="font-size:12px;font-family:monospace">${u.truckNo||""}</td>
         <td><div class="pw-cell">
-          <span class="pw-text" id="pw_${i}">••••••</span>
-          <button class="btn-gray btn-sm" onclick="togglePw(${i})">👁️</button>
+          <span class="pw-text" id="pw_${realIdx}">••••••</span>
+          <button class="btn-gray btn-sm" id="pwbtn_${realIdx}" onclick="togglePw(${realIdx})">👁️</button>
         </div></td>
-        ${PAGES.map(p=>`<td><input type="checkbox"
-          style="width:15px;height:15px;accent-color:var(--accent);cursor:${isAdmin?"not-allowed":"pointer"}"
-          ${(u.pages||[]).includes(p)?"checked":""}
-          ${(isAdmin||isVice)?"disabled":""}
-          onchange="togglePage(${i},'${p}',this.checked)"></td>`).join("")}
-        <td><button class="btn-warning btn-sm" onclick="openChangePass(${i})">🔑 Đổi</button></td>
-        <td>${isSelf
-          ? `<button class="btn-gray btn-sm" disabled style="opacity:.5">🗑️</button>`
-          : `<button class="btn-danger btn-sm" onclick="delUser(${i})">🗑️ Xóa</button>`}</td>
+        ${PAGES.map(p=>`<td><input type="checkbox" style="width:15px;height:15px;accent-color:var(--accent);cursor:${isAdmin?"not-allowed":"pointer"}" ${(u.pages||[]).includes(p)?"checked":""} ${(isAdmin||isVice)?"disabled":""} onchange="togglePage(${realIdx},'${p}',this.checked)"></td>`).join("")}
+        <td><button class="btn-warning btn-sm" onclick="openChangePass(${realIdx})">🔑 Đổi</button></td>
+        <td>${isSelf?`<button class="btn-gray btn-sm" disabled style="opacity:.5">🗑️</button>`:`<button class="btn-danger btn-sm" onclick="delUser(${realIdx})">🗑️ Xóa</button>`}</td>
       </tr>`);
   });
 }
 
-/* ── TOGGLE DRIVER FIELDS ── */
+/* ── ADD USER — lưu password plain text ── */
 function toggleDriverFields(){
+  // Form tạo mới
   const uRole = document.getElementById("uRole");
   if(uRole){
-    const d = uRole.value === "driver";
-    document.getElementById("uDriverName").style.display = d?"":"none";
-    document.getElementById("uTruckNo").style.display    = d?"":"none";
+    const isDriver = uRole.value === "driver";
+    document.getElementById("uDriverName").style.display = isDriver ? "" : "none";
+    document.getElementById("uTruckNo").style.display    = isDriver ? "" : "none";
   }
+  // Modal sửa
   const newRole = document.getElementById("newRole");
   if(newRole){
     const df = document.getElementById("driverFields");
-    if(df) df.style.display = newRole.value==="driver"?"block":"none";
+    if(df) df.style.display = newRole.value === "driver" ? "block" : "none";
   }
 }
 
-/* ── ADD USER ── */
-async function addUser(){
-  const u        = document.getElementById("uName").value.trim();
-  const p        = document.getElementById("uPass").value.trim();
-  const r        = document.getElementById("uRole").value;
-  const driverName = document.getElementById("uDriverName").value.trim();
-  const truckNo  = document.getElementById("uTruckNo").value.trim();
-
-  if(!u||!p)            { showToast("Nhập đủ username và password!",true); return; }
-  if(u.length<3)        { showToast("Username phải từ 3 ký tự!",true); return; }
-  if(p.length<4)        { showToast("Password phải từ 4 ký tự!",true); return; }
-  if(r==="driver"&&!driverName) { showToast("Nhập họ tên lái xe!",true); return; }
-  if(_users.some(x=>x.username.toLowerCase()===u.toLowerCase())) { showToast("Username đã tồn tại!",true); return; }
-
-  const hashed = await hashPass(p);
-  const obj = {
-    username: u,
-    password: hashed,
-    role: r,
-    pages: r==="admin"  ? [...PAGES]
-         : r==="viceadmin" ? ["index.html","accountant.html","performance.html","overview.html","maintenance.html","master.html","users.html"]
-         : []
-  };
-  if(r==="driver"){ obj.driverName=driverName; obj.truckNo=truckNo; }
-
-  await auditLog("ADD_USER", `Tạo user: ${u} | role: ${r}`);
-  saveUsers([..._users, obj]);
-
-  document.getElementById("uName").value = "";
-  document.getElementById("uPass").value = "";
-  document.getElementById("uDriverName").value = "";
-  document.getElementById("uTruckNo").value = "";
-  toggleDriverFields();
+function addUser(){
+  const u=document.getElementById("uName").value.trim();
+  const p=document.getElementById("uPass").value.trim();
+  const r=document.getElementById("uRole").value;
+  const driverName=document.getElementById("uDriverName").value.trim();
+  const truckNo=document.getElementById("uTruckNo").value.trim();
+  if(!u||!p){showToast("Nhập đủ username và password!",true);return;}
+  if(u.length<3){showToast("Username phải từ 3 ký tự!",true);return;}
+  if(p.length<4){showToast("Password phải từ 4 ký tự!",true);return;}
+  if(r==="driver"&&!driverName){showToast("Nhập họ tên lái xe!",true);return;}
+  if(_users.some(x=>x.username.toLowerCase()===u.toLowerCase())){showToast("Username đã tồn tại!",true);return;}
+  const users=[..._users];
+  const obj={username:u, password:p, role:r,
+    pages:r==="admin"?[...PAGES]:r==="viceadmin"?["index.html","accountant.html","performance.html","overview.html","maintenance.html","master.html","users.html"]:[]};
+  if(r==="driver"){obj.driverName=driverName; obj.truckNo=truckNo;}
+  // Hash password trước khi lưu
+  hashPass(p).then(hashed=>{
+    obj.password = hashed;
+    obj._plainHint = p.slice(0,1)+"***"; // hint xem mật khẩu (ko lưu full)
+    users.push(obj);
+    saveUsers(users);
+    document.getElementById("uName").value="";
+    document.getElementById("uPass").value="";
+    document.getElementById("uDriverName").value="";
+    document.getElementById("uTruckNo").value="";
+    toggleDriverFields();
+  });
 }
 
 /* ── TOGGLE PAGE ── */
-function togglePage(i, page, checked){
-  if(_session.role==="viceadmin" && _users[i].role==="admin") return;
-  const users = [..._users];
-  users[i].pages = users[i].pages||[];
-  if(checked && !users[i].pages.includes(page)) users[i].pages.push(page);
-  if(!checked) users[i].pages = users[i].pages.filter(p=>p!==page);
+function togglePage(i,page,checked){
+  if(_session.role==="viceadmin" && _users[i].role==="admin"){return;}
+  const users=[..._users];
+  users[i].pages=users[i].pages||[];
+  if(checked&&!users[i].pages.includes(page)) users[i].pages.push(page);
+  if(!checked) users[i].pages=users[i].pages.filter(p=>p!==page);
   saveUsers(users);
 }
 
 /* ── DELETE ── */
-async function delUser(i){
-  if(_session.username===_users[i].username)                        { showToast("Không thể tự xóa!",true); return; }
-  if(_session.role==="viceadmin" && _users[i].role==="admin")       { showToast("Không có quyền xóa Admin!",true); return; }
+function delUser(i){
+  if(_session.username===_users[i].username){showToast("Không thể tự xóa!",true);return;}
+  if(_session.role==="viceadmin" && _users[i].role==="admin"){showToast("Không có quyền xóa Admin!",true);return;}
   if(!confirm(`Xóa user "${_users[i].username}"?`)) return;
-  await auditLog("DELETE_USER", `Xóa user: ${_users[i].username}`);
-  const users = [..._users];
-  users.splice(i,1);
-  saveUsers(users);
+  const users=[..._users]; users.splice(i,1); saveUsers(users);
 }
 
 /* ── TOGGLE PW ── */
 function togglePw(i){
-  const span=document.getElementById("pw_"+i);
+  const span=document.getElementById("pw_"+i), btn=document.getElementById("pwbtn_"+i);
   if(!span) return;
-  if(pwState[i]){ span.textContent="••••••"; pwState[i]=false; }
-  else          { span.textContent=_users[i].password||""; pwState[i]=true; }
+  if(pwState[i]){span.textContent="••••••";btn.textContent="👁️";pwState[i]=false;}
+  else{span.textContent=_users[i].password||"";btn.textContent="🙈";pwState[i]=true;}
 }
 
-/* ── OPEN/CLOSE MODAL ── */
+/* ── CHANGE PASS ── */
+
 function openChangePass(i){
-  if(_session.role==="viceadmin" && _users[i].role==="admin") { showToast("Không có quyền sửa Admin!",true); return; }
-  changePassIdx = i;
-  document.getElementById("modalUser").textContent = `👤 ${_users[i].username}`;
-  document.getElementById("newRole").value         = _users[i].role||"user";
-  document.getElementById("editDriverName").value  = _users[i].driverName||"";
-  document.getElementById("editTruckNo").value     = _users[i].truckNo||"";
-  document.getElementById("newPass").value         = "";
-  document.getElementById("confirmPass").value     = "";
+  if(_session.role==="viceadmin" && _users[i].role==="admin"){showToast("Không có quyền sửa Admin!",true);return;}
+  changePassIdx=i;
+  document.getElementById("modalUser").textContent=`👤 ${_users[i].username}`;
+  document.getElementById("newRole").value=_users[i].role||"user";
+  document.getElementById("editDriverName").value=_users[i].driverName||"";
+  document.getElementById("editTruckNo").value=_users[i].truckNo||"";
   toggleDriverFields();
+  document.getElementById("newPass").value="";
+  document.getElementById("confirmPass").value="";
   document.getElementById("modalBg").classList.add("show");
 }
-function closeModal(){
-  changePassIdx = null;
-  document.getElementById("modalBg").classList.remove("show");
-}
-
-/* ── SAVE CHANGE PASS / ROLE ── */
+function closeModal(){changePassIdx=null;document.getElementById("modalBg").classList.remove("show");}
 async function confirmChangePass(){
-  const np      = document.getElementById("newPass").value.trim();
-  const cp      = document.getElementById("confirmPass").value.trim();
-  const newRole = document.getElementById("newRole").value;
-
+  const np=document.getElementById("newPass").value.trim();
+  const cp=document.getElementById("confirmPass").value.trim();
+  const newRole=document.getElementById("newRole").value;
   if(np){
-    if(np.length<4)  { showToast("Mật khẩu phải từ 4 ký tự!",true); return; }
-    if(np!==cp)      { showToast("Mật khẩu nhập lại không khớp!",true); return; }
+    if(np.length<4){showToast("Mật khẩu phải từ 4 ký tự!",true);return;}
+    if(np!==cp){showToast("Mật khẩu nhập lại không khớp!",true);return;}
   }
-
-  const users = [..._users];
+  if(!np && !newRole){showToast("Không có thay đổi gì!",true);return;}
+  const users=[..._users];
   if(np){
-    users[changePassIdx].password = await hashPass(np);
+    const hashed = await hashPass(np);
+    users[changePassIdx].password = hashed;
   }
-  users[changePassIdx].role = newRole;
+  users[changePassIdx].role=newRole;
   if(newRole==="driver"){
-    users[changePassIdx].driverName = document.getElementById("editDriverName").value.trim();
-    users[changePassIdx].truckNo    = document.getElementById("editTruckNo").value.trim();
+    users[changePassIdx].driverName=document.getElementById("editDriverName").value.trim();
+    users[changePassIdx].truckNo=document.getElementById("editTruckNo").value.trim();
   }
-  await auditLog("EDIT_USER", `Sửa user: ${users[changePassIdx].username} | role→${newRole}`);
   saveUsers(users);
   closeModal();
 }
-
-document.getElementById("modalBg").addEventListener("click", function(e){
-  if(e.target===this) closeModal();
-});
+document.getElementById("modalBg").addEventListener("click",function(e){if(e.target===this)closeModal();});
 </script>
 </body>
 </html>
