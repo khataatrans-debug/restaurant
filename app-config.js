@@ -159,10 +159,14 @@
     users:       "users.html"
   };
 
-  // Chờ Firebase SDK sẵn sàng (polling tối đa 10s)
+  // Chờ Firebase SDK — hỗ trợ cả 2 loại:
+  //   Modular  : trang set window.__fbReady = true  (index.html, master.html)
+  //   Compat   : trang load firebase-app-compat.js  → window.firebase tồn tại
   function waitForFirebase(cb, attempt) {
     attempt = attempt || 0;
-    if (window.firebase && window.firebase.firestore) {
+    const hasModular = window.__fbReady && window.__fbFS && window.__fbRTDB;
+    const hasCompat  = window.firebase && window.firebase.firestore;
+    if (hasModular || hasCompat) {
       cb();
     } else if (attempt < 100) {
       setTimeout(function () { waitForFirebase(cb, attempt + 1); }, 100);
@@ -177,67 +181,106 @@
       applyModuleVisibility();
       return;
     }
+
+    // ── Cache: đọc sessionStorage trước, tránh query Firestore mỗi lần đổi trang ──
+    const CACHE_KEY = "APP_CFG_" + window.APP_ID;
+    const CACHE_TTL = 5 * 60 * 1000; // 5 phút
     try {
-      const fs = firebase.firestore();
-      fs.collection("companies").where("appId", "==", window.APP_ID).limit(1).get()
-        .then(function (snap) {
-          if (!snap.empty) {
-            const cfg = snap.docs[0].data();
+      const _cached = JSON.parse(sessionStorage.getItem(CACHE_KEY) || "null");
+      if (_cached && _cached._ts && (Date.now() - _cached._ts) < CACHE_TTL) {
+        window.APP_MODULES = _cached.modules;
+        window.APP_PLAN    = _cached.plan || "pro";
+        window.APP_ACTIVE  = true;
+        console.log("[app-config] ⚡ Cache hit →", window.APP_PLAN, window.APP_MODULES);
+        applyModuleVisibility();
+        return;
+      }
+    } catch(e) { /* cache lỗi → query bình thường */ }
 
-            // Bị khóa → đăng xuất
-            if (cfg.status === "inactive") {
-              alert("Tài khoản công ty đã bị khóa. Liên hệ quản trị viên.");
-              sessionStorage.clear();
-              location.href = "landing.html";
-              return;
-            }
+    try {
+      // Xác định dùng SDK nào
+      const useModular = window.__fbReady && window.__fbFS && window.__fbRTDB;
 
-            // Build modules từ array lưu trong Firestore
-            const mods = {};
-            Object.keys(DEFAULT_MODULES).forEach(function (k) { mods[k] = false; });
-            (cfg.modules || []).forEach(function (m) { mods[m] = true; });
+      // === Hàm query Firestore ===
+      function queryFirestore() {
+        if (useModular) {
+          const { getFirestore, collection, query, where, limit, getDocs } = window.__fbFS;
+          const q = query(collection(getFirestore(), "companies"),
+                          where("appId", "==", window.APP_ID), limit(1));
+          return getDocs(q).then(function(snap) {
+            return snap.empty ? null : snap.docs[0].data();
+          });
+        } else {
+          return firebase.firestore()
+            .collection("companies").where("appId","==",window.APP_ID).limit(1).get()
+            .then(function(snap) {
+              return snap.empty ? null : snap.docs[0].data();
+            });
+        }
+      }
 
-            window.APP_MODULES = mods;
-            window.APP_PLAN    = cfg.plan || "pro";
-            window.APP_ACTIVE  = true;
-            console.log("[app-config] ✅ Firestore →", cfg.plan, cfg.modules);
-            applyModuleVisibility();
-          } else {
-            // Fallback: RTDB app_config_APPID
-            firebase.database().ref("app_config_" + window.APP_ID).once("value")
-              .then(function (s) {
-                if (s.exists()) {
-                  const cfg2 = s.val();
-                  // RTDB lưu modules dạng object {trucking:true,...}
-                  if (cfg2.modules && typeof cfg2.modules === "object" && !Array.isArray(cfg2.modules)) {
-                    window.APP_MODULES = Object.assign({}, DEFAULT_MODULES, cfg2.modules);
-                  } else if (Array.isArray(cfg2.modules)) {
-                    const mods = {};
-                    Object.keys(DEFAULT_MODULES).forEach(function (k) { mods[k] = false; });
-                    cfg2.modules.forEach(function (m) { mods[m] = true; });
-                    window.APP_MODULES = mods;
-                  }
-                  window.APP_PLAN = cfg2.plan || "pro";
-                  // Nếu RTDB đánh dấu inactive
-                  if (cfg2.active === false) {
-                    alert("Tài khoản công ty đã bị khóa. Liên hệ quản trị viên.");
-                    sessionStorage.clear();
-                    location.href = "landing.html";
-                    return;
-                  }
-                  console.log("[app-config] ✅ RTDB fallback →", window.APP_PLAN, window.APP_MODULES);
-                } else {
-                  console.log("[app-config] ℹ️ Không có config → dùng default all modules");
-                }
-                applyModuleVisibility();
-              })
-              .catch(function () { applyModuleVisibility(); });
+      // === Hàm query RTDB ===
+      function queryRTDB() {
+        if (useModular) {
+          const { getDatabase, ref, get } = window.__fbRTDB;
+          return get(ref(getDatabase(), "app_config_" + window.APP_ID))
+            .then(function(s) { return s.exists() ? s.val() : null; });
+        } else {
+          return firebase.database().ref("app_config_" + window.APP_ID).once("value")
+            .then(function(s) { return s.exists() ? s.val() : null; });
+        }
+      }
+
+      console.log("[app-config] SDK:", useModular ? "modular" : "compat");
+
+      queryFirestore().then(function(cfg) {
+        if (cfg) {
+          if (cfg.status === "inactive") {
+            alert("Tài khoản công ty đã bị khóa. Liên hệ quản trị viên.");
+            sessionStorage.clear();
+            location.href = "landing.html";
+            return;
           }
-        })
-        .catch(function (e) {
-          console.error("[app-config] Firestore error:", e.message);
+          const mods = {};
+          Object.keys(DEFAULT_MODULES).forEach(function(k) { mods[k] = false; });
+          (cfg.modules || []).forEach(function(m) { mods[m] = true; });
+          window.APP_MODULES = mods;
+          window.APP_PLAN    = cfg.plan || "pro";
+          window.APP_ACTIVE  = true;
+          try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({modules: window.APP_MODULES, plan: window.APP_PLAN, _ts: Date.now()})); } catch(e){}
+          console.log("[app-config] ✅ Firestore →", cfg.plan, cfg.modules);
           applyModuleVisibility();
-        });
+        } else {
+          // Fallback RTDB
+          queryRTDB().then(function(cfg2) {
+            if (cfg2) {
+              if (cfg2.active === false) {
+                alert("Tài khoản công ty đã bị khóa. Liên hệ quản trị viên.");
+                sessionStorage.clear();
+                location.href = "landing.html";
+                return;
+              }
+              if (typeof cfg2.modules === "object" && !Array.isArray(cfg2.modules)) {
+                window.APP_MODULES = Object.assign({}, DEFAULT_MODULES, cfg2.modules);
+              } else if (Array.isArray(cfg2.modules)) {
+                const mods = {};
+                Object.keys(DEFAULT_MODULES).forEach(function(k) { mods[k] = false; });
+                cfg2.modules.forEach(function(m) { mods[m] = true; });
+                window.APP_MODULES = mods;
+              }
+              window.APP_PLAN = cfg2.plan || "pro";
+              console.log("[app-config] ✅ RTDB →", window.APP_PLAN, window.APP_MODULES);
+              try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({modules: window.APP_MODULES, plan: window.APP_PLAN, _ts: Date.now()})); } catch(e){}
+            } else {
+              console.log("[app-config] ℹ️ Không có config → default all modules");
+            }
+            applyModuleVisibility();
+          }).catch(function() { applyModuleVisibility(); });
+        }
+      }).catch(function(e) {
+        console.error("[app-config] Firestore error:", e.message);
+        applyModuleVisibility();
+      });
     } catch (e) {
       console.error("[app-config] loadModules error:", e);
       applyModuleVisibility();

@@ -113,18 +113,19 @@ tr:hover td{background:#e8eeff!important;}
 .attach-link{cursor:pointer;color:var(--accent);font-size:11px;text-decoration:underline;}
 </style>
 <!-- Firebase SDK -->
-<script src="app-config.js"></script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy }
+  import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy, where, limit, getDocs }
     from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
-  import { getDatabase, ref, onValue }
+  import { getDatabase, ref, onValue, get }
     from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
-  window.__fbApp = { initializeApp };
-  window.__fbFS  = { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy };
-  window.__fbRTDB = { getDatabase, ref, onValue };
+  window.__fbApp  = { initializeApp };
+  window.__fbFS   = { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy, where, limit, getDocs };
+  window.__fbRTDB = { getDatabase, ref, onValue, get };
   window.__fbReady = true;
 </script>
+<!-- app-config: APP_ID + module filter — đặt SAU Firebase SDK -->
+<script src="app-config.js"></script>
 </head>
 <body>
 
@@ -174,7 +175,33 @@ tr:hover td{background:#e8eeff!important;}
       a.href = item.page;
       a.textContent = item.label;
       if (curPage === item.page) a.classList.add("active");
+      // Gắn data-module để app-config filter được
+      const MODULE_MAP = {
+        "index.html":"trucking","accountant.html":"accountant",
+        "performance.html":"performance","overview.html":"overview",
+        "master.html":"master","maintenance.html":"maintenance",
+        "fuel.html":"fuel","users.html":"users"
+      };
+      const mod = MODULE_MAP[item.page];
+      if (mod) a.setAttribute("data-module", mod);
       nav.insertBefore(a, navRight);
+    });
+
+    // Sau khi nav build xong → ẩn tab theo gói công ty
+    function applyModuleNav(modules) {
+      nav.querySelectorAll("a[data-module]").forEach(function(a) {
+        const mod = a.getAttribute("data-module");
+        if (modules && modules[mod] === false) a.style.display = "none";
+      });
+    }
+
+    if (window.APP_MODULES) {
+      // Đã load xong (app-config chạy trước)
+      applyModuleNav(window.APP_MODULES);
+    }
+    // Lắng nghe khi modules load xong từ Firestore
+    window.addEventListener("appModulesLoaded", function(e) {
+      applyModuleNav(e.detail.modules);
     });
 
     /* Tên user */

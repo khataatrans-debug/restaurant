@@ -591,7 +591,20 @@ _onValue(_ref(`master_data_${APP_ID}`),(snap)=>{
     const a=document.createElement("a");a.href=item.page;a.textContent=item.label;
     if(location.pathname.endsWith(item.page)) a.classList.add("active");
     nav.insertBefore(a,nr);
+    const _mm={"index.html":"trucking","accountant.html":"accountant","performance.html":"performance","overview.html":"overview","master.html":"master","maintenance.html":"maintenance","fuel.html":"fuel","users.html":"users"};
+    if(_mm[item.page]) a.setAttribute("data-module",_mm[item.page]);
   });
+    // ── Module filter theo gói công ty ──
+    function applyModuleNav(modules) {
+      nav.querySelectorAll("a[data-module]").forEach(function(a) {
+        if (modules && modules[a.getAttribute("data-module")] === false)
+          a.style.display = "none";
+      });
+    }
+    if (window.APP_MODULES) applyModuleNav(window.APP_MODULES);
+    window.addEventListener("appModulesLoaded", function(e) {
+      applyModuleNav(e.detail.modules);
+    });
   document.getElementById("userInfo").textContent=session.username?`👤 ${session.username}`:"";
   document.getElementById("btnLogout").onclick=()=>{localStorage.removeItem(CURRENT_KEY);navigate("login.html");};
 })();
