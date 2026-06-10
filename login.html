@@ -215,6 +215,46 @@ firebase.initializeApp({
 const db = firebase.database();
 let _users = [];
 
+// ── SHA-256 hash password ──
+async function hashPass(str){
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+
+// ── Rate limiting: max 5 lần sai / 5 phút ──
+function checkRateLimit(user){
+  const key = "rl_"+APP_ID+"_"+user;
+  const data = JSON.parse(sessionStorage.getItem(key)||"{}");
+  const now = Date.now();
+  if(data.lockUntil && now < data.lockUntil){
+    const wait = Math.ceil((data.lockUntil-now)/1000);
+    return {locked:true, wait};
+  }
+  return {locked:false, count:data.count||0, first:data.first||now};
+}
+function recordFail(user){
+  const key = "rl_"+APP_ID+"_"+user;
+  const data = JSON.parse(sessionStorage.getItem(key)||"{}");
+  const now = Date.now();
+  const count = (data.count||0)+1;
+  if(count>=5){ sessionStorage.setItem(key,JSON.stringify({lockUntil:now+5*60*1000})); }
+  else { sessionStorage.setItem(key,JSON.stringify({count,first:data.first||now})); }
+}
+function clearRateLimit(user){
+  sessionStorage.removeItem("rl_"+APP_ID+"_"+user);
+}
+
+// ── Audit log ──
+async function writeAuditLog(action, detail, username){
+  try{
+    await db.ref("audit_log_"+APP_ID).push({
+      action, detail, username:username||"?",
+      ip: "client", at: new Date().toISOString(),
+      ua: navigator.userAgent.slice(0,80)
+    });
+  }catch(e){}
+}
+
 /* ── LOAD USERS ── */
 db.ref(USERS_REF).on("value", snap => {
   const val = snap.exists() ? snap.val() : [];

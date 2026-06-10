@@ -179,7 +179,51 @@ tr:last-child td{border-bottom:none}
       </div>
     </div>
 
-    <!-- Logs tab -->
+    <!-- Audit Log tab -->
+    <div id="tab-auditlog" style="display:none">
+      <div class="table-wrap">
+        <div class="table-header">
+          <h3>🔍 Audit Log — Lịch sử thao tác</h3>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="auditAppFilter" style="height:32px;background:#1e293b;border:1px solid #334155;border-radius:7px;padding:0 10px;color:#e2e8f0;font-size:12px">
+              <option value="">Tất cả công ty</option>
+            </select>
+            <button class="btn-sm btn-gray" onclick="loadAuditLog()">🔄 Làm mới</button>
+          </div>
+        </div>
+        <table>
+          <thead><tr>
+            <th>Thời gian</th><th>Công ty</th><th>User</th>
+            <th>Hành động</th><th>Chi tiết</th>
+          </tr></thead>
+          <tbody id="auditTbody"><tr><td colspan="5" style="text-align:center;padding:24px;color:#64748b">Chọn công ty để xem log</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Backup tab -->
+    <div id="tab-backup" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="table-wrap" style="padding:20px">
+          <h3 style="color:#fff;margin-bottom:12px">💾 Export Backup</h3>
+          <p style="color:#64748b;font-size:13px;margin-bottom:16px">Export toàn bộ data Firestore collection <code>companies</code> và audit logs ra file JSON.</p>
+          <div style="margin-bottom:12px">
+            <label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:6px">Chọn công ty</label>
+            <select id="backupAppId" style="width:100%;height:36px;background:#0f172a;border:1px solid #334155;border-radius:7px;padding:0 12px;color:#e2e8f0;font-size:13px">
+              <option value="ALL">Tất cả</option>
+            </select>
+          </div>
+          <button class="btn-sm btn-primary" style="width:100%;height:40px;font-size:13px" onclick="doBackup()">📥 Export JSON ngay</button>
+          <div id="backupStatus" style="margin-top:10px;font-size:12px;color:#64748b"></div>
+        </div>
+        <div class="table-wrap" style="padding:20px">
+          <h3 style="color:#fff;margin-bottom:12px">📋 Lịch sử backup</h3>
+          <div id="backupHistory" style="color:#64748b;font-size:13px">Chưa có backup nào trong phiên này</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Logs tab (old) -->
     <div id="tab-logs" style="display:none">
       <div class="table-wrap">
         <div class="table-header"><h3>📋 Lịch sử thay đổi</h3></div>
@@ -531,11 +575,109 @@ function copyLoginLink(appId){
 }
 
 function switchTab(id, btn){
-  ["companies","logs"].forEach(t=>document.getElementById("tab-"+t).style.display="none");
+  ["companies","auditlog","backup","logs"].forEach(t=>{
+    const el=document.getElementById("tab-"+t);
+    if(el) el.style.display="none";
+  });
   document.getElementById("tab-"+id).style.display="";
   document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
   btn.classList.add("active");
-  if(id==="logs") loadLogs();
+  if(id==="auditlog") loadAuditLog();
+  if(id==="backup") populateBackupSelect();
+}
+
+// ── AUDIT LOG ──
+async function loadAuditLog(){
+  const appFilter = document.getElementById("auditAppFilter").value;
+  const tbody = document.getElementById("auditTbody");
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#64748b">Đang tải...</td></tr>';
+
+  // Build app filter options
+  const sel = document.getElementById("auditAppFilter");
+  if(sel.options.length<=1){
+    _companies.forEach(co=>{
+      const o=document.createElement("option");
+      o.value=co.appId||co.id; o.textContent=co.appId||co.id;
+      sel.appendChild(o);
+    });
+  }
+
+  if(!appFilter){
+    tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:#64748b">Chọn công ty để xem log</td></tr>';
+    return;
+  }
+
+  try{
+    const rtdb = firebase.database();
+    const snap = await rtdb.ref("audit_log_"+appFilter).orderByChild("at").limitToLast(200).get();
+    if(!snap.exists()){
+      tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:#64748b">Không có log</td></tr>';
+      return;
+    }
+    const rows = [];
+    snap.forEach(d=>rows.push(d.val()));
+    rows.reverse();
+    tbody.innerHTML = rows.map(r=>`<tr>
+      <td style="color:#64748b;font-size:11px;white-space:nowrap">${(r.at||"").slice(0,16).replace("T"," ")}</td>
+      <td style="font-weight:600;color:#60a5fa">${appFilter}</td>
+      <td style="color:#94a3b8">${r.username||"?"}</td>
+      <td><span class="badge ${r.action&&r.action.includes("FAIL")?"badge-inactive":"badge-active"}" style="font-size:10px">${r.action||""}</span></td>
+      <td style="color:#94a3b8;font-size:11px">${r.detail||""}</td>
+    </tr>`).join("");
+  }catch(e){
+    tbody.innerHTML=`<tr><td colspan="5" style="color:#f87171;padding:12px">Lỗi: ${e.message}</td></tr>`;
+  }
+}
+
+// ── BACKUP ──
+function populateBackupSelect(){
+  const sel = document.getElementById("backupAppId");
+  if(sel.options.length<=1){
+    _companies.forEach(co=>{
+      const o=document.createElement("option");
+      o.value=co.appId||co.id; o.textContent=(co.appId||co.id)+" — "+(co.name||"");
+      sel.appendChild(o);
+    });
+  }
+}
+
+async function doBackup(){
+  const appId = document.getElementById("backupAppId").value;
+  const status = document.getElementById("backupStatus");
+  status.textContent = "⏳ Đang export...";
+  try{
+    const backup = { exportedAt: new Date().toISOString(), appId, data:{} };
+
+    if(appId==="ALL"){
+      // Export companies collection
+      const snap = await db.collection("companies").get();
+      backup.data.companies = snap.docs.map(d=>({id:d.id,...d.data()}));
+      status.textContent = "✅ Đã export "+snap.size+" công ty";
+    } else {
+      // Export companies record
+      const snap = await db.collection("companies").where("appId","==",appId).get();
+      backup.data.company = snap.docs.map(d=>({id:d.id,...d.data()}))[0]||{};
+      // Export audit log
+      const rtdb = firebase.database();
+      const aSnap = await rtdb.ref("audit_log_"+appId).get();
+      backup.data.auditLog = aSnap.exists() ? Object.values(aSnap.val()||{}) : [];
+      status.textContent = "✅ Export "+appId+" xong — "+backup.data.auditLog.length+" log entries";
+    }
+
+    // Download file
+    const blob = new Blob([JSON.stringify(backup,null,2)],{type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href=url; a.download=`backup_${appId}_${new Date().toISOString().slice(0,10)}.json`;
+    a.click(); URL.revokeObjectURL(url);
+
+    // Ghi lịch sử
+    const hist = document.getElementById("backupHistory");
+    hist.innerHTML = `<div style="padding:8px;background:#0f172a;border-radius:6px;font-size:12px;color:#34d399">
+      ✅ ${new Date().toLocaleString("vi-VN")} — backup_${appId}_${new Date().toISOString().slice(0,10)}.json
+    </div>` + hist.innerHTML;
+
+  }catch(e){ status.textContent="❌ Lỗi: "+e.message; }
 }
 
 function showToast(msg,err=false){
