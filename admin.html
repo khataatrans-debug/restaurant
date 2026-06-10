@@ -612,7 +612,7 @@ async function loadAuditLog(){
 
   try{
     const rtdb = firebase.database();
-    const snap = await rtdb.ref("audit_log_"+appFilter).orderByChild("at").limitToLast(200).get();
+    const snap = await rtdb.ref("audit_log_"+appFilter).limitToLast(200).get();
     if(!snap.exists()){
       tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:#64748b">Không có log</td></tr>';
       return;
