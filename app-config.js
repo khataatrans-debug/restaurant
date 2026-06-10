@@ -50,6 +50,57 @@
      Ví dụ: navigate("index.html")
              navigate("maintenance.html")
   ───────────────────────────────────────── */
+  /* ── NAV INTERCEPTOR ──
+     Patch insertBefore trên mainNav để tự filter modules
+     Chạy trước khi các trang build nav
+  */
+  window._navQueue = [];
+  window._navReady = false;
+
+  document.addEventListener("DOMContentLoaded", function() {
+    const nav = document.getElementById("mainNav");
+    if (!nav) return;
+    const nr = nav.querySelector(".nav-right");
+    if (!nr) return;
+
+    // Override insertBefore để bắt tất cả nav link được thêm vào
+    const _origInsertBefore = nav.insertBefore.bind(nav);
+    nav.insertBefore = function(node, ref) {
+      // Chỉ intercept <a> tags
+      if (node.tagName === "A") {
+        window._navQueue.push({node, ref});
+        if (window._navReady) {
+          _flushNavQueue(nav, _origInsertBefore);
+        }
+        return node;
+      }
+      return _origInsertBefore(node, ref);
+    };
+
+    window._origInsertBefore = _origInsertBefore;
+    window._navElement = nav;
+  });
+
+  window._flushNavQueue = function(nav, origFn) {
+    const fn = origFn || window._origInsertBefore;
+    const nr = nav ? nav.querySelector(".nav-right") : null;
+    window._navQueue.forEach(function(item) {
+      const href = (item.node.getAttribute("href") || "").split("?")[0].split("/").pop();
+      const MODULE_MAP = {
+        "index.html":"trucking","accountant.html":"accountant",
+        "performance.html":"performance","overview.html":"overview",
+        "master.html":"master","maintenance.html":"maintenance",
+        "fuel.html":"fuel","users.html":"users"
+      };
+      const mod = MODULE_MAP[href];
+      if (mod && window.APP_MODULES && window.APP_MODULES[mod] === false) {
+        return; // Bỏ qua — không thêm vào nav
+      }
+      fn(item.node, item.ref || nr);
+    });
+    window._navQueue = [];
+  };
+
   window.navigate = function (path) {
     const sep = path.includes("?") ? "&" : "?";
     location.href = path + sep + "app=" + window.APP_ID;
@@ -164,15 +215,6 @@
     }
   });
 
-  /* Ẩn nav ngay lập tức — hiện lại sau khi modules load xong */
-  document.addEventListener("DOMContentLoaded", function() {
-    // Thêm style tạm ẩn tất cả nav links có thể bị ẩn
-    const style = document.createElement("style");
-    style.id = "nav-loading-style";
-    style.textContent = "#mainNav a { opacity: 0; pointer-events: none; transition: opacity 0.15s; }";
-    document.head.appendChild(style);
-  });
-
   /* Map module → file nav */
   const MODULE_NAV_MAP = {
     trucking:    "index.html",
@@ -187,15 +229,20 @@
   };
 
   function applyModuleVisibility() {
-    // Ẩn các nav link không được phép
+    window._navReady = true;
+
+    // Flush nav queue (các link chờ được thêm)
+    if (window._navQueue && window._navQueue.length > 0) {
+      window._flushNavQueue(window._navElement, window._origInsertBefore);
+    }
+
+    // Ẩn các nav link đã render không được phép
     document.querySelectorAll("nav a[href], #mainNav a[href]").forEach(function(a) {
       const href = a.getAttribute("href") || "";
       const page = href.split("?")[0].split("/").pop();
       const module = Object.keys(MODULE_NAV_MAP).find(k => MODULE_NAV_MAP[k] === page);
       if (module && window.APP_MODULES[module] === false) {
         a.style.display = "none";
-      } else {
-        a.style.display = "";
       }
     });
 
@@ -205,13 +252,6 @@
     if (currentModule && window.APP_MODULES[currentModule] === false) {
       navigate("index.html");
       return;
-    }
-
-    // Bỏ style ẩn tạm — hiện nav đúng
-    const loadingStyle = document.getElementById("nav-loading-style");
-    if (loadingStyle) {
-      loadingStyle.textContent = "#mainNav a { opacity: 1; pointer-events: auto; }";
-      setTimeout(function(){ if(loadingStyle.parentNode) loadingStyle.parentNode.removeChild(loadingStyle); }, 200);
     }
 
     // Dispatch event
