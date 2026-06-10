@@ -171,34 +171,37 @@
   // Chờ Firebase SDK — hỗ trợ cả 2 loại:
   //   Modular : module script gọi window.__fbReadyCb() ngay khi xong (zero delay)
   //   Compat  : window.firebase tồn tại ngay sau <script> compat load xong
+  function isFirebaseReady() {
+    if (window.__fbReady && window.__fbFS && window.__fbRTDB) return true; // modular
+    if (window.firebase && window.firebase.app && window.firebase.firestore &&
+        window.firebase.database) return true; // compat đầy đủ
+    return false;
+  }
+
   function waitForFirebase(cb) {
-    const hasModular = window.__fbReady && window.__fbFS && window.__fbRTDB;
-    const hasCompat  = window.firebase  && window.firebase.firestore;
-    if (hasModular || hasCompat) {
-      // Sẵn rồi — chạy ngay
-      cb();
-      return;
-    }
-    // Chưa sẵn → đăng ký callback, module script sẽ gọi khi xong
-    window.__fbReadyCb = function() {
-      window.__fbReadyCb = null;
-      cb();
-    };
-    // Polling fallback cho compat SDK (không gọi callback)
+    if (isFirebaseReady()) { cb(); return; }
+
+    // Đăng ký callback cho modular SDK (index.html gọi __fbReadyCb khi xong)
+    window.__fbReadyCb = function() { window.__fbReadyCb = null; cb(); };
+
+    // Polling — interval 50ms, tối đa 3 giây (60 lần)
     var attempt = 0;
     var tid = setInterval(function() {
-      const m = window.__fbReady && window.__fbFS && window.__fbRTDB;
-      const c = window.firebase  && window.firebase.firestore;
-      if (m || c) {
+      if (isFirebaseReady()) {
         clearInterval(tid);
         window.__fbReadyCb = null;
         cb();
-      } else if (++attempt >= 100) {
+      } else if (++attempt >= 60) {
         clearInterval(tid);
-        console.warn("[app-config] Firebase SDK timeout");
+        window.__fbReadyCb = null;
+        // Debug: log trạng thái để biết cái gì thiếu
+        console.warn("[app-config] Firebase SDK timeout sau 3s | __fbReady:", window.__fbReady,
+          "| firebase:", !!window.firebase,
+          "| firestore:", !!(window.firebase && window.firebase.firestore),
+          "| database:", !!(window.firebase && window.firebase.database));
         applyModuleVisibility();
       }
-    }, 100);
+    }, 50);
   }
 
   function loadModules() {
