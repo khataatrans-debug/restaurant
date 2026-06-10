@@ -173,6 +173,12 @@ function showToast(msg,err=false){
   clearTimeout(t._t); t._t=setTimeout(()=>{t.className="toast";},2500);
 }
 
+/* ── HASH PASSWORD ── */
+async function hashPass(str){
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+
 /* ── SAVE ── */
 function saveUsers(u){
   const arr=Array.isArray(u)?u:Object.values(u||{});
@@ -263,13 +269,18 @@ function addUser(){
   const obj={username:u, password:p, role:r,
     pages:r==="admin"?[...PAGES]:r==="viceadmin"?["index.html","accountant.html","performance.html","overview.html","maintenance.html","master.html","users.html"]:[]};
   if(r==="driver"){obj.driverName=driverName; obj.truckNo=truckNo;}
-  users.push(obj);
-  saveUsers(users);
-  document.getElementById("uName").value="";
-  document.getElementById("uPass").value="";
-  document.getElementById("uDriverName").value="";
-  document.getElementById("uTruckNo").value="";
-  toggleDriverFields();
+  // Hash password trước khi lưu
+  hashPass(p).then(hashed=>{
+    obj.password = hashed;
+    obj._plainHint = p.slice(0,1)+"***"; // hint xem mật khẩu (ko lưu full)
+    users.push(obj);
+    saveUsers(users);
+    document.getElementById("uName").value="";
+    document.getElementById("uPass").value="";
+    document.getElementById("uDriverName").value="";
+    document.getElementById("uTruckNo").value="";
+    toggleDriverFields();
+  });
 }
 
 /* ── TOGGLE PAGE ── */
@@ -313,18 +324,20 @@ function openChangePass(i){
   document.getElementById("modalBg").classList.add("show");
 }
 function closeModal(){changePassIdx=null;document.getElementById("modalBg").classList.remove("show");}
-function confirmChangePass(){
+async function confirmChangePass(){
   const np=document.getElementById("newPass").value.trim();
   const cp=document.getElementById("confirmPass").value.trim();
   const newRole=document.getElementById("newRole").value;
-  // Validate pass chỉ khi có nhập
   if(np){
     if(np.length<4){showToast("Mật khẩu phải từ 4 ký tự!",true);return;}
     if(np!==cp){showToast("Mật khẩu nhập lại không khớp!",true);return;}
   }
   if(!np && !newRole){showToast("Không có thay đổi gì!",true);return;}
   const users=[..._users];
-  if(np) users[changePassIdx].password=np;
+  if(np){
+    const hashed = await hashPass(np);
+    users[changePassIdx].password = hashed;
+  }
   users[changePassIdx].role=newRole;
   if(newRole==="driver"){
     users[changePassIdx].driverName=document.getElementById("editDriverName").value.trim();
