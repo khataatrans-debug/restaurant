@@ -149,16 +149,6 @@ firebase.initializeApp({
   appId:             "1:1097685849973:web:79ad636e3dfd0b12f7653c"
 });
 const db = firebase.database();
-
-async function hashPass(str){
-  const buf = await crypto.subtle.digest("SHA-256",new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
-}
-async function auditLog(action,detail){
-  const s=JSON.parse(localStorage.getItem("LOGIN_USER")||"{}");
-  try{ await db.ref("audit_log_"+window.APP_ID).push({action,detail,username:s.username||"?",at:new Date().toISOString()}); }catch(e){}
-}
-
 let _users = [], changePassIdx = null, pwState = {};
 
 /* ── NAV ── */
@@ -258,7 +248,7 @@ function toggleDriverFields(){
   }
 }
 
-async function addUser(){
+function addUser(){
   const u=document.getElementById("uName").value.trim();
   const p=document.getElementById("uPass").value.trim();
   const r=document.getElementById("uRole").value;
@@ -270,9 +260,7 @@ async function addUser(){
   if(r==="driver"&&!driverName){showToast("Nhập họ tên lái xe!",true);return;}
   if(_users.some(x=>x.username.toLowerCase()===u.toLowerCase())){showToast("Username đã tồn tại!",true);return;}
   const users=[..._users];
-  const hashed = await hashPass(p);
-  await auditLog("ADD_USER", "Tạo user: "+u+" role: "+r);
-  const obj={username:u, password:hashed, role:r,
+  const obj={username:u, password:p, role:r,
     pages:r==="admin"?[...PAGES]:r==="viceadmin"?["index.html","accountant.html","performance.html","overview.html","maintenance.html","master.html","users.html"]:[]};
   if(r==="driver"){obj.driverName=driverName; obj.truckNo=truckNo;}
   users.push(obj);
@@ -299,7 +287,6 @@ function delUser(i){
   if(_session.username===_users[i].username){showToast("Không thể tự xóa!",true);return;}
   if(_session.role==="viceadmin" && _users[i].role==="admin"){showToast("Không có quyền xóa Admin!",true);return;}
   if(!confirm(`Xóa user "${_users[i].username}"?`)) return;
-  await auditLog("DELETE_USER","Xóa user: "+_users[i].username);
   const users=[..._users]; users.splice(i,1); saveUsers(users);
 }
 
@@ -337,11 +324,7 @@ function confirmChangePass(){
   }
   if(!np && !newRole){showToast("Không có thay đổi gì!",true);return;}
   const users=[..._users];
-  if(np){
-    const hashed = await hashPass(np);
-    users[changePassIdx].password = hashed;
-  }
-  await auditLog("EDIT_USER","Sửa user: "+users[changePassIdx].username+" role→"+newRole);
+  if(np) users[changePassIdx].password=np;
   users[changePassIdx].role=newRole;
   if(newRole==="driver"){
     users[changePassIdx].driverName=document.getElementById("editDriverName").value.trim();
