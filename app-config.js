@@ -198,5 +198,18 @@
     return window.APP_MODULES ? window.APP_MODULES[module] !== false : true;
   };
 
+  // Lắng nghe event để ẩn nav sau khi modules load xong
+  window.addEventListener("appModulesLoaded", function(e) {
+    const mods = e.detail.modules;
+    document.querySelectorAll("#mainNav a[href]").forEach(function(a) {
+      const href = a.getAttribute("href") || "";
+      const page = href.split("?")[0].split("/").pop();
+      const module = Object.keys(MODULE_NAV_MAP).find(k => MODULE_NAV_MAP[k] === page);
+      if (module && mods[module] === false) {
+        a.style.display = "none";
+      }
+    });
+  });
+
   console.log("[app-config] APP_ID =", window.APP_ID, "| Keys:", window.DB_KEYS);
 })();
