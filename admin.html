@@ -147,7 +147,7 @@ tr:last-child td{border-bottom:none}
       <button class="tab active" onclick="switchTab('companies',this)">🏢 Công ty</button>
       <button class="tab" onclick="switchTab('auditlog',this)">🔍 Audit Log</button>
       <button class="tab" onclick="switchTab('backup',this)">💾 Backup</button>
-      <button class="tab" onclick="switchTab('logs',this)">📋 Lịch sử</button>
+      <button class="tab" onclick="switchTab('logs',this)">📋 Admin Log</button>
     </div>
 
     <!-- Companies tab -->
@@ -186,17 +186,31 @@ tr:last-child td{border-bottom:none}
       <div class="table-wrap">
         <div class="table-header">
           <h3>🔍 Audit Log — Lịch sử thao tác</h3>
-          <div style="display:flex;gap:8px;align-items:center">
-            <select id="auditAppFilter" style="height:32px;background:#1e293b;border:1px solid #334155;border-radius:7px;padding:0 10px;color:#e2e8f0;font-size:12px">
-              <option value="">Tất cả công ty</option>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <select id="auditAppFilter" onchange="loadAuditLog()" style="height:32px;background:#1e293b;border:1px solid #334155;border-radius:7px;padding:0 10px;color:#e2e8f0;font-size:12px;min-width:180px">
+              <option value="">— Chọn công ty —</option>
             </select>
+            <select id="auditActionFilter" onchange="renderAuditRows()" style="height:32px;background:#1e293b;border:1px solid #334155;border-radius:7px;padding:0 10px;color:#e2e8f0;font-size:12px">
+              <option value="">Tất cả hành động</option>
+              <option value="LOGIN_SUCCESS">✅ Đăng nhập OK</option>
+              <option value="LOGIN_FAIL">❌ Đăng nhập lỗi</option>
+              <option value="RATE_LIMITED">🚫 Rate limited</option>
+            </select>
+            <input id="auditSearch" type="text" placeholder="🔍 Tìm user..." oninput="renderAuditRows()" style="height:32px;background:#1e293b;border:1px solid #334155;border-radius:7px;padding:0 10px;color:#e2e8f0;font-size:12px;width:140px;font-family:inherit;outline:none">
             <button class="btn-sm btn-gray" onclick="loadAuditLog()">🔄 Làm mới</button>
+            <button class="btn-sm btn-danger" onclick="clearAuditLog()" id="btnClearLog" style="display:none">🗑️ Xóa log</button>
           </div>
+        </div>
+        <div id="auditStats" style="display:none;padding:10px 16px;background:#0f172a;border-bottom:1px solid #334155;font-size:12px;color:#64748b;display:flex;gap:20px">
+          <span>📊 Tổng: <strong id="auditTotal" style="color:#e2e8f0">0</strong></span>
+          <span>✅ Thành công: <strong id="auditOk" style="color:#34d399">0</strong></span>
+          <span>❌ Thất bại: <strong id="auditFail" style="color:#f87171">0</strong></span>
+          <span>🚫 Bị chặn: <strong id="auditBlock" style="color:#fbbf24">0</strong></span>
         </div>
         <table>
           <thead><tr>
             <th>Thời gian</th><th>Công ty</th><th>User</th>
-            <th>Hành động</th><th>Chi tiết</th>
+            <th>Hành động</th><th>IP / Chi tiết</th>
           </tr></thead>
           <tbody id="auditTbody"><tr><td colspan="5" style="text-align:center;padding:24px;color:#64748b">Chọn công ty để xem log</td></tr></tbody>
         </table>
@@ -300,7 +314,6 @@ firebase.initializeApp({
   apiKey:"AIzaSyBsq9UmgFvuvMayhY2SB08J0mUSJ_EUkdY",
   authDomain:"transportation-6d6f5.firebaseapp.com",
   projectId:"transportation-6d6f5",
-  databaseURL:"https://transportation-6d6f5-default-rtdb.asia-southeast1.firebasedatabase.app",
   storageBucket:"transportation-6d6f5.firebasestorage.app",
   messagingSenderId:"1097685849973",
   appId:"1:1097685849973:web:79ad636e3dfd0b12f7653c"
@@ -589,58 +602,118 @@ function switchTab(id, btn){
   if(id==="backup") populateBackupSelect();
 }
 
-function getDevice(ua){
-  if(!ua) return "—";
-  if(/iPhone|iPad|iPod/i.test(ua)) return "📱 iOS";
-  if(/Android/i.test(ua)) return "📱 Android";
-  if(/Windows/i.test(ua)) return "🖥️ Windows";
-  if(/Macintosh|Mac OS/i.test(ua)) return "🍎 Mac";
-  if(/Linux/i.test(ua)) return "🐧 Linux";
-  return "🌐 " + ua.slice(0,20);
-}
-
 // ── AUDIT LOG ──
+let _auditRows = []; // cache để filter client-side
+
 async function loadAuditLog(){
   const appFilter = document.getElementById("auditAppFilter").value;
   const tbody = document.getElementById("auditTbody");
-  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#64748b">Đang tải...</td></tr>';
 
-  // Build app filter options
+  // Populate dropdown nếu chưa có
   const sel = document.getElementById("auditAppFilter");
-  if(sel.options.length<=1){
+  if(sel.options.length <= 1){
     _companies.forEach(co=>{
-      const o=document.createElement("option");
-      o.value=co.appId||co.id; o.textContent=co.appId||co.id;
+      const o = document.createElement("option");
+      o.value = co.appId||co.id;
+      o.textContent = (co.appId||co.id) + (co.name ? " — "+co.name : "");
       sel.appendChild(o);
     });
   }
 
   if(!appFilter){
-    tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:#64748b">Chọn công ty để xem log</td></tr>';
+    _auditRows = [];
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:28px;color:#64748b">👆 Chọn công ty để xem audit log</td></tr>';
+    document.getElementById("auditStats").style.display = "none";
+    document.getElementById("btnClearLog").style.display = "none";
     return;
   }
 
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#64748b">⏳ Đang tải...</td></tr>';
+
   try{
-    const rtdb = firebase.database();
-    const snap = await rtdb.ref("audit_log_"+appFilter).limitToLast(200).get();
+    const snap = await rtdb.ref("audit_log_"+appFilter).orderByChild("at").limitToLast(500).get();
     if(!snap.exists()){
-      tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:#64748b">Không có log</td></tr>';
+      _auditRows = [];
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:28px;color:#64748b">Chưa có log nào cho công ty này</td></tr>';
+      document.getElementById("auditStats").style.display = "none";
+      document.getElementById("btnClearLog").style.display = "none";
       return;
     }
-    const rows = [];
-    snap.forEach(d=>rows.push(d.val()));
-    rows.reverse();
-    tbody.innerHTML = rows.map(r=>`<tr>
-      <td style="color:#64748b;font-size:11px;white-space:nowrap">${(r.at||"").slice(0,16).replace("T"," ")}</td>
-      <td style="font-weight:600;color:#60a5fa">${appFilter}</td>
-      <td style="color:#94a3b8">${r.username||"?"}</td>
-      <td><span class="badge ${r.action&&r.action.includes("FAIL")?"badge-inactive":"badge-active"}" style="font-size:10px">${r.action||""}</span></td>
-      <td style="color:#94a3b8;font-size:11px">${r.detail||""}</td>
-      <td style="color:#475569;font-size:10px" title="${r.ua||''}">${getDevice(r.ua||'')}</td>
-    </tr>`).join("");
+    _auditRows = [];
+    snap.forEach(d => _auditRows.push({_key: d.key, ...d.val()}));
+    _auditRows.reverse(); // mới nhất trước
+    document.getElementById("btnClearLog").style.display = "";
+    renderAuditRows();
   }catch(e){
-    tbody.innerHTML=`<tr><td colspan="5" style="color:#f87171;padding:12px">Lỗi: ${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" style="color:#f87171;padding:12px">❌ Lỗi: ${e.message}</td></tr>`;
   }
+}
+
+function renderAuditRows(){
+  const appFilter   = document.getElementById("auditAppFilter").value;
+  const actionFilter= document.getElementById("auditActionFilter").value;
+  const search      = (document.getElementById("auditSearch").value||"").toLowerCase();
+  const tbody       = document.getElementById("auditTbody");
+
+  const filtered = _auditRows.filter(r=>{
+    if(actionFilter && r.action !== actionFilter) return false;
+    if(search && !(r.username||"").toLowerCase().includes(search) && !(r.detail||"").toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  // Stats (from full _auditRows, not filtered)
+  const total  = _auditRows.length;
+  const ok     = _auditRows.filter(r=>r.action==="LOGIN_SUCCESS").length;
+  const fail   = _auditRows.filter(r=>r.action==="LOGIN_FAIL").length;
+  const block  = _auditRows.filter(r=>r.action==="RATE_LIMITED").length;
+  document.getElementById("auditStats").style.display = "flex";
+  document.getElementById("auditTotal").textContent = total;
+  document.getElementById("auditOk").textContent    = ok;
+  document.getElementById("auditFail").textContent  = fail;
+  document.getElementById("auditBlock").textContent = block;
+
+  if(!filtered.length){
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#64748b">Không tìm thấy bản ghi nào</td></tr>';
+    return;
+  }
+
+  const actionBadge = a => {
+    if(a==="LOGIN_SUCCESS") return "badge-active";
+    if(a==="LOGIN_FAIL")    return "badge-inactive";
+    if(a==="RATE_LIMITED")  return "badge-enterprise";
+    return "badge-basic";
+  };
+  const actionLabel = a => {
+    if(a==="LOGIN_SUCCESS") return "✅ Đăng nhập OK";
+    if(a==="LOGIN_FAIL")    return "❌ Thất bại";
+    if(a==="RATE_LIMITED")  return "🚫 Rate Limited";
+    return a||"—";
+  };
+
+  tbody.innerHTML = filtered.map(r=>`<tr>
+    <td style="color:#64748b;font-size:11px;white-space:nowrap">${(r.at||r.timestamp||"").slice(0,16).replace("T"," ")}</td>
+    <td style="font-weight:600;color:#60a5fa">${appFilter}</td>
+    <td style="color:#e2e8f0">${r.username||"?"}</td>
+    <td><span class="badge ${actionBadge(r.action)}" style="font-size:10px;white-space:nowrap">${actionLabel(r.action)}</span></td>
+    <td style="color:#94a3b8;font-size:11px">${[r.ip, r.detail, r.ua ? "UA: "+r.ua.slice(0,40) : ""].filter(Boolean).join(" · ") || "—"}</td>
+  </tr>`).join("");
+}
+
+async function clearAuditLog(){
+  const appFilter = document.getElementById("auditAppFilter").value;
+  if(!appFilter) return;
+  const n = _auditRows.length;
+  if(!confirm(`Xóa toàn bộ ${n} bản ghi audit log của ${appFilter}?\nHành động này KHÔNG thể hoàn tác!`)) return;
+  try{
+    await rtdb.ref("audit_log_"+appFilter).remove();
+    _auditRows = [];
+    document.getElementById("auditTbody").innerHTML = '<tr><td colspan="5" style="text-align:center;padding:28px;color:#64748b">Đã xóa log</td></tr>';
+    document.getElementById("auditStats").style.display = "none";
+    document.getElementById("btnClearLog").style.display = "none";
+    showToast("✅ Đã xóa "+n+" bản ghi audit log của "+appFilter);
+    // ghi admin_log
+    await db.collection("admin_logs").add({action:"CLEAR_AUDIT_LOG", appId:appFilter, detail:"Xóa "+n+" bản ghi", by:"superadmin", at:new Date().toISOString()});
+  }catch(e){ showToast("Lỗi: "+e.message, true); }
 }
 
 // ── BACKUP ──

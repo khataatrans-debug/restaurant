@@ -47,83 +47,20 @@
      3. HELPER: navigate(path)
      Dùng thay cho location.href = "xxx.html"
      Tự động giữ ?app= khi chuyển trang
-     Ví dụ: navigate("index.html")
-             navigate("maintenance.html")
   ───────────────────────────────────────── */
-  /* ── NAV INTERCEPTOR ──
-     Patch insertBefore trên mainNav để tự filter modules
-     Chạy trước khi các trang build nav
-  */
-  window._navQueue = [];
-  window._navReady = false;
-
-  document.addEventListener("DOMContentLoaded", function() {
-    const nav = document.getElementById("mainNav");
-    if (!nav) return;
-    const nr = nav.querySelector(".nav-right");
-    if (!nr) return;
-
-    // Override insertBefore để bắt tất cả nav link được thêm vào
-    const _origInsertBefore = nav.insertBefore.bind(nav);
-    nav.insertBefore = function(node, ref) {
-      // Chỉ intercept <a> tags
-      if (node.tagName === "A") {
-        window._navQueue.push({node, ref});
-        if (window._navReady) {
-          _flushNavQueue(nav, _origInsertBefore);
-        }
-        return node;
-      }
-      return _origInsertBefore(node, ref);
-    };
-
-    window._origInsertBefore = _origInsertBefore;
-    window._navElement = nav;
-  });
-
-  window._flushNavQueue = function(nav, origFn) {
-    const fn = origFn || window._origInsertBefore;
-    const nr = nav ? nav.querySelector(".nav-right") : null;
-    window._navQueue.forEach(function(item) {
-      const href = (item.node.getAttribute("href") || "").split("?")[0].split("/").pop();
-      const MODULE_MAP = {
-        "index.html":"trucking","accountant.html":"accountant",
-        "performance.html":"performance","overview.html":"overview",
-        "master.html":"master","maintenance.html":"maintenance",
-        "fuel.html":"fuel","users.html":"users"
-      };
-      const mod = MODULE_MAP[href];
-      if (mod && window.APP_MODULES && window.APP_MODULES[mod] === false) {
-        return; // Bỏ qua — không thêm vào nav
-      }
-      fn(item.node, item.ref || nr);
-    });
-    window._navQueue = [];
-  };
-
   window.navigate = function (path) {
     const sep = path.includes("?") ? "&" : "?";
     location.href = path + sep + "app=" + window.APP_ID;
   };
 
   /* ─────────────────────────────────────────
-     4. PATCH LOGIN REDIRECT
-     login.html dùng: location.href = found.role==="admin" ? "index.html" : ...
-     Sau khi load app-config.js, thay bằng navigate()
-     — không cần sửa login.html thủ công
+     4. PATCH LINK NỘI BỘ
   ───────────────────────────────────────── */
-  // Patch toàn bộ link nội bộ sau khi DOM load
   document.addEventListener("DOMContentLoaded", function () {
-    // Patch tất cả <a href="xxx.html"> nội bộ
     document.querySelectorAll("a[href]").forEach(function (a) {
       const href = a.getAttribute("href");
-      if (
-        href &&
-        !href.startsWith("http") &&
-        !href.startsWith("#") &&
-        !href.startsWith("mailto") &&
-        !href.includes("app=")
-      ) {
+      if (href && !href.startsWith("http") && !href.startsWith("#") &&
+          !href.startsWith("mailto") && !href.includes("app=")) {
         const sep = href.includes("?") ? "&" : "?";
         a.setAttribute("href", href + sep + "app=" + window.APP_ID);
       }
@@ -132,7 +69,6 @@
 
   /* ─────────────────────────────────────────
      5. FIREBASE KEY HELPERS
-     Dùng trong tất cả trang để đọc/ghi đúng node
   ───────────────────────────────────────── */
   window.DB_KEYS = {
     maintenance : "maintenance_data_" + window.APP_ID,
@@ -144,78 +80,74 @@
   };
 
   /* ─────────────────────────────────────────
-     6. HIỂN THỊ MÃ CÔNG TY TRÊN UI (tuỳ chọn)
-     Nếu trang có element id="appIdBadge" sẽ tự điền
+     6. BADGE APP_ID
   ───────────────────────────────────────── */
   document.addEventListener("DOMContentLoaded", function () {
     const badge = document.getElementById("appIdBadge");
     if (badge) badge.textContent = "🏢 " + window.APP_ID;
   });
+  /* ─────────────────────────────────────────
+     NAV INTERCEPTOR
+     Dùng để filter modules TRƯỚC khi các trang build nav.
+     Cơ chế: buffer link, flush sau khi modules đã load.
+  ───────────────────────────────────────── */
+  window._navQueue  = [];
+  window._navReady  = false;
 
-  console.log("[app-config] APP_ID =", window.APP_ID, "| Keys:", window.DB_KEYS);
+  // Bắt insertBefore trên mainNav ngay khi DOM sẵn
+  document.addEventListener("DOMContentLoaded", function () {
+    const nav = document.getElementById("mainNav");
+    if (!nav) return;
+    const nr = nav.querySelector(".nav-right");
+
+    const _orig = nav.insertBefore.bind(nav);
+    nav.insertBefore = function (node, ref) {
+      if (node.tagName === "A") {
+        window._navQueue.push({ node, ref });
+        if (window._navReady) _flushNavQueue();
+        return node;
+      }
+      return _orig(node, ref);
+    };
+    window._origInsertBefore = _orig;
+    window._navElement       = nav;
+  });
+
+  window._flushNavQueue = function () {
+    const nav  = window._navElement;
+    const orig = window._origInsertBefore;
+    if (!nav || !orig) return;
+    const nr = nav.querySelector(".nav-right");
+    window._navQueue.forEach(function (item) {
+      const href = (item.node.getAttribute("href") || "").split("?")[0].split("/").pop();
+      const MODULE_MAP = {
+        "index.html": "trucking", "accountant.html": "accountant",
+        "performance.html": "performance", "overview.html": "overview",
+        "master.html": "master", "maintenance.html": "maintenance",
+        "fuel.html": "fuel", "users.html": "users"
+      };
+      const mod = MODULE_MAP[href];
+      if (mod && window.APP_MODULES && window.APP_MODULES[mod] === false) return;
+      orig(item.node, item.ref || nr);
+    });
+    window._navQueue = [];
+  };
 
   /* ─────────────────────────────────────────
      7. MODULE CONFIG
-     Đọc từ Firestore collection "companies" (quản lý bởi admin.html)
-     Fallback: RTDB app_config_APPID → default all modules
+     Ưu tiên: Firestore companies → RTDB app_config_APPID → default all
+     Dùng polling để chờ Firebase SDK thay vì window.load
   ───────────────────────────────────────── */
   const DEFAULT_MODULES = {
     trucking: true, accountant: true, performance: true,
-    overview: true, master: true, maintenance: true,
-    fuel: true, driver: true, users: true
+    overview: true, master: true,    maintenance: true,
+    fuel: true,     driver: true,    users: true
   };
 
-  window.APP_MODULES = {...DEFAULT_MODULES}; // default trước khi load
+  window.APP_MODULES = { ...DEFAULT_MODULES }; // fallback tức thì
+  window.APP_PLAN    = "pro";
 
-  window.addEventListener("load", function() {
-    if (!window.firebase || !APP_ID) return;
-    try {
-      const fs = firebase.firestore();
-      // Tìm trong companies theo appId
-      fs.collection("companies").where("appId","==",APP_ID).limit(1).get()
-        .then(function(snap) {
-          if (!snap.empty) {
-            const cfg = snap.docs[0].data();
-            // Nếu bị khóa → đăng xuất
-            if (cfg.status === "inactive") {
-              alert("Tài khoản công ty đã bị khóa. Liên hệ quản trị viên.");
-              sessionStorage.clear();
-              location.href = "landing.html";
-              return;
-            }
-            // Build modules object từ array
-            const mods = {};
-            Object.keys(DEFAULT_MODULES).forEach(k => mods[k] = false);
-            (cfg.modules || []).forEach(m => mods[m] = true);
-            window.APP_MODULES = mods;
-            window.APP_PLAN    = cfg.plan || "pro";
-            window.APP_ACTIVE  = true;
-            console.log("[app-config] Loaded from Firestore companies:", cfg.plan, cfg.modules);
-            applyModuleVisibility();
-          } else {
-            // Chưa có trong companies → fallback RTDB
-            const rtdb = firebase.database();
-            rtdb.ref("app_config_" + APP_ID).once("value").then(function(s) {
-              if (s.exists()) {
-                const cfg2 = s.val();
-                window.APP_MODULES = cfg2.modules || DEFAULT_MODULES;
-                window.APP_PLAN    = cfg2.plan || "pro";
-              } else {
-                window.APP_MODULES = {...DEFAULT_MODULES};
-                window.APP_PLAN    = "pro";
-              }
-              applyModuleVisibility();
-            }).catch(function() { applyModuleVisibility(); });
-          }
-        }).catch(function() {
-          applyModuleVisibility();
-        });
-    } catch(e) {
-      applyModuleVisibility();
-    }
-  });
-
-  /* Map module → file nav */
+  /* Map module → filename */
   const MODULE_NAV_MAP = {
     trucking:    "index.html",
     accountant:  "accountant.html",
@@ -225,59 +157,141 @@
     maintenance: "maintenance.html",
     fuel:        "fuel.html",
     users:       "users.html"
-    // driver: không có trong nav desktop
   };
+
+  // Chờ Firebase SDK sẵn sàng (polling tối đa 10s)
+  function waitForFirebase(cb, attempt) {
+    attempt = attempt || 0;
+    if (window.firebase && window.firebase.firestore) {
+      cb();
+    } else if (attempt < 100) {
+      setTimeout(function () { waitForFirebase(cb, attempt + 1); }, 100);
+    } else {
+      console.warn("[app-config] Firebase SDK không load được, dùng default modules");
+      applyModuleVisibility();
+    }
+  }
+
+  function loadModules() {
+    if (!window.APP_ID || window.APP_ID === "TMSF") {
+      applyModuleVisibility();
+      return;
+    }
+    try {
+      const fs = firebase.firestore();
+      fs.collection("companies").where("appId", "==", window.APP_ID).limit(1).get()
+        .then(function (snap) {
+          if (!snap.empty) {
+            const cfg = snap.docs[0].data();
+
+            // Bị khóa → đăng xuất
+            if (cfg.status === "inactive") {
+              alert("Tài khoản công ty đã bị khóa. Liên hệ quản trị viên.");
+              sessionStorage.clear();
+              location.href = "landing.html";
+              return;
+            }
+
+            // Build modules từ array lưu trong Firestore
+            const mods = {};
+            Object.keys(DEFAULT_MODULES).forEach(function (k) { mods[k] = false; });
+            (cfg.modules || []).forEach(function (m) { mods[m] = true; });
+
+            window.APP_MODULES = mods;
+            window.APP_PLAN    = cfg.plan || "pro";
+            window.APP_ACTIVE  = true;
+            console.log("[app-config] ✅ Firestore →", cfg.plan, cfg.modules);
+            applyModuleVisibility();
+          } else {
+            // Fallback: RTDB app_config_APPID
+            firebase.database().ref("app_config_" + window.APP_ID).once("value")
+              .then(function (s) {
+                if (s.exists()) {
+                  const cfg2 = s.val();
+                  // RTDB lưu modules dạng object {trucking:true,...}
+                  if (cfg2.modules && typeof cfg2.modules === "object" && !Array.isArray(cfg2.modules)) {
+                    window.APP_MODULES = Object.assign({}, DEFAULT_MODULES, cfg2.modules);
+                  } else if (Array.isArray(cfg2.modules)) {
+                    const mods = {};
+                    Object.keys(DEFAULT_MODULES).forEach(function (k) { mods[k] = false; });
+                    cfg2.modules.forEach(function (m) { mods[m] = true; });
+                    window.APP_MODULES = mods;
+                  }
+                  window.APP_PLAN = cfg2.plan || "pro";
+                  // Nếu RTDB đánh dấu inactive
+                  if (cfg2.active === false) {
+                    alert("Tài khoản công ty đã bị khóa. Liên hệ quản trị viên.");
+                    sessionStorage.clear();
+                    location.href = "landing.html";
+                    return;
+                  }
+                  console.log("[app-config] ✅ RTDB fallback →", window.APP_PLAN, window.APP_MODULES);
+                } else {
+                  console.log("[app-config] ℹ️ Không có config → dùng default all modules");
+                }
+                applyModuleVisibility();
+              })
+              .catch(function () { applyModuleVisibility(); });
+          }
+        })
+        .catch(function (e) {
+          console.error("[app-config] Firestore error:", e.message);
+          applyModuleVisibility();
+        });
+    } catch (e) {
+      console.error("[app-config] loadModules error:", e);
+      applyModuleVisibility();
+    }
+  }
 
   function applyModuleVisibility() {
     window._navReady = true;
 
-    // Flush nav queue (các link chờ được thêm)
+    // 1. Flush nav queue (các link đang chờ)
     if (window._navQueue && window._navQueue.length > 0) {
-      window._flushNavQueue(window._navElement, window._origInsertBefore);
+      _flushNavQueue();
     }
 
-    // Ẩn các nav link đã render không được phép
-    document.querySelectorAll("nav a[href], #mainNav a[href]").forEach(function(a) {
-      const href = a.getAttribute("href") || "";
-      const page = href.split("?")[0].split("/").pop();
-      const module = Object.keys(MODULE_NAV_MAP).find(k => MODULE_NAV_MAP[k] === page);
+    // 2. Ẩn các nav link đã render sẵn trong DOM
+    document.querySelectorAll("nav a[href], #mainNav a[href]").forEach(function (a) {
+      const href   = a.getAttribute("href") || "";
+      const page   = href.split("?")[0].split("/").pop();
+      const module = Object.keys(MODULE_NAV_MAP).find(function (k) {
+        return MODULE_NAV_MAP[k] === page;
+      });
       if (module && window.APP_MODULES[module] === false) {
         a.style.display = "none";
       }
     });
 
-    // Chặn truy cập thẳng URL trang không được phép
-    const currentPage = location.pathname.split("/").pop().split("?")[0];
-    const currentModule = Object.keys(MODULE_NAV_MAP).find(k => MODULE_NAV_MAP[k] === currentPage);
+    // 3. Chặn truy cập thẳng URL trang không được phép
+    const currentPage   = location.pathname.split("/").pop().split("?")[0];
+    const currentModule = Object.keys(MODULE_NAV_MAP).find(function (k) {
+      return MODULE_NAV_MAP[k] === currentPage;
+    });
     if (currentModule && window.APP_MODULES[currentModule] === false) {
+      console.warn("[app-config] Module bị chặn:", currentModule, "→ redirect index");
       navigate("index.html");
       return;
     }
 
-    // Dispatch event
+    // 4. Dispatch event để các trang lắng nghe
     window.dispatchEvent(new CustomEvent("appModulesLoaded", {
       detail: { modules: window.APP_MODULES, plan: window.APP_PLAN }
     }));
-    console.log("[app-config] Modules applied:", window.APP_PLAN, window.APP_MODULES);
+
+    console.log("[app-config] ✅ Modules applied | Plan:", window.APP_PLAN, "| Modules:", window.APP_MODULES);
   }
 
-  // Helper để kiểm tra module từ bất kỳ trang nào
-  window.hasModule = function(module) {
+  // Kick off: chờ Firebase rồi load modules
+  waitForFirebase(loadModules);
+
+  /* ─────────────────────────────────────────
+     8. HELPER hasModule()
+  ───────────────────────────────────────── */
+  window.hasModule = function (module) {
     return window.APP_MODULES ? window.APP_MODULES[module] !== false : true;
   };
 
-  // Lắng nghe event để ẩn nav sau khi modules load xong
-  window.addEventListener("appModulesLoaded", function(e) {
-    const mods = e.detail.modules;
-    document.querySelectorAll("#mainNav a[href]").forEach(function(a) {
-      const href = a.getAttribute("href") || "";
-      const page = href.split("?")[0].split("/").pop();
-      const module = Object.keys(MODULE_NAV_MAP).find(k => MODULE_NAV_MAP[k] === page);
-      if (module && mods[module] === false) {
-        a.style.display = "none";
-      }
-    });
-  });
-
-  console.log("[app-config] APP_ID =", window.APP_ID, "| Keys:", window.DB_KEYS);
+  console.log("[app-config] Loaded | APP_ID =", window.APP_ID);
 })();
