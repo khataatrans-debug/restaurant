@@ -134,23 +134,6 @@ const ALL_NAV = [
 ];
 
 /* ── GUARD ── */
-// ── SHA-256 hash ──
-async function hashPass(str){
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
-}
-
-// ── Audit log ──
-async function auditLog(action, detail){
-  const s = JSON.parse(localStorage.getItem("LOGIN_USER")||"{}");
-  try{
-    await db.ref("audit_log_"+APP_ID).push({
-      action, detail, username: s.username||"?",
-      at: new Date().toISOString()
-    });
-  }catch(e){}
-}
-
 const _session = JSON.parse(localStorage.getItem(CURRENT_KEY)||"{}");
 if (!_session.username) { navigate("login.html"); }
 else if (_session.role !== "admin" && _session.role !== "viceadmin") { navigate((_session.pages&&_session.pages[0])||"login.html"); }
@@ -166,6 +149,16 @@ firebase.initializeApp({
   appId:             "1:1097685849973:web:79ad636e3dfd0b12f7653c"
 });
 const db = firebase.database();
+
+async function hashPass(str){
+  const buf = await crypto.subtle.digest("SHA-256",new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+async function auditLog(action,detail){
+  const s=JSON.parse(localStorage.getItem("LOGIN_USER")||"{}");
+  try{ await db.ref("audit_log_"+window.APP_ID).push({action,detail,username:s.username||"?",at:new Date().toISOString()}); }catch(e){}
+}
+
 let _users = [], changePassIdx = null, pwState = {};
 
 /* ── NAV ── */
