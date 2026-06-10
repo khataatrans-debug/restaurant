@@ -94,6 +94,15 @@
   window._navQueue  = [];
   window._navReady  = false;
 
+  // Ẩn nav links ngay lập tức — hiện lại sau khi modules đã load
+  // Thêm style vào <head> để không bị flash
+  (function() {
+    const s = document.createElement("style");
+    s.id = "__navHide";
+    s.textContent = "#mainNav a { visibility: hidden !important; }";
+    document.head.appendChild(s);
+  })();
+
   // Bắt insertBefore trên mainNav ngay khi DOM sẵn
   document.addEventListener("DOMContentLoaded", function () {
     const nav = document.getElementById("mainNav");
@@ -318,7 +327,11 @@
       return;
     }
 
-    // 4. Dispatch event để các trang lắng nghe
+    // 4. Bỏ ẩn nav — modules đã filter xong
+    const hideStyle = document.getElementById("__navHide");
+    if (hideStyle) hideStyle.remove();
+
+    // 5. Dispatch event để các trang lắng nghe
     window.dispatchEvent(new CustomEvent("appModulesLoaded", {
       detail: { modules: window.APP_MODULES, plan: window.APP_PLAN }
     }));
