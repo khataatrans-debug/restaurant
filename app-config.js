@@ -164,6 +164,15 @@
     }
   });
 
+  /* Ẩn nav ngay lập tức — hiện lại sau khi modules load xong */
+  document.addEventListener("DOMContentLoaded", function() {
+    // Thêm style tạm ẩn tất cả nav links có thể bị ẩn
+    const style = document.createElement("style");
+    style.id = "nav-loading-style";
+    style.textContent = "#mainNav a { opacity: 0; pointer-events: none; transition: opacity 0.15s; }";
+    document.head.appendChild(style);
+  });
+
   /* Map module → file nav */
   const MODULE_NAV_MAP = {
     trucking:    "index.html",
@@ -179,18 +188,37 @@
 
   function applyModuleVisibility() {
     // Ẩn các nav link không được phép
-    document.querySelectorAll("nav a[href]").forEach(function(a) {
+    document.querySelectorAll("nav a[href], #mainNav a[href]").forEach(function(a) {
       const href = a.getAttribute("href") || "";
-      const page = href.replace(/\?.*$/, ""); // bỏ query string
+      const page = href.split("?")[0].split("/").pop();
       const module = Object.keys(MODULE_NAV_MAP).find(k => MODULE_NAV_MAP[k] === page);
       if (module && window.APP_MODULES[module] === false) {
         a.style.display = "none";
+      } else {
+        a.style.display = "";
       }
     });
-    // Dispatch event để các trang khác lắng nghe
+
+    // Chặn truy cập thẳng URL trang không được phép
+    const currentPage = location.pathname.split("/").pop().split("?")[0];
+    const currentModule = Object.keys(MODULE_NAV_MAP).find(k => MODULE_NAV_MAP[k] === currentPage);
+    if (currentModule && window.APP_MODULES[currentModule] === false) {
+      navigate("index.html");
+      return;
+    }
+
+    // Bỏ style ẩn tạm — hiện nav đúng
+    const loadingStyle = document.getElementById("nav-loading-style");
+    if (loadingStyle) {
+      loadingStyle.textContent = "#mainNav a { opacity: 1; pointer-events: auto; }";
+      setTimeout(function(){ if(loadingStyle.parentNode) loadingStyle.parentNode.removeChild(loadingStyle); }, 200);
+    }
+
+    // Dispatch event
     window.dispatchEvent(new CustomEvent("appModulesLoaded", {
       detail: { modules: window.APP_MODULES, plan: window.APP_PLAN }
     }));
+    console.log("[app-config] Modules applied:", window.APP_PLAN, window.APP_MODULES);
   }
 
   // Helper để kiểm tra module từ bất kỳ trang nào
