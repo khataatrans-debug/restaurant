@@ -293,47 +293,18 @@ function showPanel(id){
 }
 
 /* ── LOGIN ── */
-async function login(){
+function login(){
   const u = document.getElementById("username").value.trim();
   const p = document.getElementById("password").value.trim();
   const msg = document.getElementById("msg");
-  const btn = document.getElementById("btnLogin");
   msg.textContent="";
   if(!u||!p){ msg.textContent="Vui lòng nhập đầy đủ thông tin!"; return; }
-
-  // ── Rate limiting ──
-  const rl = checkRateLimit(u);
-  if(rl.locked){
-    msg.textContent=`⛔ Đăng nhập bị tạm khóa. Thử lại sau ${rl.wait} giây.`;
-    return;
-  }
-
-  btn.disabled=true; btn.textContent="Đang xác thực...";
-
-  // ── So sánh password (hỗ trợ cả plain và hash) ──
-  const hashed = await hashPass(p);
-  const found = _users.find(x=>x.username===u && (x.password===p || x.password===hashed));
-
-  if(!found){
-    recordFail(u);
-    const rl2 = checkRateLimit(u);
-    const remain = 5 - (rl2.count||0);
-    msg.textContent = remain>0
-      ? `Sai tên đăng nhập hoặc mật khẩu! (còn ${remain} lần thử)`
-      : "⛔ Quá 5 lần sai — tạm khóa 5 phút!";
-    btn.disabled=false; btn.textContent="Đăng nhập";
-    writeAuditLog("LOGIN_FAIL", "Sai mật khẩu", u);
-    return;
-  }
-
-  clearRateLimit(u);
-  writeAuditLog("LOGIN_OK", "Đăng nhập thành công", u);
+  const found = _users.find(x=>x.username===u && x.password===p);
+  if(!found){ msg.textContent="Sai tên đăng nhập hoặc mật khẩu!"; return; }
   localStorage.setItem(CURRENT_KEY, JSON.stringify({username:found.username,role:found.role,pages:found.pages||[],appId:APP_ID}));
   const params = new URLSearchParams(location.search);
   if(found.role==="admin"||found.role==="viceadmin"){
     location.href=`index.html?${params}`;
-  } else if(found.role==="driver"){
-    location.href=`driver.html?${params}`;
   } else {
     const first=found.pages&&found.pages[0];
     location.href=first?`${first}?${params}`:`login.html?${params}`;
@@ -341,7 +312,7 @@ async function login(){
 }
 
 /* ── ĐỔI MẬT KHẨU ── */
-async function doChangePass(){
+function doChangePass(){
   const u   = document.getElementById("cp-user").value.trim();
   const old = document.getElementById("cp-old").value.trim();
   const np  = document.getElementById("cp-new").value.trim();
@@ -351,13 +322,7 @@ async function doChangePass(){
   if(!u||!old||!np||!np2){ setMsg("msgCP","⚠️ Vui lòng nhập đầy đủ!","#fbbf24"); return; }
   if(np.length<4){ setMsg("msgCP","⚠️ Mật khẩu mới phải từ 4 ký tự!","#fbbf24"); return; }
   if(np!==np2){ setMsg("msgCP","⚠️ Mật khẩu nhập lại không khớp!","#fbbf24"); return; }
-  const oldHash = await hashPass(old);
-
-const idx = _users.findIndex(
-    x =>
-      x.username === u &&
-      (x.password === old || x.password === oldHash)
-);
+  const idx = _users.findIndex(x=>x.username===u && x.password===old);
   if(idx===-1){ setMsg("msgCP","❌ Sai tên đăng nhập hoặc mật khẩu hiện tại!","var(--red)"); return; }
   // Cập nhật
   const updated = [..._users];
