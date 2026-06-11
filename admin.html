@@ -310,7 +310,7 @@ tr:last-child td{border-bottom:none}
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script>
 // ── FIREBASE CONFIG ──
-firebase.initializeApp({
+if(!firebase.apps.length) firebase.initializeApp({
   apiKey:"AIzaSyBsq9UmgFvuvMayhY2SB08J0mUSJ_EUkdY",
   authDomain:"transportation-6d6f5.firebaseapp.com",
   projectId:"transportation-6d6f5",
@@ -320,7 +320,7 @@ firebase.initializeApp({
   appId:"1:1097685849973:web:79ad636e3dfd0b12f7653c"
 });
 const db = firebase.firestore();
-const rtdb = firebase.database();
+const rtdb = firebase.database(firebase.app());
 
 // ── SUPERADMIN CREDENTIALS (có thể đổi) ──
 const SA_USERS = { "superadmin": "Admin@2025!", "admin": "Admin@2025!" };
@@ -746,7 +746,7 @@ async function doBackup(){
       const snap = await db.collection("companies").where("appId","==",appId).get();
       backup.data.company = snap.docs.map(d=>({id:d.id,...d.data()}))[0]||{};
       // Export audit log
-      const rtdb = firebase.database();
+      const rtdb = firebase.database(firebase.app());
       const aSnap = await rtdb.ref("audit_log_"+appId).once("value");
       backup.data.auditLog = aSnap.exists() ? Object.values(aSnap.val()||{}) : [];
       status.textContent = "✅ Export "+appId+" xong — "+backup.data.auditLog.length+" log entries";
