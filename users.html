@@ -327,6 +327,7 @@ function openChangePass(i){
 }
 function closeModal(){changePassIdx=null;document.getElementById("modalBg").classList.remove("show");}
 function confirmChangePass(){
+   alert("USERS VERSION: PLAIN PASSWORD");
   const np=document.getElementById("newPass").value.trim();
   const cp=document.getElementById("confirmPass").value.trim();
   const newRole=document.getElementById("newRole").value;
