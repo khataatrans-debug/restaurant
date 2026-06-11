@@ -175,8 +175,15 @@ let _users = [], changePassIdx = null, pwState = {};
       if(modules && modules[a.getAttribute("data-module")]===false) a.style.display="none";
     });
   }
-  if(window.APP_MODULES) applyModuleNav(window.APP_MODULES);
-  window.addEventListener("appModulesLoaded",function(e){ applyModuleNav(e.detail.modules); });
+  // Dùng cache modules từ sessionStorage để ẩn nav ngay (không chờ Firebase)
+  const _cachedMods = sessionStorage.getItem("APP_MODULES_"+window.APP_ID);
+  if(_cachedMods){ try{ applyModuleNav(JSON.parse(_cachedMods)); }catch(e){} }
+  else if(window.APP_MODULES){ applyModuleNav(window.APP_MODULES); }
+  window.addEventListener("appModulesLoaded",function(e){
+    applyModuleNav(e.detail.modules);
+    // Lưu vào sessionStorage để lần sau dùng ngay
+    sessionStorage.setItem("APP_MODULES_"+window.APP_ID, JSON.stringify(e.detail.modules));
+  });
   document.getElementById("userInfo").textContent=`👤 ${_session.username||""}`;
   document.getElementById("btnLogout").onclick=()=>{localStorage.removeItem(CURRENT_KEY);navigate("login.html");};
 })();
@@ -326,7 +333,12 @@ function togglePw(i){
   const span=document.getElementById("pw_"+i), btn=document.getElementById("pwbtn_"+i);
   if(!span) return;
   if(pwState[i]){span.textContent="••••••";btn.textContent="👁️";pwState[i]=false;}
-  else{span.textContent=_users[i].password||"";btn.textContent="🙈";pwState[i]=true;}
+  else{
+    const pw=_users[i].password||"";
+    // Nếu là hash SHA-256 (64 ký tự hex) thì hiện [đã mã hóa]
+    span.textContent=pw.length===64?"[đã mã hóa]":pw;
+    btn.textContent="🙈";pwState[i]=true;
+  }
 }
 
 /* ── CHANGE PASS ── */

@@ -50,58 +50,7 @@
      Ví dụ: navigate("index.html")
              navigate("maintenance.html")
   ───────────────────────────────────────── */
-  /* ── NAV INTERCEPTOR ──
-     Patch insertBefore trên mainNav để tự filter modules
-     Chạy trước khi các trang build nav
-  */
-  window._navQueue = [];
-  window._navReady = false;
-
-  document.addEventListener("DOMContentLoaded", function() {
-    const nav = document.getElementById("mainNav");
-    if (!nav) return;
-    const nr = nav.querySelector(".nav-right");
-    if (!nr) return;
-
-    // Override insertBefore để bắt tất cả nav link được thêm vào
-    const _origInsertBefore = nav.insertBefore.bind(nav);
-    nav.insertBefore = function(node, ref) {
-      // Chỉ intercept <a> tags
-      if (node.tagName === "A") {
-        window._navQueue.push({node, ref});
-        if (window._navReady) {
-          _flushNavQueue(nav, _origInsertBefore);
-        }
-        return node;
-      }
-      return _origInsertBefore(node, ref);
-    };
-
-    window._origInsertBefore = _origInsertBefore;
-    window._navElement = nav;
-  });
-
-  window._flushNavQueue = function(nav, origFn) {
-    const fn = origFn || window._origInsertBefore;
-    const nr = nav ? nav.querySelector(".nav-right") : null;
-    window._navQueue.forEach(function(item) {
-      const href = (item.node.getAttribute("href") || "").split("?")[0].split("/").pop();
-      const MODULE_MAP = {
-        "index.html":"trucking","accountant.html":"accountant",
-        "performance.html":"performance","overview.html":"overview",
-        "master.html":"master","maintenance.html":"maintenance",
-        "fuel.html":"fuel","users.html":"users"
-      };
-      const mod = MODULE_MAP[href];
-      if (mod && window.APP_MODULES && window.APP_MODULES[mod] === false) {
-        return; // Bỏ qua — không thêm vào nav
-      }
-      fn(item.node, item.ref || nr);
-    });
-    window._navQueue = [];
-  };
-
-  window.navigate = function (path) {
+    window.navigate = function (path) {
     const sep = path.includes("?") ? "&" : "?";
     location.href = path + sep + "app=" + window.APP_ID;
   };
@@ -154,11 +103,10 @@
 
   console.log("[app-config] APP_ID =", window.APP_ID, "| Keys:", window.DB_KEYS);
 
-
   /* ─────────────────────────────────────────
-     7. MODULE CONFIG — đơn giản, không block nav
-     Đọc cache sessionStorage, apply ngay.
-     Query Firestore bất đồng bộ sau khi trang đã render xong.
+     7. MODULE CONFIG
+     Đọc từ Firestore collection "companies" (quản lý bởi admin.html)
+     Fallback: RTDB app_config_APPID → default all modules
   ───────────────────────────────────────── */
   const DEFAULT_MODULES = {
     trucking: true, accountant: true, performance: true,
@@ -166,118 +114,123 @@
     fuel: true, driver: true, users: true
   };
 
-  window.APP_MODULES = { ...DEFAULT_MODULES };
-  window.APP_PLAN    = "pro";
+  window.APP_MODULES = {...DEFAULT_MODULES}; // default trước khi load
 
-  const MODULE_NAV_MAP = {
-    trucking: "index.html", accountant: "accountant.html",
-    performance: "performance.html", overview: "overview.html",
-    master: "master.html", maintenance: "maintenance.html",
-    fuel: "fuel.html", users: "users.html"
-  };
-
-  const CACHE_KEY = "APP_CFG_" + window.APP_ID;
-  const CACHE_TTL = 5 * 60 * 1000;
-
-  // Áp dụng modules lên nav (không ẩn nav trước)
-  function applyModules(mods) {
-    window.APP_MODULES = mods;
-    // Ẩn nav link không có trong gói
-    document.querySelectorAll("#mainNav a[data-module]").forEach(function(a) {
-      if (mods[a.getAttribute("data-module")] === false) a.style.display = "none";
-    });
-    // Chặn truy cập thẳng URL
-    var cur = location.pathname.split("/").pop().split("?")[0];
-    var curMod = Object.keys(MODULE_NAV_MAP).find(function(k) { return MODULE_NAV_MAP[k] === cur; });
-    if (curMod && mods[curMod] === false) { navigate("index.html"); return; }
-    // Dispatch event
-    window.dispatchEvent(new CustomEvent("appModulesLoaded", { detail: { modules: mods, plan: window.APP_PLAN } }));
-  }
-
-  // Đọc cache ngay — không chờ Firebase
-  (function() {
-    try {
-      var cached = JSON.parse(sessionStorage.getItem(CACHE_KEY) || "null");
-      if (cached && cached._ts && (Date.now() - cached._ts) < CACHE_TTL) {
-        window.APP_PLAN = cached.plan || "pro";
-        applyModules(cached.modules);
-        console.log("[app-config] ⚡ Cache →", window.APP_PLAN);
-        // Vẫn refresh cache ngầm sau 100ms
-        setTimeout(refreshFromFirebase, 100);
-        return;
-      }
-    } catch(e) {}
-    // Không có cache → query sau khi trang render xong
-    setTimeout(refreshFromFirebase, 0);
+  // Dùng cache sessionStorage ngay lập tức nếu có
+  (function(){
+    const cached = sessionStorage.getItem("APP_MODULES_"+APP_ID);
+    if(cached){ try{
+      const mods = JSON.parse(cached);
+      window.APP_MODULES = mods;
+      document.addEventListener("DOMContentLoaded", function(){ applyModuleVisibility(); });
+    }catch(e){} }
   })();
 
-  function refreshFromFirebase() {
-    if (!window.APP_ID) return;
-    // Thử compat SDK trước
-    if (window.firebase && window.firebase.firestore) {
-      firebase.firestore().collection("companies")
-        .where("appId","==",window.APP_ID).limit(1).get()
-        .then(function(snap) { handleFirestoreResult(snap.empty ? null : snap.docs[0].data()); })
-        .catch(function() { tryRTDB(); });
-    } else if (window.firebase && window.firebase.database) {
-      tryRTDB();
-    } else if (window.__fbFS && window.__fbFS.getDocs) {
-      // Modular SDK
-      var _f = window.__fbFS;
-      var q = _f.query(_f.collection(_f.getFirestore(), "companies"),
-                       _f.where("appId","==",window.APP_ID), _f.limit(1));
-      _f.getDocs(q).then(function(snap) { handleFirestoreResult(snap.empty ? null : snap.docs[0].data()); })
-        .catch(function() { tryRTDB(); });
-    }
-    // Nếu không có SDK nào → giữ default, không làm gì
-  }
-
-  function handleFirestoreResult(cfg) {
-    if (!cfg) { tryRTDB(); return; }
-    if (cfg.status === "inactive") {
-      alert("Tài khoản công ty đã bị khóa.");
-      sessionStorage.clear(); location.href = "landing.html"; return;
-    }
-    var mods = {};
-    Object.keys(DEFAULT_MODULES).forEach(function(k) { mods[k] = false; });
-    (cfg.modules || []).forEach(function(m) { mods[m] = true; });
-    window.APP_PLAN = cfg.plan || "pro";
-    try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({modules: mods, plan: window.APP_PLAN, _ts: Date.now()})); } catch(e){}
-    applyModules(mods);
-    console.log("[app-config] ✅ Firestore →", window.APP_PLAN);
-  }
-
-  function tryRTDB() {
+  window.addEventListener("load", function() {
+    if (!window.firebase || !APP_ID) return;
     try {
-      if (window.firebase && window.firebase.database) {
-        firebase.database().ref("app_config_" + window.APP_ID).once("value")
-          .then(function(s) { handleRTDB(s.exists() ? s.val() : null); })
-          .catch(function() {});
-      } else if (window.__fbRTDB && window.__fbRTDB.get) {
-        var r = window.__fbRTDB;
-        r.get(r.ref(r.getDatabase(), "app_config_" + window.APP_ID))
-          .then(function(s) { handleRTDB(s.exists() ? s.val() : null); })
-          .catch(function() {});
+      const fs = firebase.firestore();
+      // Tìm trong companies theo appId
+      fs.collection("companies").where("appId","==",APP_ID).limit(1).get()
+        .then(function(snap) {
+          if (!snap.empty) {
+            const cfg = snap.docs[0].data();
+            // Nếu bị khóa → đăng xuất
+            if (cfg.status === "inactive") {
+              alert("Tài khoản công ty đã bị khóa. Liên hệ quản trị viên.");
+              sessionStorage.clear();
+              location.href = "landing.html";
+              return;
+            }
+            // Build modules object từ array
+            const mods = {};
+            Object.keys(DEFAULT_MODULES).forEach(k => mods[k] = false);
+            (cfg.modules || []).forEach(m => mods[m] = true);
+            window.APP_MODULES = mods;
+            window.APP_PLAN    = cfg.plan || "pro";
+            window.APP_ACTIVE  = true;
+            console.log("[app-config] Loaded from Firestore companies:", cfg.plan, cfg.modules);
+            sessionStorage.setItem("APP_MODULES_"+APP_ID, JSON.stringify(mods));
+            applyModuleVisibility();
+          } else {
+            // Chưa có trong companies → fallback RTDB
+            const rtdb = firebase.database();
+            rtdb.ref("app_config_" + APP_ID).once("value").then(function(s) {
+              if (s.exists()) {
+                const cfg2 = s.val();
+                window.APP_MODULES = cfg2.modules || DEFAULT_MODULES;
+                window.APP_PLAN    = cfg2.plan || "pro";
+              } else {
+                window.APP_MODULES = {...DEFAULT_MODULES};
+                window.APP_PLAN    = "pro";
+              }
+              applyModuleVisibility();
+            }).catch(function() { applyModuleVisibility(); });
+          }
+        }).catch(function() {
+          applyModuleVisibility();
+        });
+    } catch(e) {
+      applyModuleVisibility();
+    }
+  });
+
+  /* Map module → file nav */
+  const MODULE_NAV_MAP = {
+    trucking:    "index.html",
+    accountant:  "accountant.html",
+    performance: "performance.html",
+    overview:    "overview.html",
+    master:      "master.html",
+    maintenance: "maintenance.html",
+    fuel:        "fuel.html",
+    users:       "users.html"
+    // driver: không có trong nav desktop
+  };
+
+  function applyModuleVisibility() {
+    // Ẩn các nav link đã render không được phép
+    document.querySelectorAll("nav a[href], #mainNav a[href]").forEach(function(a) {
+      const href = a.getAttribute("href") || "";
+      const page = href.split("?")[0].split("/").pop();
+      const module = Object.keys(MODULE_NAV_MAP).find(k => MODULE_NAV_MAP[k] === page);
+      if (module && window.APP_MODULES[module] === false) {
+        a.style.display = "none";
       }
-    } catch(e) {}
+    });
+
+    // Chặn truy cập thẳng URL trang không được phép
+    const currentPage = location.pathname.split("/").pop().split("?")[0];
+    const currentModule = Object.keys(MODULE_NAV_MAP).find(k => MODULE_NAV_MAP[k] === currentPage);
+    if (currentModule && window.APP_MODULES[currentModule] === false) {
+      navigate("index.html");
+      return;
+    }
+
+    // Dispatch event
+    window.dispatchEvent(new CustomEvent("appModulesLoaded", {
+      detail: { modules: window.APP_MODULES, plan: window.APP_PLAN }
+    }));
+    console.log("[app-config] Modules applied:", window.APP_PLAN, window.APP_MODULES);
   }
 
-  function handleRTDB(cfg2) {
-    if (!cfg2) { console.log("[app-config] ℹ️ No config, default all"); return; }
-    var mods;
-    if (Array.isArray(cfg2.modules)) {
-      mods = {}; Object.keys(DEFAULT_MODULES).forEach(function(k){mods[k]=false;});
-      cfg2.modules.forEach(function(m){mods[m]=true;});
-    } else if (cfg2.modules && typeof cfg2.modules === "object") {
-      mods = Object.assign({}, DEFAULT_MODULES, cfg2.modules);
-    } else { return; }
-    window.APP_PLAN = cfg2.plan || "pro";
-    try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({modules: mods, plan: window.APP_PLAN, _ts: Date.now()})); } catch(e){}
-    applyModules(mods);
-    console.log("[app-config] ✅ RTDB →", window.APP_PLAN);
-  }
+  // Helper để kiểm tra module từ bất kỳ trang nào
+  window.hasModule = function(module) {
+    return window.APP_MODULES ? window.APP_MODULES[module] !== false : true;
+  };
 
-  window.hasModule = function(m) { return window.APP_MODULES ? window.APP_MODULES[m] !== false : true; };
+  // Lắng nghe event để ẩn nav sau khi modules load xong
+  window.addEventListener("appModulesLoaded", function(e) {
+    const mods = e.detail.modules;
+    document.querySelectorAll("#mainNav a[href]").forEach(function(a) {
+      const href = a.getAttribute("href") || "";
+      const page = href.split("?")[0].split("/").pop();
+      const module = Object.keys(MODULE_NAV_MAP).find(k => MODULE_NAV_MAP[k] === page);
+      if (module && mods[module] === false) {
+        a.style.display = "none";
+      }
+    });
+  });
 
-  console.log("[app-config] Loaded | APP_ID =", window.APP_ID);
+  console.log("[app-config] APP_ID =", window.APP_ID, "| Keys:", window.DB_KEYS);
 })();
