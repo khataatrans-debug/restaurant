@@ -2,8 +2,6 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>👨‍💼 Quản lý User</title>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
@@ -52,6 +50,8 @@ tr:hover td{background:#e8eeff!important;}
 </head>
 <body>
 <script src="app-config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
 <nav class="nav" id="mainNav">
   <div class="nav-right">
@@ -116,11 +116,7 @@ tr:hover td{background:#e8eeff!important;}
 </div>
 <div class="toast" id="toast"></div>
 
-
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-
+<script>
 const CURRENT_KEY = "LOGIN_USER";
 // APP_ID từ app-config.js → window.APP_ID
 const USERS_KEY   = `app_users_${window.APP_ID}`;
@@ -142,8 +138,8 @@ const _session = JSON.parse(localStorage.getItem(CURRENT_KEY)||"{}");
 if (!_session.username) { navigate("login.html"); }
 else if (_session.role !== "admin" && _session.role !== "viceadmin") { navigate((_session.pages&&_session.pages[0])||"login.html"); }
 
-/* ── FIREBASE MODULE ── */
-const _app = initializeApp({
+/* ── FIREBASE ── */
+firebase.initializeApp({
   apiKey:            "AIzaSyAPmHlNgx-w5KfK4LF490pvdYA_mGgcX_k",
   authDomain:        "transportation-6d6f5.firebaseapp.com",
   databaseURL:       "https://transportation-6d6f5-default-rtdb.asia-southeast1.firebasedatabase.app",
@@ -152,8 +148,7 @@ const _app = initializeApp({
   messagingSenderId: "1097685849973",
   appId:             "1:1097685849973:web:79ad636e3dfd0b12f7653c"
 });
-const _db = getDatabase(_app);
-const _ref = (path) => ref(_db, path);
+const db = firebase.database();
 let _users = [], changePassIdx = null, pwState = {};
 
 /* ── NAV ── */
@@ -169,21 +164,10 @@ let _users = [], changePassIdx = null, pwState = {};
     if(_mm[item.page]) a.setAttribute("data-module",_mm[item.page]);
     nav.insertBefore(a,nr);
   });
-  // Module filter theo gói công ty
-  function applyModuleNav(modules){
-    nav.querySelectorAll("a[data-module]").forEach(function(a){
-      if(modules && modules[a.getAttribute("data-module")]===false) a.style.display="none";
-    });
-  }
-  // Dùng cache modules từ sessionStorage để ẩn nav ngay (không chờ Firebase)
-  const _cachedMods = sessionStorage.getItem("APP_MODULES_"+window.APP_ID);
-  if(_cachedMods){ try{ applyModuleNav(JSON.parse(_cachedMods)); }catch(e){} }
-  else if(window.APP_MODULES){ applyModuleNav(window.APP_MODULES); }
-  window.addEventListener("appModulesLoaded",function(e){
-    applyModuleNav(e.detail.modules);
-    // Lưu vào sessionStorage để lần sau dùng ngay
-    sessionStorage.setItem("APP_MODULES_"+window.APP_ID, JSON.stringify(e.detail.modules));
-  });
+  // Filter module theo gói công ty
+  function applyModuleNav(m){nav.querySelectorAll("a[data-module]").forEach(function(a){if(m&&m[a.getAttribute("data-module")]===false)a.style.display="none";});}
+  if(window.APP_MODULES) applyModuleNav(window.APP_MODULES);
+  window.addEventListener("appModulesLoaded",function(e){applyModuleNav(e.detail.modules);});
   document.getElementById("userInfo").textContent=`👤 ${_session.username||""}`;
   document.getElementById("btnLogout").onclick=()=>{localStorage.removeItem(CURRENT_KEY);navigate("login.html");};
 })();
@@ -195,12 +179,6 @@ function showToast(msg,err=false){
   clearTimeout(t._t); t._t=setTimeout(()=>{t.className="toast";},2500);
 }
 
-/* ── HASH PASSWORD ── */
-async function hashPass(str){
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
-}
-
 /* ── SAVE ── */
 function saveUsers(u){
   const arr=Array.isArray(u)?u:Object.values(u||{});
@@ -210,20 +188,15 @@ function saveUsers(u){
   const byUsername={};
   arr.forEach(x=>{if(x.username) byUsername[x.username]=x;});
   return Promise.all([
-    set(_ref(USERS_REF), arr),
-    set(_ref(`users_${window.APP_ID}`), byUsername)
+    db.ref(USERS_REF).set(arr),
+    db.ref(`users_${window.APP_ID}`).set(byUsername)
   ])
     .then(()=>showToast("✅ Đã lưu"))
     .catch(e=>showToast("Lỗi: "+e.message,true));
 }
 
 /* ── FIREBASE LISTENER ── */
-// Cache-first: hiện ngay từ localStorage
-const _cached = localStorage.getItem(USERS_KEY);
-if(_cached){ try{ _users=JSON.parse(_cached); render(); }catch(e){} }
-
-// Sync realtime Firebase
-onValue(_ref(USERS_REF), snap=>{
+db.ref(USERS_REF).on("value",snap=>{
   const val=snap.exists()?snap.val():[];
   _users=Array.isArray(val)?val:Object.values(val||{});
   localStorage.setItem(USERS_KEY,JSON.stringify(_users));
@@ -253,7 +226,10 @@ function render(){
         <td><span style="background:${roleBg};color:${roleColor};padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600">${roleLabel}</span></td>
         <td style="font-size:12px">${u.driverName||""}</td>
         <td style="font-size:12px;font-family:monospace">${u.truckNo||""}</td>
-        <td><span style="font-size:11px;color:#94a3b8;font-family:monospace">${u.password?(u.password.length>=32?"🔒 [đã mã hóa]":u.password.slice(0,2)+"****"):"—"}</span></td>
+        <td><div class="pw-cell">
+          <span class="pw-text" id="pw_${realIdx}">••••••</span>
+          <button class="btn-gray btn-sm" id="pwbtn_${realIdx}" onclick="togglePw(${realIdx})">👁️</button>
+        </div></td>
         ${PAGES.map(p=>`<td><input type="checkbox" style="width:15px;height:15px;accent-color:var(--accent);cursor:${isAdmin?"not-allowed":"pointer"}" ${(u.pages||[]).includes(p)?"checked":""} ${(isAdmin||isVice)?"disabled":""} onchange="togglePage(${realIdx},'${p}',this.checked)"></td>`).join("")}
         <td><button class="btn-warning btn-sm" onclick="openChangePass(${realIdx})">🔑 Đổi</button></td>
         <td>${isSelf?`<button class="btn-gray btn-sm" disabled style="opacity:.5">🗑️</button>`:`<button class="btn-danger btn-sm" onclick="delUser(${realIdx})">🗑️ Xóa</button>`}</td>
@@ -293,17 +269,13 @@ function addUser(){
   const obj={username:u, password:p, role:r,
     pages:r==="admin"?[...PAGES]:r==="viceadmin"?["index.html","accountant.html","performance.html","overview.html","maintenance.html","master.html","users.html"]:[]};
   if(r==="driver"){obj.driverName=driverName; obj.truckNo=truckNo;}
-  // Hash password trước khi lưu
-  hashPass(p).then(hashed=>{
-    obj.password = hashed;
-    users.push(obj);
-    saveUsers(users);
-    document.getElementById("uName").value="";
-    document.getElementById("uPass").value="";
-    document.getElementById("uDriverName").value="";
-    document.getElementById("uTruckNo").value="";
-    toggleDriverFields();
-  });
+  users.push(obj);
+  saveUsers(users);
+  document.getElementById("uName").value="";
+  document.getElementById("uPass").value="";
+  document.getElementById("uDriverName").value="";
+  document.getElementById("uTruckNo").value="";
+  toggleDriverFields();
 }
 
 /* ── TOGGLE PAGE ── */
@@ -325,7 +297,19 @@ function delUser(i){
 }
 
 /* ── TOGGLE PW ── */
-
+function togglePw(i){
+  const span=document.getElementById("pw_"+i), btn=document.getElementById("pwbtn_"+i);
+  if(!span) return;
+  if(pwState[i]){span.textContent="••••••";btn.textContent="👁️";pwState[i]=false;}
+  else{
+    const pw = _users[i].password||"";
+    // Nếu là hash SHA-256 (64 ký tự hex) → hiện thông báo cần đổi
+    const isHash = /^[0-9a-f]{64}$/.test(pw);
+    span.textContent = isHash ? "⚠️ Cần đổi lại" : (pw||"(trống)");
+    span.style.color = isHash ? "#f59e0b" : "";
+    btn.textContent="🙈";pwState[i]=true;
+  }
+}
 
 /* ── CHANGE PASS ── */
 
@@ -342,20 +326,18 @@ function openChangePass(i){
   document.getElementById("modalBg").classList.add("show");
 }
 function closeModal(){changePassIdx=null;document.getElementById("modalBg").classList.remove("show");}
-async function confirmChangePass(){
+function confirmChangePass(){
   const np=document.getElementById("newPass").value.trim();
   const cp=document.getElementById("confirmPass").value.trim();
   const newRole=document.getElementById("newRole").value;
+  // Validate pass chỉ khi có nhập
   if(np){
     if(np.length<4){showToast("Mật khẩu phải từ 4 ký tự!",true);return;}
     if(np!==cp){showToast("Mật khẩu nhập lại không khớp!",true);return;}
   }
   if(!np && !newRole){showToast("Không có thay đổi gì!",true);return;}
   const users=[..._users];
-  if(np){
-    const hashed = await hashPass(np);
-    users[changePassIdx].password = hashed;
-  }
+  if(np) users[changePassIdx].password=np;
   users[changePassIdx].role=newRole;
   if(newRole==="driver"){
     users[changePassIdx].driverName=document.getElementById("editDriverName").value.trim();
