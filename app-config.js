@@ -50,7 +50,58 @@
      Ví dụ: navigate("index.html")
              navigate("maintenance.html")
   ───────────────────────────────────────── */
-    window.navigate = function (path) {
+  /* ── NAV INTERCEPTOR ──
+     Patch insertBefore trên mainNav để tự filter modules
+     Chạy trước khi các trang build nav
+  */
+  window._navQueue = [];
+  window._navReady = false;
+
+  document.addEventListener("DOMContentLoaded", function() {
+    const nav = document.getElementById("mainNav");
+    if (!nav) return;
+    const nr = nav.querySelector(".nav-right");
+    if (!nr) return;
+
+    // Override insertBefore để bắt tất cả nav link được thêm vào
+    const _origInsertBefore = nav.insertBefore.bind(nav);
+    nav.insertBefore = function(node, ref) {
+      // Chỉ intercept <a> tags
+      if (node.tagName === "A") {
+        window._navQueue.push({node, ref});
+        if (window._navReady) {
+          _flushNavQueue(nav, _origInsertBefore);
+        }
+        return node;
+      }
+      return _origInsertBefore(node, ref);
+    };
+
+    window._origInsertBefore = _origInsertBefore;
+    window._navElement = nav;
+  });
+
+  window._flushNavQueue = function(nav, origFn) {
+    const fn = origFn || window._origInsertBefore;
+    const nr = nav ? nav.querySelector(".nav-right") : null;
+    window._navQueue.forEach(function(item) {
+      const href = (item.node.getAttribute("href") || "").split("?")[0].split("/").pop();
+      const MODULE_MAP = {
+        "index.html":"trucking","accountant.html":"accountant",
+        "performance.html":"performance","overview.html":"overview",
+        "master.html":"master","maintenance.html":"maintenance",
+        "fuel.html":"fuel","users.html":"users"
+      };
+      const mod = MODULE_MAP[href];
+      if (mod && window.APP_MODULES && window.APP_MODULES[mod] === false) {
+        return; // Bỏ qua — không thêm vào nav
+      }
+      fn(item.node, item.ref || nr);
+    });
+    window._navQueue = [];
+  };
+
+  window.navigate = function (path) {
     const sep = path.includes("?") ? "&" : "?";
     location.href = path + sep + "app=" + window.APP_ID;
   };
@@ -104,6 +155,15 @@
   console.log("[app-config] APP_ID =", window.APP_ID, "| Keys:", window.DB_KEYS);
 
   /* ─────────────────────────────────────────
+     MOBILE FIX: ngăn table kéo rộng trang
+  ───────────────────────────────────────── */
+  (function() {
+    const s = document.createElement("style");
+    s.textContent = "html,body{max-width:100%;overflow-x:hidden}.tbl-wrap{overflow-x:auto!important}";
+    document.head.appendChild(s);
+  })();
+
+  /* ─────────────────────────────────────────
      7. MODULE CONFIG
      Đọc từ Firestore collection "companies" (quản lý bởi admin.html)
      Fallback: RTDB app_config_APPID → default all modules
@@ -115,16 +175,6 @@
   };
 
   window.APP_MODULES = {...DEFAULT_MODULES}; // default trước khi load
-
-  // Dùng cache sessionStorage ngay lập tức nếu có
-  (function(){
-    const cached = sessionStorage.getItem("APP_MODULES_"+APP_ID);
-    if(cached){ try{
-      const mods = JSON.parse(cached);
-      window.APP_MODULES = mods;
-      document.addEventListener("DOMContentLoaded", function(){ applyModuleVisibility(); });
-    }catch(e){} }
-  })();
 
   window.addEventListener("load", function() {
     if (!window.firebase || !APP_ID) return;
@@ -150,7 +200,6 @@
             window.APP_PLAN    = cfg.plan || "pro";
             window.APP_ACTIVE  = true;
             console.log("[app-config] Loaded from Firestore companies:", cfg.plan, cfg.modules);
-            sessionStorage.setItem("APP_MODULES_"+APP_ID, JSON.stringify(mods));
             applyModuleVisibility();
           } else {
             // Chưa có trong companies → fallback RTDB
@@ -189,6 +238,13 @@
   };
 
   function applyModuleVisibility() {
+    window._navReady = true;
+
+    // Flush nav queue (các link chờ được thêm)
+    if (window._navQueue && window._navQueue.length > 0) {
+      window._flushNavQueue(window._navElement, window._origInsertBefore);
+    }
+
     // Ẩn các nav link đã render không được phép
     document.querySelectorAll("nav a[href], #mainNav a[href]").forEach(function(a) {
       const href = a.getAttribute("href") || "";
