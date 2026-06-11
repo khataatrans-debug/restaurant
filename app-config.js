@@ -175,12 +175,11 @@
   //   Modular : module script gọi window.__fbReadyCb() ngay khi xong (zero delay)
   //   Compat  : window.firebase tồn tại ngay sau <script> compat load xong
   function isFirebaseReady() {
-    // Modular SDK: trang set window.__fbReady = true sau khi import xong
+    // Modular SDK
     if (window.__fbReady && window.__fbFS && window.__fbRTDB) return true;
-    // Compat SDK: chỉ nhận khi CÓ ĐỦ cả firestore lẫn database
-    // (tránh false positive: window.firebase tồn tại từ trang trước nhưng thiếu firestore)
-    if (window.firebase && window.firebase.firestore &&
-        window.firebase.database && !window.__fbReady) return true;
+    // Compat SDK: chỉ cần firebase.app + database là đủ
+    // KHÔNG check firestore vì nhiều trang không load firestore-compat.js
+    if (window.firebase && window.firebase.app && window.firebase.database) return true;
     return false;
   }
 
@@ -237,19 +236,23 @@
 
       // === Hàm query Firestore ===
       function queryFirestore() {
-        if (useModular) {
+        if (useModular && window.__fbFS && window.__fbFS.getDocs) {
           const { getFirestore, collection, query, where, limit, getDocs } = window.__fbFS;
           const q = query(collection(getFirestore(), "companies"),
                           where("appId", "==", window.APP_ID), limit(1));
           return getDocs(q).then(function(snap) {
             return snap.empty ? null : snap.docs[0].data();
           });
-        } else {
+        } else if (window.firebase && window.firebase.firestore) {
+          // Compat SDK có firestore
           return firebase.firestore()
             .collection("companies").where("appId","==",window.APP_ID).limit(1).get()
             .then(function(snap) {
               return snap.empty ? null : snap.docs[0].data();
             });
+        } else {
+          // Không có Firestore → null, fallback sang RTDB
+          return Promise.resolve(null);
         }
       }
 
