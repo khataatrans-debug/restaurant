@@ -184,15 +184,16 @@ function saveUsers(u){
   const arr=Array.isArray(u)?u:Object.values(u||{});
   _users=arr;
   localStorage.setItem(USERS_KEY,JSON.stringify(arr));
-  // Sync sang users_APP_ID dạng {username: {...}} để driver.html đọc được
+  // Log để debug
+  console.log("[saveUsers] Saving passwords:", arr.map(x=>({u:x.username,pw:x.password})));
   const byUsername={};
   arr.forEach(x=>{if(x.username) byUsername[x.username]=x;});
   return Promise.all([
     db.ref(USERS_REF).set(arr),
     db.ref(`users_${window.APP_ID}`).set(byUsername)
   ])
-    .then(()=>showToast("✅ Đã lưu"))
-    .catch(e=>showToast("Lỗi: "+e.message,true));
+    .then(()=>{console.log("[saveUsers] ✅ Saved OK");showToast("✅ Đã lưu");})
+    .catch(e=>{console.error("[saveUsers] ❌ Error:",e);showToast("Lỗi: "+e.message,true);});
 }
 
 /* ── FIREBASE LISTENER ── */
@@ -327,7 +328,6 @@ function openChangePass(i){
 }
 function closeModal(){changePassIdx=null;document.getElementById("modalBg").classList.remove("show");}
 function confirmChangePass(){
-   alert("USERS VERSION: PLAIN PASSWORD");
   const np=document.getElementById("newPass").value.trim();
   const cp=document.getElementById("confirmPass").value.trim();
   const newRole=document.getElementById("newRole").value;
