@@ -25,7 +25,7 @@
   --r:      6px;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);font-size:13px;min-height:100vh;}
+body{font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);font-size:13px;min-height:100vh;overflow-x:hidden;}
 
 /* ── NAV ── */
 .nav{background:var(--navy);display:flex;align-items:center;padding:0 18px;height:46px;gap:2px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(13,34,72,.3);}
@@ -100,7 +100,7 @@ input::placeholder{color:#cbd5e1;}
 .warn-banner a{color:var(--accent);font-weight:700;}
 
 /* ── TABLE ── */
-.tbl-wrap{margin:8px 16px 16px;background:var(--white);border-radius:var(--r);border:1px solid var(--border);overflow:auto;box-shadow:var(--shadow);}
+.tbl-wrap{margin:8px 16px 16px;background:var(--white);border-radius:var(--r);border:1px solid var(--border);overflow-x:auto;overflow-y:visible;box-shadow:var(--shadow);max-width:100%;}
 table{border-collapse:collapse;width:100%;font-size:12px;}
 thead th{background:var(--navy);color:rgba(255,255,255,.88);padding:7px 8px;font-weight:600;font-size:11px;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;position:sticky;top:0;z-index:5;}
 td{border-bottom:1px solid var(--border);padding:6px 8px;text-align:center;color:var(--text);font-size:12px;}
