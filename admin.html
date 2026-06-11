@@ -632,7 +632,7 @@ async function loadAuditLog(){
   tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#64748b">⏳ Đang tải...</td></tr>';
 
   try{
-    const snap = await rtdb.ref("audit_log_"+appFilter).limitToLast(500).get();
+    const snap = await rtdb.ref("audit_log_"+appFilter).limitToLast(500).once("value");
     if(!snap.exists()){
       _auditRows = [];
       tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:28px;color:#64748b">Chưa có log nào cho công ty này</td></tr>';
@@ -747,7 +747,7 @@ async function doBackup(){
       backup.data.company = snap.docs.map(d=>({id:d.id,...d.data()}))[0]||{};
       // Export audit log
       const rtdb = firebase.database();
-      const aSnap = await rtdb.ref("audit_log_"+appId).get();
+      const aSnap = await rtdb.ref("audit_log_"+appId).once("value");
       backup.data.auditLog = aSnap.exists() ? Object.values(aSnap.val()||{}) : [];
       status.textContent = "✅ Export "+appId+" xong — "+backup.data.auditLog.length+" log entries";
     }
