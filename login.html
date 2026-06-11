@@ -341,7 +341,7 @@ async function login(){
 }
 
 /* ── ĐỔI MẬT KHẨU ── */
-function doChangePass(){
+async function doChangePass(){
   const u   = document.getElementById("cp-user").value.trim();
   const old = document.getElementById("cp-old").value.trim();
   const np  = document.getElementById("cp-new").value.trim();
@@ -351,7 +351,13 @@ function doChangePass(){
   if(!u||!old||!np||!np2){ setMsg("msgCP","⚠️ Vui lòng nhập đầy đủ!","#fbbf24"); return; }
   if(np.length<4){ setMsg("msgCP","⚠️ Mật khẩu mới phải từ 4 ký tự!","#fbbf24"); return; }
   if(np!==np2){ setMsg("msgCP","⚠️ Mật khẩu nhập lại không khớp!","#fbbf24"); return; }
-  const idx = _users.findIndex(x=>x.username===u && x.password===old);
+  const oldHash = await hashPass(old);
+
+const idx = _users.findIndex(
+    x =>
+      x.username === u &&
+      (x.password === old || x.password === oldHash)
+);
   if(idx===-1){ setMsg("msgCP","❌ Sai tên đăng nhập hoặc mật khẩu hiện tại!","var(--red)"); return; }
   // Cập nhật
   const updated = [..._users];
