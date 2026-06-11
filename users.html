@@ -55,6 +55,7 @@ tr:hover td{background:#e8eeff!important;}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getFirestore, collection, query, where, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 <nav class="nav" id="mainNav">
   <div class="nav-right">
@@ -152,6 +153,12 @@ const _app = initializeApp({
   appId:             "1:1097685849973:web:79ad636e3dfd0b12f7653c"
 });
 const _db = getDatabase(_app);
+
+// Expose cho app-config.js detect SDK + query Firestore companies
+window.__fbRTDB  = { getDatabase, ref, onValue, get: null };
+window.__fbFS    = { getFirestore, collection, query, where, limit, getDocs };
+window.__fbReady = true;
+if (window.__fbReadyCb) window.__fbReadyCb();
 const _ref = (path) => ref(_db, path);
 let _users = [], changePassIdx = null, pwState = {};
 
