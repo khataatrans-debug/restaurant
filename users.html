@@ -2,6 +2,8 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>👨‍💼 Quản lý User</title>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
@@ -50,8 +52,6 @@ tr:hover td{background:#e8eeff!important;}
 </head>
 <body>
 <script src="app-config.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
 <nav class="nav" id="mainNav">
   <div class="nav-right">
@@ -116,7 +116,11 @@ tr:hover td{background:#e8eeff!important;}
 </div>
 <div class="toast" id="toast"></div>
 
-<script>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
 const CURRENT_KEY = "LOGIN_USER";
 // APP_ID từ app-config.js → window.APP_ID
 const USERS_KEY   = `app_users_${window.APP_ID}`;
@@ -138,8 +142,8 @@ const _session = JSON.parse(localStorage.getItem(CURRENT_KEY)||"{}");
 if (!_session.username) { navigate("login.html"); }
 else if (_session.role !== "admin" && _session.role !== "viceadmin") { navigate((_session.pages&&_session.pages[0])||"login.html"); }
 
-/* ── FIREBASE ── */
-firebase.initializeApp({
+/* ── FIREBASE MODULE ── */
+const _app = initializeApp({
   apiKey:            "AIzaSyAPmHlNgx-w5KfK4LF490pvdYA_mGgcX_k",
   authDomain:        "transportation-6d6f5.firebaseapp.com",
   databaseURL:       "https://transportation-6d6f5-default-rtdb.asia-southeast1.firebasedatabase.app",
@@ -148,7 +152,8 @@ firebase.initializeApp({
   messagingSenderId: "1097685849973",
   appId:             "1:1097685849973:web:79ad636e3dfd0b12f7653c"
 });
-const db = firebase.database();
+const _db = getDatabase(_app);
+const _ref = (path) => ref(_db, path);
 let _users = [], changePassIdx = null, pwState = {};
 
 /* ── NAV ── */
@@ -164,10 +169,14 @@ let _users = [], changePassIdx = null, pwState = {};
     if(_mm[item.page]) a.setAttribute("data-module",_mm[item.page]);
     nav.insertBefore(a,nr);
   });
-  // Filter module theo gói công ty
-  function applyModuleNav(m){nav.querySelectorAll("a[data-module]").forEach(function(a){if(m&&m[a.getAttribute("data-module")]===false)a.style.display="none";});}
+  // Module filter theo gói công ty
+  function applyModuleNav(modules){
+    nav.querySelectorAll("a[data-module]").forEach(function(a){
+      if(modules && modules[a.getAttribute("data-module")]===false) a.style.display="none";
+    });
+  }
   if(window.APP_MODULES) applyModuleNav(window.APP_MODULES);
-  window.addEventListener("appModulesLoaded",function(e){applyModuleNav(e.detail.modules);});
+  window.addEventListener("appModulesLoaded",function(e){ applyModuleNav(e.detail.modules); });
   document.getElementById("userInfo").textContent=`👤 ${_session.username||""}`;
   document.getElementById("btnLogout").onclick=()=>{localStorage.removeItem(CURRENT_KEY);navigate("login.html");};
 })();
@@ -179,6 +188,12 @@ function showToast(msg,err=false){
   clearTimeout(t._t); t._t=setTimeout(()=>{t.className="toast";},2500);
 }
 
+/* ── HASH PASSWORD ── */
+async function hashPass(str){
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+
 /* ── SAVE ── */
 function saveUsers(u){
   const arr=Array.isArray(u)?u:Object.values(u||{});
@@ -188,15 +203,20 @@ function saveUsers(u){
   const byUsername={};
   arr.forEach(x=>{if(x.username) byUsername[x.username]=x;});
   return Promise.all([
-    db.ref(USERS_REF).set(arr),
-    db.ref(`users_${window.APP_ID}`).set(byUsername)
+    set(_ref(USERS_REF), arr),
+    set(_ref(`users_${window.APP_ID}`), byUsername)
   ])
     .then(()=>showToast("✅ Đã lưu"))
     .catch(e=>showToast("Lỗi: "+e.message,true));
 }
 
 /* ── FIREBASE LISTENER ── */
-db.ref(USERS_REF).on("value",snap=>{
+// Cache-first: hiện ngay từ localStorage
+const _cached = localStorage.getItem(USERS_KEY);
+if(_cached){ try{ _users=JSON.parse(_cached); render(); }catch(e){} }
+
+// Sync realtime Firebase
+onValue(_ref(USERS_REF), snap=>{
   const val=snap.exists()?snap.val():[];
   _users=Array.isArray(val)?val:Object.values(val||{});
   localStorage.setItem(USERS_KEY,JSON.stringify(_users));
@@ -269,13 +289,18 @@ function addUser(){
   const obj={username:u, password:p, role:r,
     pages:r==="admin"?[...PAGES]:r==="viceadmin"?["index.html","accountant.html","performance.html","overview.html","maintenance.html","master.html","users.html"]:[]};
   if(r==="driver"){obj.driverName=driverName; obj.truckNo=truckNo;}
-  users.push(obj);
-  saveUsers(users);
-  document.getElementById("uName").value="";
-  document.getElementById("uPass").value="";
-  document.getElementById("uDriverName").value="";
-  document.getElementById("uTruckNo").value="";
-  toggleDriverFields();
+  // Hash password trước khi lưu
+  hashPass(p).then(hashed=>{
+    obj.password = hashed;
+    obj._plainHint = p.slice(0,1)+"***"; // hint xem mật khẩu (ko lưu full)
+    users.push(obj);
+    saveUsers(users);
+    document.getElementById("uName").value="";
+    document.getElementById("uPass").value="";
+    document.getElementById("uDriverName").value="";
+    document.getElementById("uTruckNo").value="";
+    toggleDriverFields();
+  });
 }
 
 /* ── TOGGLE PAGE ── */
@@ -319,18 +344,20 @@ function openChangePass(i){
   document.getElementById("modalBg").classList.add("show");
 }
 function closeModal(){changePassIdx=null;document.getElementById("modalBg").classList.remove("show");}
-function confirmChangePass(){
+async function confirmChangePass(){
   const np=document.getElementById("newPass").value.trim();
   const cp=document.getElementById("confirmPass").value.trim();
   const newRole=document.getElementById("newRole").value;
-  // Validate pass chỉ khi có nhập
   if(np){
     if(np.length<4){showToast("Mật khẩu phải từ 4 ký tự!",true);return;}
     if(np!==cp){showToast("Mật khẩu nhập lại không khớp!",true);return;}
   }
   if(!np && !newRole){showToast("Không có thay đổi gì!",true);return;}
   const users=[..._users];
-  if(np) users[changePassIdx].password=np;
+  if(np){
+    const hashed = await hashPass(np);
+    users[changePassIdx].password = hashed;
+  }
   users[changePassIdx].role=newRole;
   if(newRole==="driver"){
     users[changePassIdx].driverName=document.getElementById("editDriverName").value.trim();
