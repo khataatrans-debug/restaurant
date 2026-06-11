@@ -253,10 +253,7 @@ function render(){
         <td><span style="background:${roleBg};color:${roleColor};padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600">${roleLabel}</span></td>
         <td style="font-size:12px">${u.driverName||""}</td>
         <td style="font-size:12px;font-family:monospace">${u.truckNo||""}</td>
-        <td><div class="pw-cell">
-          <span class="pw-text" id="pw_${realIdx}">••••••</span>
-          <button class="btn-gray btn-sm" id="pwbtn_${realIdx}" onclick="togglePw(${realIdx})">👁️</button>
-        </div></td>
+        <td><span style="font-size:11px;color:#94a3b8;font-family:monospace">${(u.password&&u.password.length>=32)?"🔒 [đã mã hóa]":"••••••"}</span></td>
         ${PAGES.map(p=>`<td><input type="checkbox" style="width:15px;height:15px;accent-color:var(--accent);cursor:${isAdmin?"not-allowed":"pointer"}" ${(u.pages||[]).includes(p)?"checked":""} ${(isAdmin||isVice)?"disabled":""} onchange="togglePage(${realIdx},'${p}',this.checked)"></td>`).join("")}
         <td><button class="btn-warning btn-sm" onclick="openChangePass(${realIdx})">🔑 Đổi</button></td>
         <td>${isSelf?`<button class="btn-gray btn-sm" disabled style="opacity:.5">🗑️</button>`:`<button class="btn-danger btn-sm" onclick="delUser(${realIdx})">🗑️ Xóa</button>`}</td>
