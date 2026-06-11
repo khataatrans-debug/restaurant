@@ -6,6 +6,9 @@
  */
 
 (function () {
+  if (window.__appConfigLoaded) return;
+  window.__appConfigLoaded = true;
+
   /* ─────────────────────────────────────────
      1. XÁC ĐỊNH APP_ID
      Ưu tiên: URL param → sessionStorage → redirect về landing
