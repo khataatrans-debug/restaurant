@@ -172,9 +172,12 @@
   //   Modular : module script gọi window.__fbReadyCb() ngay khi xong (zero delay)
   //   Compat  : window.firebase tồn tại ngay sau <script> compat load xong
   function isFirebaseReady() {
-    if (window.__fbReady && window.__fbFS && window.__fbRTDB) return true; // modular
-    if (window.firebase && window.firebase.app && window.firebase.firestore &&
-        window.firebase.database) return true; // compat đầy đủ
+    // Modular SDK: trang set window.__fbReady = true sau khi import xong
+    if (window.__fbReady && window.__fbFS && window.__fbRTDB) return true;
+    // Compat SDK: chỉ nhận khi CÓ ĐỦ cả firestore lẫn database
+    // (tránh false positive: window.firebase tồn tại từ trang trước nhưng thiếu firestore)
+    if (window.firebase && window.firebase.firestore &&
+        window.firebase.database && !window.__fbReady) return true;
     return false;
   }
 
