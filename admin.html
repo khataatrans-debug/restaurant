@@ -394,31 +394,23 @@ function doLogout(){
   document.getElementById("loginErr").textContent="";
 }
 
-// ── LOAD DATA — real-time ──
-let _unsubCompanies = null;
-function loadAll(){
-  // Hủy listener cũ nếu có
-  if(_unsubCompanies) _unsubCompanies();
-
-  // Real-time listener thay vì get()
+// ── LOAD DATA ──
+async function loadAll(){
   try{
-    _unsubCompanies = db.collection("companies").orderBy("createdAt","desc")
-      .onSnapshot(snap=>{
-        _companies = snap.docs.map(d=>({id:d.id,...d.data()}));
-        renderStats();
-        renderTable(_companies);
-      }, err=>{
-        // Fallback nếu lỗi index
-        _unsubCompanies = db.collection("companies")
-          .onSnapshot(snap=>{
-            _companies = snap.docs.map(d=>({id:d.id,...d.data()}))
-              .sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));
-            renderStats();
-            renderTable(_companies);
-          });
-      });
+    const snap = await db.collection("companies").orderBy("createdAt","desc").get();
+    _companies = snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderStats();
+    renderTable(_companies);
     loadLogs();
-  }catch(e){ console.error("loadAll error:",e); }
+  }catch(e){
+    // Nếu chưa có index, fallback không orderBy
+    const snap = await db.collection("companies").get();
+    _companies = snap.docs.map(d=>({id:d.id,...d.data()}))
+      .sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));
+    renderStats();
+    renderTable(_companies);
+    loadLogs();
+  }
 }
 
 async function loadLogs(){
@@ -601,6 +593,9 @@ async function saveCompany(){
       detail: `Plan: ${_plan} | Modules: ${[..._mods].join(",")}`,
       by:"superadmin", at:new Date().toISOString()
     });
+    // Xóa cache sessionStorage để app-config load lại ngay
+    sessionStorage.removeItem("APP_MODULES_"+appId);
+    sessionStorage.removeItem("APP_CFG_"+appId);
     closeModal(); loadAll();
   }catch(e){
     showToast("Lỗi: "+e.message,true);
