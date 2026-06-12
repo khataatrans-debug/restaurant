@@ -139,10 +139,10 @@ tr:hover td{background:#e8eeff!important;}
 
   /* 1. Guard */
   const raw = localStorage.getItem(CURRENT_KEY);
-  if (!raw) { navigate("login.html"); return; }
+  const app2=new URLSearchParams(location.search).get("app")||"";const sep2=app2?"?app="+app2:"";if (!raw) { location.href="login.html"+sep2; return; }
   const session = JSON.parse(raw);
   if (session.role !== "admin" && !(session.pages || []).includes(THIS_PAGE)) {
-    navigate((session.pages && session.pages[0]) || "login.html");
+    location.href=((session.pages&&session.pages[0])||"login.html")+sep2;
     return;
   }
 
@@ -213,7 +213,7 @@ tr:hover td{background:#e8eeff!important;}
     /* Logout */
     document.getElementById("btnLogout").onclick = function() {
       localStorage.removeItem(CURRENT_KEY);
-      navigate("login.html");
+      location.href="login.html"+(location.search||"");
     };
   });
 })();
