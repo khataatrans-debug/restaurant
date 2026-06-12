@@ -320,7 +320,31 @@ firebase.initializeApp({
   appId:"1:1097685849973:web:79ad636e3dfd0b12f7653c"
 });
 const db = firebase.firestore();
-const rtdb = firebase.database();
+// Dùng REST API thay SDK để tránh lỗi region
+const RTDB_BASE = "https://transportation-6d6f5-default-rtdb.asia-southeast1.firebasedatabase.app";
+const rtdb = {
+  ref: function(path) {
+    const _path = path;
+    return {
+      set: async function(data) {
+        const res = await fetch(RTDB_BASE+"/"+_path+".json", {method:"PUT",body:JSON.stringify(data)});
+        if(!res.ok) throw new Error("RTDB error: "+res.status);
+      },
+      once: async function() {
+        const res = await fetch(RTDB_BASE+"/"+_path+".json");
+        const val = await res.json();
+        return { exists:()=>val!==null, val:()=>val,
+          forEach:(cb)=>{ if(val&&typeof val==="object") Object.entries(val).forEach(([k,v])=>cb({key:k,val:()=>v})); }
+        };
+      },
+      remove: async function() {
+        await fetch(RTDB_BASE+"/"+_path+".json", {method:"DELETE"});
+      },
+      limitToLast: function(n){ return this; },
+      orderByChild: function(){ return this; }
+    };
+  }
+};
 
 // ── SUPERADMIN CREDENTIALS (có thể đổi) ──
 const SA_USERS = { "superadmin": "Admin@2025!", "admin": "Admin@2025!" };
