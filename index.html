@@ -193,6 +193,7 @@ tr:hover td{background:#e8eeff!important;}
     function applyModuleNav(modules) {
       nav.querySelectorAll("a[data-module]").forEach(function(a) {
         const mod = a.getAttribute("data-module");
+        a.style.display = "";
         if (modules && modules[mod] === false) a.style.display = "none";
       });
     }

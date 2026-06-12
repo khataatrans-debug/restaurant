@@ -165,7 +165,7 @@ let _users = [], changePassIdx = null, pwState = {};
     nav.insertBefore(a,nr);
   });
   // Filter module theo gói công ty
-  function applyModuleNav(m){nav.querySelectorAll("a[data-module]").forEach(function(a){if(m&&m[a.getAttribute("data-module")]===false)a.style.display="none";});}
+  function applyModuleNav(m){nav.querySelectorAll("a[data-module]").forEach(function(a){a.style.display="";if(m&&m[a.getAttribute("data-module")]===false)a.style.display="none";});}
   // Đọc cache ngay lập tức để tránh flash tab không có trong gói
   try{
     const _cacheKey="APP_MODULES_"+(window.APP_ID||sessionStorage.getItem("APP_ID")||"");

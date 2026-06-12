@@ -498,6 +498,8 @@ const fmt=n=>Number(n||0).toLocaleString("vi-VN");
     // ── Module filter theo gói công ty ──
     function applyModuleNav(modules) {
       nav.querySelectorAll("a[data-module]").forEach(function(a) {
+        // Reset trước rồi ẩn lại — để hiện tab khi đổi gói lên cao hơn
+        a.style.display = "";
         if (modules && modules[a.getAttribute("data-module")] === false)
           a.style.display = "none";
       });
