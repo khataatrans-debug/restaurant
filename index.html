@@ -139,10 +139,10 @@ tr:hover td{background:#e8eeff!important;}
 
   /* 1. Guard */
   const raw = localStorage.getItem(CURRENT_KEY);
-  if (!raw) { navigate("login.html"); return; }
+  const app2=new URLSearchParams(location.search).get("app")||"";const sep2=app2?"?app="+app2:"";if (!raw) { location.href="login.html"+sep2; return; }
   const session = JSON.parse(raw);
   if (session.role !== "admin" && !(session.pages || []).includes(THIS_PAGE)) {
-    navigate((session.pages && session.pages[0]) || "login.html");
+    location.href=((session.pages&&session.pages[0])||"login.html")+sep2;
     return;
   }
 
@@ -193,18 +193,15 @@ tr:hover td{background:#e8eeff!important;}
     function applyModuleNav(modules) {
       nav.querySelectorAll("a[data-module]").forEach(function(a) {
         const mod = a.getAttribute("data-module");
-        a.style.display = "";
         if (modules && modules[mod] === false) a.style.display = "none";
       });
     }
 
-    // Đọc cache ngay để tránh flash tab không có trong gói
-    try{
-      const _ck="APP_MODULES_"+(window.APP_ID||sessionStorage.getItem("APP_ID")||"");
-      const _cc=JSON.parse(sessionStorage.getItem(_ck)||"null");
-      if(_cc) applyModuleNav(_cc);
-      else if(window.APP_MODULES) applyModuleNav(window.APP_MODULES);
-    }catch(e){ if(window.APP_MODULES) applyModuleNav(window.APP_MODULES); }
+    if (window.APP_MODULES) {
+      // Đã load xong (app-config chạy trước)
+      applyModuleNav(window.APP_MODULES);
+    }
+    // Lắng nghe khi modules load xong từ Firestore
     window.addEventListener("appModulesLoaded", function(e) {
       applyModuleNav(e.detail.modules);
     });
@@ -216,7 +213,7 @@ tr:hover td{background:#e8eeff!important;}
     /* Logout */
     document.getElementById("btnLogout").onclick = function() {
       localStorage.removeItem(CURRENT_KEY);
-      navigate("login.html");
+      location.href="login.html"+(location.search||"");
     };
   });
 })();
@@ -269,6 +266,7 @@ tr:hover td{background:#e8eeff!important;}
       <div class="field"><span class="lbl">Mooc</span><select id="mooc"></select></div>
       <div class="field"><span class="lbl">Lái xe</span><input id="driver" readonly></div>
       <div class="field"><span class="lbl">KM</span><input id="km" readonly></div>
+      <input type="hidden" id="vcPrice">
       <div class="field"><span class="lbl">NL (lít)</span><input id="fuelEst" readonly></div>
     </div>
     <!-- DÒNG 3: Số liệu + Ghi chú -->
@@ -434,7 +432,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
         const o = document.createElement("option");
         o.value = kho; o.textContent = kho;
         o.dataset.km    = c[keys.km]    || "";
-        o.dataset.price = c[keys.price] || "";
+        o.dataset.vcPrice = c[keys.price] || "";  // Giá VC từ master
         o.dataset.wage  = c[keys.wage]  || "";
         o.dataset.fuel  = c[keys.fuel]  || "";
         elFactory.appendChild(o);
@@ -451,8 +449,10 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
     if (!o || !o.dataset.km) {
       elKm.value = ""; elFuelEst.value = ""; return;
     }
-    elKm.value    = o.dataset.km;
-    // price (seal) nhập tay - không auto fill
+    elKm.value = o.dataset.km;
+    // Auto fill vcPrice từ master (dùng cho accountant/overview)
+    const vcPriceEl = document.getElementById("vcPrice");
+    if (vcPriceEl) vcPriceEl.value = o.dataset.vcPrice || "";
     // wage (ton) nhập tay - không auto fill
     // Tính nhiên liệu ước tính = km × định mức xe / 100
     calcFuel();
@@ -564,6 +564,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
           booking:elBooking.value, carrier:elCarrier.value, factory:elFactory.value, km:elKm.value,
           vehicleNo:elVehicleNo.value, mooc:elMooc.value, driver:elDriver.value,
           price:(elPrice.value||'').trim(), wage:(elWage.value||'').trim(), serviceType:document.getElementById('serviceType')?.value||'', fuelEst:elFuelEst.value,
+          vcPrice: parseFloat(document.getElementById('vcPrice')?.value)||0,
           containerNo:elContainerNo.value, note:elNote.value,
           attachName: attachName || existing.attachName || "",
           attachData: attachData || existing.attachData || ""
@@ -579,6 +580,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
             booking:elBooking.value, carrier:elCarrier.value, factory:elFactory.value, km:elKm.value,
             vehicleNo:elVehicleNo.value, mooc:elMooc.value, driver:elDriver.value,
             price:(elPrice.value||'').trim(), wage:(elWage.value||'').trim(), serviceType:document.getElementById('serviceType')?.value||'', fuelEst:elFuelEst.value,
+            vcPrice: parseFloat(document.getElementById('vcPrice')?.value)||0,
             containerNo:elContainerNo.value, note:elNote.value,
             attachName, attachData
           };
@@ -614,6 +616,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
       });
       elFactory.dispatchEvent(new Event("change"));
       elKm.value = r.km || ""; elPrice.value = r.price || ""; const stEl=document.getElementById('serviceType'); if(stEl) stEl.value=r.serviceType||'';
+      const vcPEl=document.getElementById('vcPrice'); if(vcPEl) vcPEl.value=r.vcPrice||'';
     }, 0);
     elCusCode.value   = r.cusCode   || "";
     elVehicleNo.value = r.vehicleNo || "";
