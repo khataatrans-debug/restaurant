@@ -266,6 +266,7 @@ tr:hover td{background:#e8eeff!important;}
       <div class="field"><span class="lbl">Mooc</span><select id="mooc"></select></div>
       <div class="field"><span class="lbl">Lái xe</span><input id="driver" readonly></div>
       <div class="field"><span class="lbl">KM</span><input id="km" readonly></div>
+      <input type="hidden" id="vcPrice">
       <div class="field"><span class="lbl">NL (lít)</span><input id="fuelEst" readonly></div>
     </div>
     <!-- DÒNG 3: Số liệu + Ghi chú -->
@@ -431,7 +432,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
         const o = document.createElement("option");
         o.value = kho; o.textContent = kho;
         o.dataset.km    = c[keys.km]    || "";
-        o.dataset.price = c[keys.price] || "";
+        o.dataset.vcPrice = c[keys.price] || "";  // Giá VC từ master
         o.dataset.wage  = c[keys.wage]  || "";
         o.dataset.fuel  = c[keys.fuel]  || "";
         elFactory.appendChild(o);
@@ -448,8 +449,10 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
     if (!o || !o.dataset.km) {
       elKm.value = ""; elFuelEst.value = ""; return;
     }
-    elKm.value    = o.dataset.km;
-    // price (seal) nhập tay - không auto fill
+    elKm.value = o.dataset.km;
+    // Auto fill vcPrice từ master (dùng cho accountant/overview)
+    const vcPriceEl = document.getElementById("vcPrice");
+    if (vcPriceEl) vcPriceEl.value = o.dataset.vcPrice || "";
     // wage (ton) nhập tay - không auto fill
     // Tính nhiên liệu ước tính = km × định mức xe / 100
     calcFuel();
@@ -561,6 +564,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
           booking:elBooking.value, carrier:elCarrier.value, factory:elFactory.value, km:elKm.value,
           vehicleNo:elVehicleNo.value, mooc:elMooc.value, driver:elDriver.value,
           price:(elPrice.value||'').trim(), wage:(elWage.value||'').trim(), serviceType:document.getElementById('serviceType')?.value||'', fuelEst:elFuelEst.value,
+          vcPrice: parseFloat(document.getElementById('vcPrice')?.value)||0,
           containerNo:elContainerNo.value, note:elNote.value,
           attachName: attachName || existing.attachName || "",
           attachData: attachData || existing.attachData || ""
@@ -576,6 +580,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
             booking:elBooking.value, carrier:elCarrier.value, factory:elFactory.value, km:elKm.value,
             vehicleNo:elVehicleNo.value, mooc:elMooc.value, driver:elDriver.value,
             price:(elPrice.value||'').trim(), wage:(elWage.value||'').trim(), serviceType:document.getElementById('serviceType')?.value||'', fuelEst:elFuelEst.value,
+            vcPrice: parseFloat(document.getElementById('vcPrice')?.value)||0,
             containerNo:elContainerNo.value, note:elNote.value,
             attachName, attachData
           };
@@ -611,6 +616,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
       });
       elFactory.dispatchEvent(new Event("change"));
       elKm.value = r.km || ""; elPrice.value = r.price || ""; const stEl=document.getElementById('serviceType'); if(stEl) stEl.value=r.serviceType||'';
+      const vcPEl=document.getElementById('vcPrice'); if(vcPEl) vcPEl.value=r.vcPrice||'';
     }, 0);
     elCusCode.value   = r.cusCode   || "";
     elVehicleNo.value = r.vehicleNo || "";
