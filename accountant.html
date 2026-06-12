@@ -290,7 +290,7 @@ const ALL_NAV=[
       applyModuleNav(e.detail.modules);
     });
   document.getElementById("userInfo").textContent=session.username?`👤 ${session.username} (${session.role})`:"";
-  document.getElementById("btnLogout").onclick=()=>{localStorage.removeItem(CURRENT_KEY);navigate("login.html");};
+  document.getElementById("btnLogout").onclick=()=>{localStorage.removeItem(CURRENT_KEY);location.href="login.html"+(location.search||"");};
 })();
 
 function showToast(msg,err=false){
