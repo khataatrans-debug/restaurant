@@ -748,7 +748,7 @@ window.renderDebit=function(){
   tbody.innerHTML=rows.map((r,i)=>{
     const c=costStore[r.id]||{};
     // Doanh thu = đơn giá vc + phí nâng + phí hạ + cược cont + phí khác
-    const price   = +r.price||0;
+    const price   = +c.truckPrice||+r.vcPrice||+r.price||0;
     const lift    = +c.lift||0;
     const dropFee = +c.dropFee||0;
     const deposit = +c.deposit||0;
@@ -930,7 +930,7 @@ window.exportDebit=function(){
     "Tổng trước thuế","VAT 10%","Tổng sau thuế"];
   const data=rows.map((r,i)=>{
     const c=costStore[r.id]||{};
-    const price=+r.price||0, lift=+c.lift||0, dropFee=+c.dropFee||0,
+    const price=+c.truckPrice||+r.vcPrice||+r.price||0, lift=+c.lift||0, dropFee=+c.dropFee||0,
           deposit=+c.deposit||0, other=+c.other||0;
     const total=price+lift+dropFee+deposit+other;
     const tax=Math.round(total*currentVAT/100);

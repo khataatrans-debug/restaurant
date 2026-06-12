@@ -453,9 +453,11 @@ function render(data){
     const hasCostData=!!costStore[r.id];
     const rev=+c.revenue||0, cost=+c.cost||0;
     const chiHo=(+c.lift||0)+(+c.dropFee||0)+(+c.deposit||0);
-    const vcOnly=+c.truckPrice||0;  // Đơn giá VC thuần (không gồm chi hộ)
+    const vcOnly=+c.truckPrice||+r.vcPrice||0;  // Đơn giá VC: ưu tiên đã lưu → vcPrice từ order
     const profit=vcOnly ? vcOnly-cost : rev-cost; // Lợi nhuận = Đơn giá VC - Chi phí
-    sumRev+=rev; sumCost+=cost; sumChiHo+=chiHo;
+    // Doanh thu hiển thị: nếu đã có cost dùng revenue, nếu chưa dùng vcPrice từ order
+    const displayRev = hasCostData ? rev : (+r.vcPrice||0);
+    sumRev+=displayRev; sumCost+=cost; sumChiHo+=chiHo;
     if(hasCostData) doneCnt++;
 
     // Tính NL tự động để hiển thị gợi ý trong bảng
