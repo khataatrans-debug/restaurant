@@ -628,9 +628,10 @@ function renderKhach(){
     map[key].trips++;
     map[key].km   +=+r.km||0;
     const vcP1=getVCPrice(r,c);
-    map[key].rev   +=vcP1;
+    const chiHo1=(+c.lift||0)+(+c.dropFee||0)+(+c.deposit||0);
     map[key].revVC +=vcP1;
-    map[key].chiHo +=(+c.lift||0)+(+c.dropFee||0)+(+c.deposit||0);
+    map[key].chiHo +=chiHo1;
+    map[key].rev   +=vcP1+chiHo1; // DT = VC + Chi hộ
     map[key].wage  +=+c.wage   ||0;
     map[key].fuel  +=+c.fuel   ||0;
     map[key].toll  +=+c.toll   ||0;
