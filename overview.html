@@ -206,14 +206,14 @@ tfoot td{background:#f0f4ff;font-weight:700;border-top:2px solid var(--accent);f
 <script>
 (function(){
   const raw=localStorage.getItem("LOGIN_USER");
-  const app2=new URLSearchParams(location.search).get("app")||"";const sep2=app2?"?app="+app2:"";if(!raw){location.href="login.html"+sep2;return;}
+  if(!raw){navigate("login.html");return;}
   const s=JSON.parse(raw);
   if(s.role!=="admin"&&!(s.pages||[]).includes("overview.html"))
-    location.href=((s.pages&&s.pages[0])||"login.html")+sep2;
+    navigate((s.pages&&s.pages[0])||"login.html");
 })();
 </script>
 
-<script src="app-config.js?v=3"></script>
+<script src="app-config.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
@@ -520,12 +520,18 @@ const ALL_NAV=[
           a.style.display = "none";
       });
     }
-    if (window.APP_MODULES) applyModuleNav(window.APP_MODULES);
+    // Đọc cache ngay để tránh flash tab không có trong gói
+    try{
+      const _ck="APP_MODULES_"+(window.APP_ID||sessionStorage.getItem("APP_ID")||"");
+      const _cc=JSON.parse(sessionStorage.getItem(_ck)||"null");
+      if(_cc) applyModuleNav(_cc);
+      else if(window.APP_MODULES) applyModuleNav(window.APP_MODULES);
+    }catch(e){ if(window.APP_MODULES) applyModuleNav(window.APP_MODULES); }
     window.addEventListener("appModulesLoaded", function(e) {
       applyModuleNav(e.detail.modules);
     });
   document.getElementById("userInfo").textContent=session.username?`👤 ${session.username}`:"";
-  document.getElementById("btnLogout").onclick=()=>{localStorage.removeItem(CURRENT_KEY);location.href="login.html"+(location.search||"");};
+  document.getElementById("btnLogout").onclick=()=>{localStorage.removeItem(CURRENT_KEY);navigate("login.html");};
 })();
 
 /* ── COMPANY INFO — sẽ được load sau khi rtdb init ── */
@@ -600,34 +606,10 @@ rtdb.ref(`settings_${APP_ID}/vat_rate`).on("value",snap=>{
   }
 });
 
-/* ── MASTER CUSTOMERS — dùng để lấy đơn giá VC ── */
-let _masterCustomers = [];
-function getPriceFromMaster(customerName, factoryName) {
-  const cusName=(customerName||"").trim();
-  const facName=(factoryName||"").trim();
-  if(!cusName||!facName) return 0;
-  const khoKeys=[
-    {factory:"factory",  price:"price"},
-    {factory:"factory2", price:"price2"},
-    {factory:"factory3", price:"price3"},
-    {factory:"factory4", price:"price4"},
-  ];
-  for(const c of _masterCustomers){
-    if((c.name||"").trim()!==cusName) continue;
-    for(const k of khoKeys){
-      if((c[k.factory]||"").trim()===facName)
-        return parseFloat(c[k.price]||0);
-    }
-  }
-  return 0;
-}
-
 /* ── COMPANY INFO từ master — real-time RTDB ── */
 rtdb.ref(`master_data_${APP_ID}`).on("value", snap => {
   try {
     const master = snap.exists() ? snap.val() : {};
-    const d = master.customers;
-    if(d) _masterCustomers = Array.isArray(d) ? d : Object.values(d);
     const co = master.company || {};
     if (co.name) {
       document.getElementById("coName").textContent = co.name;
@@ -772,7 +754,7 @@ window.renderDebit=function(){
   tbody.innerHTML=rows.map((r,i)=>{
     const c=costStore[r.id]||{};
     // Doanh thu = đơn giá vc + phí nâng + phí hạ + cược cont + phí khác
-    const price   = +c.truckPrice||+r.vcPrice||getPriceFromMaster(r.customer,r.factory)||+r.price||0;
+    const price   = +r.price||0;
     const lift    = +c.lift||0;
     const dropFee = +c.dropFee||0;
     const deposit = +c.deposit||0;
@@ -954,7 +936,7 @@ window.exportDebit=function(){
     "Tổng trước thuế","VAT 10%","Tổng sau thuế"];
   const data=rows.map((r,i)=>{
     const c=costStore[r.id]||{};
-    const price=+c.truckPrice||+r.vcPrice||getPriceFromMaster(r.customer,r.factory)||+r.price||0, lift=+c.lift||0, dropFee=+c.dropFee||0,
+    const price=+r.price||0, lift=+c.lift||0, dropFee=+c.dropFee||0,
           deposit=+c.deposit||0, other=+c.other||0;
     const total=price+lift+dropFee+deposit+other;
     const tax=Math.round(total*currentVAT/100);

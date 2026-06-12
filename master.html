@@ -111,7 +111,7 @@ tr:hover td { background: #e8eeff !important; }
 </head>
 <body>
 
-<script src="app-config.js?v=3"></script>
+<script src="app-config.js"></script>
 <script>
 /* ── GUARD: chỉ admin ── */
 (function() {
@@ -366,7 +366,13 @@ let _importing = false; // flag tránh onValue ghi đè khi đang import
           a.style.display = "none";
       });
     }
-    if (window.APP_MODULES) applyModuleNav(window.APP_MODULES);
+    // Đọc cache ngay để tránh flash tab không có trong gói
+    try{
+      const _ck="APP_MODULES_"+(window.APP_ID||sessionStorage.getItem("APP_ID")||"");
+      const _cc=JSON.parse(sessionStorage.getItem(_ck)||"null");
+      if(_cc) applyModuleNav(_cc);
+      else if(window.APP_MODULES) applyModuleNav(window.APP_MODULES);
+    }catch(e){ if(window.APP_MODULES) applyModuleNav(window.APP_MODULES); }
     window.addEventListener("appModulesLoaded", function(e) {
       applyModuleNav(e.detail.modules);
     });
