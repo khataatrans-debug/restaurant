@@ -310,7 +310,7 @@ tr:last-child td{border-bottom:none}
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script>
 // ── FIREBASE CONFIG ──
-firebase.initializeApp({
+const _fbConfig = {
   apiKey:"AIzaSyBsq9UmgFvuvMayhY2SB08J0mUSJ_EUkdY",
   authDomain:"transportation-6d6f5.firebaseapp.com",
   projectId:"transportation-6d6f5",
@@ -318,7 +318,12 @@ firebase.initializeApp({
   storageBucket:"transportation-6d6f5.firebasestorage.app",
   messagingSenderId:"1097685849973",
   appId:"1:1097685849973:web:79ad636e3dfd0b12f7653c"
-});
+};
+// Xóa app cũ nếu có (tránh conflict databaseURL)
+if(firebase.apps.length > 0){
+  firebase.apps.forEach(app => app.delete());
+}
+firebase.initializeApp(_fbConfig);
 const db = firebase.firestore();
 const rtdb = firebase.database();
 
