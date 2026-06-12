@@ -99,10 +99,12 @@ tr:hover td{background:#e8eeff!important;}
 <script>
 (function(){
   const raw=localStorage.getItem("LOGIN_USER");
-  if(!raw){navigate("login.html");return;}
+  const app=new URLSearchParams(location.search).get("app")||"";
+  const sep=app?"?app="+app:"";
+  if(!raw){location.href="login.html"+sep;return;}
   const s=JSON.parse(raw);
   if(s.role!=="admin"&&!(s.pages||[]).includes("accountant.html"))
-    navigate((s.pages&&s.pages[0])||"login.html");
+    location.href=((s.pages&&s.pages[0])||"login.html")+sep;
 })();
 </script>
 <script src="app-config.js?v=3"></script>
