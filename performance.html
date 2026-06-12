@@ -61,10 +61,10 @@ tr:hover td{background:#e8eeff!important;}
 <script>
 (function(){
   const raw=localStorage.getItem("LOGIN_USER");
-  if(!raw){navigate("login.html");return;}
+  const app2=new URLSearchParams(location.search).get("app")||"";const sep2=app2?"?app="+app2:"";if(!raw){location.href="login.html"+sep2;return;}
   const s=JSON.parse(raw);
   if(s.role!=="admin"&&!(s.pages||[]).includes("performance.html"))
-    navigate((s.pages&&s.pages[0])||"login.html");
+    location.href=((s.pages&&s.pages[0])||"login.html")+sep2;
 })();
 </script>
 
@@ -298,7 +298,7 @@ const ALL_NAV=[
       applyModuleNav(e.detail.modules);
     });
   document.getElementById("userInfo").textContent=session.username?`👤 ${session.username}`:"";
-  document.getElementById("btnLogout").onclick=()=>{localStorage.removeItem(CURRENT_KEY);navigate("login.html");};
+  document.getElementById("btnLogout").onclick=()=>{localStorage.removeItem(CURRENT_KEY);location.href="login.html"+(location.search||"");};
 })();
 
 // Init year select
@@ -338,6 +338,32 @@ rtdb.ref(`master_data_${APP_ID}`).on("value", snap => {
   masterDB = snap.exists() ? snap.val() : {};
   localStorage.setItem(`MASTER_ALL_V4_${APP_ID}`, JSON.stringify(masterDB));
 });
+
+function getPriceFromMaster(customerName, factoryName) {
+  const cusName=(customerName||"").trim();
+  const facName=(factoryName||"").trim();
+  if(!cusName||!facName) return 0;
+  const customers = masterDB.customers ? (Array.isArray(masterDB.customers) ? masterDB.customers : Object.values(masterDB.customers)) : [];
+  const khoKeys=[
+    {factory:"factory",  price:"price"},
+    {factory:"factory2", price:"price2"},
+    {factory:"factory3", price:"price3"},
+    {factory:"factory4", price:"price4"},
+  ];
+  for(const c of customers){
+    if((c.name||"").trim()!==cusName) continue;
+    for(const k of khoKeys){
+      if((c[k.factory]||"").trim()===facName)
+        return parseFloat(c[k.price]||0);
+    }
+  }
+  return 0;
+}
+
+function getVCPrice(r, c) {
+  // Ưu tiên: truckPrice đã lưu → vcPrice từ order → giá master
+  return +c.truckPrice || +r.vcPrice || getPriceFromMaster(r.customer, r.factory) || 0;
+}
 
 // Load trucking (Firestore)
 db.collection(`trucking_plan_${APP_ID}`).onSnapshot(snap=>{
@@ -412,8 +438,9 @@ function updateSummary(){
   let rev=0,revVC=0,cost=0,km=0;
   filteredTrk.forEach(r=>{
     const c=costStore[r.id]||{};
-    rev+=+c.revenue||0;
-    revVC+=+c.truckPrice||0;
+    const vcP=getVCPrice(r,c);
+    rev+=vcP;
+    revVC+=vcP;
     cost+=+c.cost||0;
     km+=+r.km||0;
   });
@@ -600,8 +627,9 @@ function renderKhach(){
     const c=costStore[r.id]||{};
     map[key].trips++;
     map[key].km   +=+r.km||0;
-    map[key].rev   +=+c.revenue||0;
-    map[key].revVC +=+c.truckPrice||0;
+    const vcP1=getVCPrice(r,c);
+    map[key].rev   +=vcP1;
+    map[key].revVC +=vcP1;
     map[key].chiHo +=(+c.lift||0)+(+c.dropFee||0)+(+c.deposit||0);
     map[key].wage  +=+c.wage   ||0;
     map[key].fuel  +=+c.fuel   ||0;
@@ -686,7 +714,7 @@ function renderThang(){
     map[key].trips++;
     if(r.containerNo) map[key].containers++;
     map[key].km+=+r.km||0;
-    map[key].rev+=+c.revenue||0;
+    map[key].rev+=getVCPrice(r,c);
     map[key].cost+=+c.cost||0;
   });
   const rows=Object.values(map).sort((a,b)=>b.month.localeCompare(a.month));
@@ -789,7 +817,7 @@ function renderSuaChua(){
     if(!xeMap[key]) xeMap[key]={vehicle:key,driver:r.driver||"",trips:0,rev:0,wage:0,fuel:0,toll:0,repair:0,other:0};
     const c=costStore[r.id]||{};
     xeMap[key].trips++;
-    xeMap[key].rev   +=+c.revenue||0;
+    xeMap[key].rev   +=getVCPrice(r,c);
     xeMap[key].wage  +=+c.wage   ||0;
     xeMap[key].fuel  +=+c.fuel   ||0;
     xeMap[key].toll  +=+c.toll   ||0;
@@ -883,7 +911,7 @@ function renderSuaChua(){
     if(!moMap[key]) moMap[key]={trips:0,rev:0,wage:0,fuel:0,toll:0,repair:0,other:0};
     const c=costStore[r.id]||{};
     moMap[key].trips++;
-    moMap[key].rev   +=+c.revenue||0;
+    moMap[key].rev   +=getVCPrice(r,c);
     moMap[key].wage  +=+c.wage   ||0;
     moMap[key].fuel  +=+c.fuel   ||0;
     moMap[key].toll  +=+c.toll   ||0;
