@@ -448,6 +448,20 @@ function render(data){
   tbody.innerHTML="";
   let sumRev=0,sumCost=0,sumChiHo=0,doneCnt=0;
 
+  // Tính tổng từ toàn bộ theo date filter (không bị ảnh hưởng hasCost/noCost filter)
+  let allRows=[...trkStore];
+  if(from) allRows=allRows.filter(r=>r.planDate>=from);
+  if(to)   allRows=allRows.filter(r=>r.planDate<=to);
+  allRows.forEach(r=>{
+    const c=costStore[r.id]||{};
+    const hasCostData=!!costStore[r.id];
+    const rev=+c.revenue||0, cost=+c.cost||0;
+    const chiHo=(+c.lift||0)+(+c.dropFee||0)+(+c.deposit||0);
+    const displayRev = hasCostData ? rev : (+r.vcPrice||0);
+    sumRev+=displayRev; sumCost+=cost; sumChiHo+=chiHo;
+    if(hasCostData) doneCnt++;
+  });
+
   rows.forEach((r,i)=>{
     const c=costStore[r.id]||{};
     const hasCostData=!!costStore[r.id];
@@ -455,10 +469,6 @@ function render(data){
     const chiHo=(+c.lift||0)+(+c.dropFee||0)+(+c.deposit||0);
     const vcOnly=+c.truckPrice||+r.vcPrice||0;  // Đơn giá VC: ưu tiên đã lưu → vcPrice từ order
     const profit=vcOnly ? vcOnly-cost : rev-cost; // Lợi nhuận = Đơn giá VC - Chi phí
-    // Doanh thu hiển thị: nếu đã có cost dùng revenue, nếu chưa dùng vcPrice từ order
-    const displayRev = hasCostData ? rev : (+r.vcPrice||0);
-    sumRev+=displayRev; sumCost+=cost; sumChiHo+=chiHo;
-    if(hasCostData) doneCnt++;
 
     // Tính NL tự động để hiển thị gợi ý trong bảng
     const autoNL = calcAutoFuelCost(r.vehicleNo, r.km, r.planDate);
@@ -499,7 +509,7 @@ function render(data){
       <td class="num cost-cell">${hasCostData?fmt(c.dropFee):""}</td>
       <td class="num cost-cell">${hasCostData?fmt(c.deposit):""}</td>
       <td class="num cost-cell" style="color:#7e3af2;font-weight:700">${hasCostData?fmt(chiHo):""}</td>
-      <td class="num cost-cell" style="color:var(--accent)">${hasCostData?fmt(rev):""}</td>
+      <td class="num cost-cell" style="color:var(--accent)">${hasCostData ? fmt(rev) : (+r.vcPrice ? fmt(+r.vcPrice) : (getPriceFromMaster(r.customer,r.factory) ? fmt(getPriceFromMaster(r.customer,r.factory)) : ""))}</td>
       <td class="num cost-cell">${hasCostData?fmt(c.toll):""}</td>
       <td class="num cost-cell">${fuelDisplay}</td>
       <td class="num cost-cell">${wageDisplay}</td>
