@@ -158,7 +158,7 @@ tr:hover td{background:#e8eeff!important;}
       <th class="cost-col">Phí hạ</th>
       <th class="cost-col">Cược cont</th>
       <th class="cost-col" style="background:#7e3af2">Tổng chi hộ</th>
-      <th class="cost-col">Tổng DT</th>
+      <th>Tổng DT</th>
       <th class="cost-col">Cầu đường</th>
       <th class="cost-col">Nhiên liệu</th>
       <th class="cost-col">Lương LX</th>
@@ -509,7 +509,7 @@ function render(data){
       <td class="num cost-cell">${hasCostData?fmt(c.dropFee):""}</td>
       <td class="num cost-cell">${hasCostData?fmt(c.deposit):""}</td>
       <td class="num cost-cell" style="color:#7e3af2;font-weight:700">${hasCostData?fmt(chiHo):""}</td>
-      <td class="num cost-cell" style="color:var(--accent)">${hasCostData ? fmt(rev) : (+r.vcPrice ? fmt(+r.vcPrice) : (getPriceFromMaster(r.customer,r.factory) ? fmt(getPriceFromMaster(r.customer,r.factory)) : ""))}</td>
+      <td class="num" style="color:var(--accent)">${hasCostData ? fmt(rev) : (+r.vcPrice ? fmt(+r.vcPrice) : fmt(getPriceFromMaster(r.customer,r.factory)||0)||"" )}</td>
       <td class="num cost-cell">${hasCostData?fmt(c.toll):""}</td>
       <td class="num cost-cell">${fuelDisplay}</td>
       <td class="num cost-cell">${wageDisplay}</td>
