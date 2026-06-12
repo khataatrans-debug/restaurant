@@ -457,7 +457,7 @@ function render(data){
     const hasCostData=!!costStore[r.id];
     const rev=+c.revenue||0, cost=+c.cost||0;
     const chiHo=(+c.lift||0)+(+c.dropFee||0)+(+c.deposit||0);
-    const displayRev = hasCostData ? rev : (+r.vcPrice||0);
+    const displayRev = hasCostData ? rev : (+r.vcPrice||getPriceFromMaster(r.customer,r.factory)||0);
     sumRev+=displayRev; sumCost+=cost; sumChiHo+=chiHo;
     if(hasCostData) doneCnt++;
   });

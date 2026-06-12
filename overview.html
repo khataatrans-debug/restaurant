@@ -623,7 +623,7 @@ function getPriceFromMaster(customerName, factoryName) {
 }
 
 /* ── COMPANY INFO từ master — real-time RTDB ── */
-rtdb.ref().on("value", snap => {
+rtdb.ref(`master_data_${APP_ID}`).on("value", snap => {
   try {
     const master = snap.exists() ? snap.val() : {};
     const d = master.customers;
