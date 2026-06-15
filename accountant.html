@@ -466,8 +466,7 @@ function render(data){
     const hasCostData=!!costStore[r.id];
     const rev=+c.revenue||0, cost=+c.cost||0;
     const chiHo=(+c.lift||0)+(+c.dropFee||0)+(+c.deposit||0);
-    const vc0=+c.truckPrice||+r.vcPrice||getPriceFromMaster(r.customer,r.factory)||0;
-    const displayRev = vc0+chiHo;
+    const displayRev = hasCostData ? rev : (+r.vcPrice||getPriceFromMaster(r.customer,r.factory)||0);
     sumRev+=displayRev; sumCost+=cost; sumChiHo+=chiHo;
     if(hasCostData) doneCnt++;
   });
@@ -519,7 +518,7 @@ function render(data){
       <td class="num cost-cell">${hasCostData?fmt(c.dropFee):""}</td>
       <td class="num cost-cell">${hasCostData?fmt(c.deposit):""}</td>
       <td class="num cost-cell" style="color:#7e3af2;font-weight:700">${hasCostData?fmt(chiHo):""}</td>
-      <td class="num" style="color:var(--accent)">${(()=>{ const vc=+c.truckPrice||+r.vcPrice||getPriceFromMaster(r.customer,r.factory)||0; return vc?fmt(vc+chiHo):""; })()}</td>
+      <td class="num" style="color:var(--accent)">${hasCostData ? fmt(rev) : (+r.vcPrice ? fmt(+r.vcPrice) : fmt(getPriceFromMaster(r.customer,r.factory)||0)||"" )}</td>
       <td class="num cost-cell">${hasCostData?fmt(c.toll):""}</td>
       <td class="num cost-cell">${fuelDisplay}</td>
       <td class="num cost-cell">${wageDisplay}</td>
