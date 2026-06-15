@@ -577,15 +577,15 @@ async function saveCompany(){
       await db.collection("companies").add(data);
       showToast("✅ Đã tạo công ty mới: "+appId);
     }
-    // Sync modules/plan/status sang RTDB để app-config.js đọc được
+    // Sync modules/plan/status sang RTDB (background, không block)
     const modulesObj = {};
     [..._mods].forEach(m => modulesObj[m] = true);
-    await rtdb.ref("app_config_" + appId).set({
+    rtdb.ref("app_config_" + appId).set({
       active: (data.status !== "inactive"),
       plan: _plan,
       modules: modulesObj,
       updatedAt: new Date().toISOString()
-    });
+    }).catch(e => console.warn("RTDB sync:", e));
 
     // Log
     await db.collection("admin_logs").add({
@@ -778,8 +778,11 @@ async function doBackup(){
       const snap = await db.collection("companies").where("appId","==",appId).get();
       backup.data.company = snap.docs.map(d=>({id:d.id,...d.data()}))[0]||{};
       // Export audit log
-      const rtdb = firebase.database();
-      const aSnap = await rtdb.ref("audit_log_"+appId).once("value");
+      const _aRes = await fetch(RTDB_BASE+"/audit_log_"+appId+".json");
+      const _aVal = await _aRes.json();
+      const aSnap = { exists:()=>_aVal!==null, val:()=>_aVal,
+        forEach:(cb)=>{ if(_aVal&&typeof _aVal==="object") Object.entries(_aVal).forEach(([k,v])=>cb({key:k,val:()=>v})); }
+      };
       backup.data.auditLog = aSnap.exists() ? Object.values(aSnap.val()||{}) : [];
       status.textContent = "✅ Export "+appId+" xong — "+backup.data.auditLog.length+" log entries";
     }
