@@ -1,0 +1,24 @@
+{
+  "name": "A·AU TMS - Quản lý",
+  "short_name": "A·AU Admin",
+  "description": "Hệ thống quản lý vận tải - Trang quản trị",
+  "start_url": "/login.html?app=TIENPHATVT",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d2248",
+  "theme_color": "#1d6ef5",
+  "icons": [
+    {
+      "src": "icon-admin-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-admin-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
