@@ -970,6 +970,17 @@ window.exportDebit=function(){
       price, lift, dropFee, deposit, other,
       total, tax, total+tax];
   });
+  // Dòng TỔNG CỘNG
+  const sumPrice=data.reduce((s,row)=>s+(+row[9]||0),0);
+  const sumLift=data.reduce((s,row)=>s+(+row[10]||0),0);
+  const sumDrop=data.reduce((s,row)=>s+(+row[11]||0),0);
+  const sumDeposit=data.reduce((s,row)=>s+(+row[12]||0),0);
+  const sumOther=data.reduce((s,row)=>s+(+row[13]||0),0);
+  const sumTotal=data.reduce((s,row)=>s+(+row[14]||0),0);
+  const sumTax=data.reduce((s,row)=>s+(+row[15]||0),0);
+  const sumAfter=data.reduce((s,row)=>s+(+row[16]||0),0);
+  data.push(["","TỔNG CỘNG ("+rows.length+" chuyến)","","","","","","","",
+    sumPrice, sumLift, sumDrop, sumDeposit, sumOther, sumTotal, sumTax, sumAfter]);
   csvDownload("CongNo_KhachHang.csv",[hdr,...data]);
   showToast("✅ Xuất Excel công nợ thành công");
 };
@@ -1035,16 +1046,8 @@ window.doPrint = function(){
   const date = new Date().toLocaleDateString('vi-VN').replace(/\//g,'-');
   const origTitle = document.title;
   document.title = (isDebit ? 'BangCongNo' : 'BangLuong') + '_' + date;
-
-  // iOS Safari: window.print() không mở dialog như desktop
-  // → hiện hướng dẫn dùng Share Sheet thay vì gọi window.print() trực tiếp
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-  if (isIOS) {
-    alert("📱 Trên iPhone:\n1. Bấm nút Share (□↑) ở thanh trình duyệt\n2. Chọn 'In' (Print)\n3. Ở màn hình xem trước, có thể Pinch để mở rộng → Share → Lưu vào Files (PDF)");
-  } else {
-    window.print();
-  }
-  setTimeout(() => document.title = origTitle, 1500);
+  window.print();
+  setTimeout(() => document.title = origTitle, 1000);
 };
 
 </script>
