@@ -217,6 +217,7 @@ tfoot td{background:#f0f4ff;font-weight:700;border-top:2px solid var(--accent);f
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 
 <nav class="nav" id="mainNav">
   <div class="nav-right">
@@ -988,7 +989,7 @@ window.exportDebit=function(){
   showToast("✅ Xuất Excel công nợ thành công");
 };
 
-function exportDebitXLSX(hdr, data, totalRow, cus, from, to){
+async function exportDebitXLSX(hdr, data, totalRow, cus, from, to){
   const coName=document.getElementById("coName").textContent||"CÔNG TY VẬN TẢI";
   const coAddr=document.getElementById("coAddr").textContent||"";
   let periodLabel="Kỳ: Tất cả";
@@ -999,59 +1000,85 @@ function exportDebitXLSX(hdr, data, totalRow, cus, from, to){
 
   const numCols=hdr.length;
   const numericCols=new Set([0,9,10,11,12,13,14,15,16]);
-  const esc=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-  const fmtNum=n=>Number(n||0).toLocaleString("vi-VN");
+  const thinBorder={style:"thin",color:{argb:"FFB0B7C3"}};
+  const allBorder={top:thinBorder,bottom:thinBorder,left:thinBorder,right:thinBorder};
+  const numFmt="#,##0";
 
-  let html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-<head><meta charset="UTF-8">
-<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>
-<x:Name>Công nợ</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
-</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
-<style>
-table{border-collapse:collapse;font-family:Calibri,Arial,sans-serif;}
-td,th{border:1px solid #B0B7C3;padding:5px 9px;font-size:11pt;mso-number-format:"\\@";}
-.co-name{font-weight:bold;font-size:15pt;color:#0D2248;border:none;}
-.co-addr{font-size:10pt;color:#64748B;border:none;}
-.main-title{font-weight:bold;font-size:16pt;color:#1D6EF5;text-align:center;border:none;}
-.period{font-size:10pt;color:#64748B;font-style:italic;text-align:center;border:none;}
-.hdr{background:#0D2248;color:#FFFFFF;font-weight:bold;text-align:center;vertical-align:middle;}
-.row-even{background:#F7F9FF;}
-.num{text-align:right;mso-number-format:"#,##0";}
-.total-lbl{background:#E8EEFF;font-weight:bold;color:#0D2248;}
-.total-num{background:#E8EEFF;font-weight:bold;color:#0D2248;text-align:right;mso-number-format:"#,##0";}
-.total-final{background:#E8EEFF;font-weight:bold;color:#0D9F6E;font-size:12pt;text-align:right;mso-number-format:"#,##0";}
-</style></head><body><table>`;
+  const wb=new ExcelJS.Workbook();
+  const ws=wb.addWorksheet("Công nợ");
+  ws.views=[{showGridLines:false}];
 
-  html+=`<tr><td class="co-name" colspan="${numCols}">${esc(coName)}</td></tr>`;
-  html+=`<tr><td class="co-addr" colspan="${numCols}">${esc(coAddr)}</td></tr>`;
-  html+=`<tr><td class="main-title" colspan="${numCols}">BẢNG CÔNG NỢ VẬN CHUYỂN</td></tr>`;
-  html+=`<tr><td class="period" colspan="${numCols}">${esc(periodLabel)}</td></tr>`;
-  html+=`<tr>${hdr.map(()=>"<td style='border:none'></td>").join("")}</tr>`;
+  ws.mergeCells(1,1,1,numCols);
+  ws.getCell(1,1).value=coName;
+  ws.getCell(1,1).font={bold:true,size:14,color:{argb:"FF0D2248"}};
 
-  html+="<tr>"+hdr.map(h=>`<th class="hdr">${esc(h)}</th>`).join("")+"</tr>";
+  ws.mergeCells(2,1,2,numCols);
+  ws.getCell(2,1).value=coAddr;
+  ws.getCell(2,1).font={size:10,color:{argb:"FF64748B"}};
 
-  data.forEach((row,i)=>{
-    const rowClass=i%2===1?"row-even":"";
-    html+="<tr>"+row.map((v,c)=>{
-      const cls=numericCols.has(c)?"num "+rowClass:rowClass;
-      const val=numericCols.has(c)&&c!==0?fmtNum(v):esc(v);
-      return `<td class="${cls}">${val}</td>`;
-    }).join("")+"</tr>";
+  ws.mergeCells(3,1,3,numCols);
+  ws.getCell(3,1).value="BẢNG CÔNG NỢ VẬN CHUYỂN";
+  ws.getCell(3,1).font={bold:true,size:15,color:{argb:"FF1D6EF5"}};
+  ws.getCell(3,1).alignment={horizontal:"center"};
+
+  ws.mergeCells(4,1,4,numCols);
+  ws.getCell(4,1).value=periodLabel;
+  ws.getCell(4,1).font={size:10,italic:true,color:{argb:"FF64748B"}};
+  ws.getCell(4,1).alignment={horizontal:"center"};
+
+  // Dòng 5 để trống làm khoảng cách
+  const hdrRowIdx=6;
+  const hRow=ws.getRow(hdrRowIdx);
+  hRow.values=hdr;
+  hRow.eachCell(cell=>{
+    cell.font={bold:true,size:10,color:{argb:"FFFFFFFF"}};
+    cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF0D2248"}};
+    cell.alignment={horizontal:"center",vertical:"middle",wrapText:true};
+    cell.border=allBorder;
+  });
+  hRow.height=28;
+
+  data.forEach((rowData,i)=>{
+    const r=ws.getRow(hdrRowIdx+1+i);
+    r.values=rowData;
+    const isEven=i%2===1;
+    r.eachCell((cell,colNum)=>{
+      const c=colNum-1;
+      const isNum=numericCols.has(c);
+      cell.font={size:10,color:{argb:"FF0F172A"}};
+      if(isEven) cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFF7F9FF"}};
+      cell.alignment={horizontal:isNum?"right":(c===0?"center":"left"),vertical:"middle"};
+      cell.border=allBorder;
+      if(isNum&&c!==0) cell.numFmt=numFmt;
+    });
   });
 
-  html+="<tr>"+totalRow.map((v,c)=>{
-    if(c===16) return `<td class="total-final">${fmtNum(v)}</td>`;
-    if(numericCols.has(c)) return `<td class="total-num">${c===0?"":fmtNum(v)}</td>`;
-    return `<td class="total-lbl">${esc(v)}</td>`;
-  }).join("")+"</tr>";
+  const totalRowIdx=hdrRowIdx+1+data.length;
+  const tRow=ws.getRow(totalRowIdx);
+  tRow.values=totalRow;
+  tRow.eachCell((cell,colNum)=>{
+    const c=colNum-1;
+    const isNum=numericCols.has(c);
+    const isFinal=c===16;
+    cell.font={bold:true,size:isFinal?11:10.5,color:{argb:isFinal?"FF0D9F6E":"FF0D2248"}};
+    cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFE8EEFF"}};
+    cell.alignment={horizontal:isNum?"right":"left",vertical:"middle"};
+    cell.border={top:{style:"medium",color:{argb:"FF1D6EF5"}},bottom:thinBorder,left:thinBorder,right:thinBorder};
+    if(isNum&&c!==0) cell.numFmt=numFmt;
+  });
 
-  html+="</table></body></html>";
+  ws.columns=[
+    {width:5},{width:12},{width:20},{width:18},{width:11},{width:13},{width:16},
+    {width:16},{width:16},{width:14},{width:12},{width:12},{width:12},{width:12},
+    {width:16},{width:13},{width:16}
+  ];
 
-  const blob=new Blob(["\ufeff"+html],{type:"application/vnd.ms-excel;charset=utf-8;"});
+  const buf=await wb.xlsx.writeBuffer();
+  const blob=new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
   const a=document.createElement("a");
   a.href=URL.createObjectURL(blob);
   const date=new Date().toLocaleDateString('vi-VN').replace(/\//g,'-');
-  a.download=`CongNo_KhachHang_${date}.xls`;
+  a.download=`CongNo_KhachHang_${date}.xlsx`;
   document.body.appendChild(a);a.click();document.body.removeChild(a);
 }
 
