@@ -391,7 +391,6 @@ tfoot td{background:#f0f4ff;font-weight:700;border-top:2px solid var(--accent);f
     <div class="sum-card"><div class="lbl">Tổng lương</div><div class="val" id="sSumWage" style="color:var(--green)">0</div></div>
     <div class="sum-card"><div class="lbl">Tổng chuyến</div><div class="val" id="sSumTrips" style="color:var(--navy)">0</div></div>
     <div class="sum-card"><div class="lbl">Số lái xe</div><div class="val" id="sSumDrivers" style="color:var(--accent)">0</div></div>
-    <div class="sum-card"><div class="lbl">Lương bình quân/chuyến</div><div class="val" id="sSumAvg" style="color:var(--amber)">0</div></div>
   </div>
 
   <!-- TABLE CHI TIẾT LƯƠNG -->
@@ -432,11 +431,10 @@ tfoot td{background:#f0f4ff;font-weight:700;border-top:2px solid var(--accent);f
           <th>Số chuyến</th>
           <th>Tổng KM</th>
           <th>Tổng lương</th>
-          <th>Lương BQ/chuyến</th>
         </tr>
       </thead>
       <tbody id="tbody-salary-sum">
-        <tr><td colspan="7" class="loading">⏳ Đang tải...</td></tr>
+        <tr><td colspan="6" class="loading">⏳ Đang tải...</td></tr>
       </tbody>
     </table>
   </div>
@@ -872,9 +870,9 @@ window.renderSalary=function(){
   const tbody=document.getElementById("tbody-salary");
   if(!rows.length){
     tbody.innerHTML='<tr><td colspan="11" class="loading">Không có dữ liệu</td></tr>';
-    document.getElementById("tbody-salary-sum").innerHTML='<tr><td colspan="7" class="loading">Không có dữ liệu</td></tr>';
+    document.getElementById("tbody-salary-sum").innerHTML='<tr><td colspan="6" class="loading">Không có dữ liệu</td></tr>';
     document.getElementById("sCount").textContent=0;
-    ["sSumWage","sSumTrips","sSumDrivers","sSumAvg"].forEach(id=>document.getElementById(id).textContent="0");
+    ["sSumWage","sSumTrips","sSumDrivers"].forEach(id=>document.getElementById(id).textContent="0");
     return;
   }
 
@@ -916,15 +914,12 @@ window.renderSalary=function(){
     <td style="font-weight:600">${d.trips}</td>
     <td class="num">${fmt(d.km)} km</td>
     <td class="num" style="color:var(--green);font-weight:700">${fmt(d.wage)}</td>
-    <td class="num" style="color:var(--muted)">${d.trips?fmt(Math.round(d.wage/d.trips)):""}</td>
   </tr>`).join("");
 
-  const avgWage=rows.length?Math.round(sumWage/rows.length):0;
   document.getElementById("sCount").textContent=rows.length;
   document.getElementById("sSumWage").textContent=fmt(sumWage);
   document.getElementById("sSumTrips").textContent=rows.length;
   document.getElementById("sSumDrivers").textContent=Object.keys(driverMap).length;
-  document.getElementById("sSumAvg").textContent=fmt(avgWage);
 };
 
 /* ══════════════════════════════════════
@@ -1110,7 +1105,7 @@ window.exportSalary=async function(){
   const sumWage1=data1.reduce((s,r)=>s+(+r[9]||0),0);
   const totalRow1=["","TỔNG CỘNG ("+rows.length+" chuyến)","","","","","","",sumKm1,sumWage1,""];
 
-  const hdr2=["#","Lái xe","Số xe","Số chuyến","Tổng KM","Tổng lương","Lương BQ/chuyến"];
+  const hdr2=["#","Lái xe","Số xe","Số chuyến","Tổng KM","Tổng lương"];
   const driverMap={};
   rows.forEach(r=>{
     const key=r.driver||"(Chưa có)";
@@ -1122,12 +1117,11 @@ window.exportSalary=async function(){
     if(r.vehicleNo) driverMap[key].vehicle=r.vehicleNo;
   });
   const data2=Object.values(driverMap).sort((a,b)=>b.wage-a.wage).map((d,i)=>[
-    i+1, d.driver, d.vehicle, d.trips, d.km,
-    d.wage, d.trips?Math.round(d.wage/d.trips):0
+    i+1, d.driver, d.vehicle, d.trips, d.km, d.wage
   ]);
   const totalRow2=["","TỔNG CỘNG",Object.keys(driverMap).length+" lái xe",
     data2.reduce((s,r)=>s+(+r[3]||0),0), data2.reduce((s,r)=>s+(+r[4]||0),0),
-    data2.reduce((s,r)=>s+(+r[5]||0),0), ""];
+    data2.reduce((s,r)=>s+(+r[5]||0),0)];
 
   await exportSalaryXLSX(hdr1,data1,totalRow1,hdr2,data2,totalRow2);
   showToast("✅ Xuất Excel bảng lương thành công");
@@ -1189,8 +1183,8 @@ async function exportSalaryXLSX(hdr1,data1,totalRow1,hdr2,data2,totalRow2){
     [4,12,18,12,16,14,14,14,8,13,18]);
 
   buildSheet("Tổng hợp theo lái xe", hdr2, data2, totalRow2,
-    new Set([0,3,4,5,6]),
-    [4,18,12,11,12,14,15]);
+    new Set([0,3,4,5]),
+    [4,18,12,11,12,14]);
 
   const buf=await wb.xlsx.writeBuffer();
   const blob=new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
