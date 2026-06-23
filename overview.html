@@ -1002,7 +1002,7 @@ async function exportDebitXLSX(hdr, data, totalRow, cus, from, to){
   const numericCols=new Set([0,9,10,11,12,13,14,15,16]);
   const thinBorder={style:"thin",color:{argb:"FFB0B7C3"}};
   const allBorder={top:thinBorder,bottom:thinBorder,left:thinBorder,right:thinBorder};
-  const numFmt="#,##0";
+  const numFmt="#,##0;-#,##0;\"\"";
 
   const wb=new ExcelJS.Workbook();
   const ws=wb.addWorksheet("Công nợ");
