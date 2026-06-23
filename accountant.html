@@ -430,6 +430,7 @@ db.collection(COL_COST).onSnapshot(snap=>{
 
 /* RENDER */
 function fmt(n){return Number(n||0).toLocaleString("vi-VN");}
+function fmtZ(n){const v=Number(n||0);return v===0?"":v.toLocaleString("vi-VN");}
 function render(data){
   const hasCost=document.getElementById("filterHasCost").checked;
   const noCost=document.getElementById("filterNoCost").checked;
@@ -483,7 +484,7 @@ function render(data){
     // Tính NL tự động để hiển thị gợi ý trong bảng
     const autoNL = calcAutoFuelCost(r.vehicleNo, r.km, r.planDate);
     const fuelDisplay = hasCostData
-      ? fmt(c.fuel)
+      ? fmtZ(c.fuel)
       : (autoNL.hasData ? `<span style="color:#16a34a;font-size:10.5px">${fmt(autoNL.cost)}</span>` : "");
 
     // ── Lương chuyến tự động từ master ──
@@ -515,18 +516,18 @@ function render(data){
         return mp?`<span style="color:#ea580c;font-size:10.5px">${fmt(mp)}</span>`:"";
       })()}</td>
       <td class="tl cost-cell" style="font-size:11px;font-weight:600;color:#0369a1">${c.invoiceNo||""}</td>
-      <td class="num cost-cell">${hasCostData?fmt(c.lift):""}</td>
-      <td class="num cost-cell">${hasCostData?fmt(c.dropFee):""}</td>
-      <td class="num cost-cell">${hasCostData?fmt(c.deposit):""}</td>
-      <td class="num cost-cell" style="color:#7e3af2;font-weight:700">${hasCostData?fmt(chiHo):""}</td>
+      <td class="num cost-cell">${hasCostData?fmtZ(c.lift):""}</td>
+      <td class="num cost-cell">${hasCostData?fmtZ(c.dropFee):""}</td>
+      <td class="num cost-cell">${hasCostData?fmtZ(c.deposit):""}</td>
+      <td class="num cost-cell" style="color:#7e3af2;font-weight:700">${hasCostData?fmtZ(chiHo):""}</td>
       <td class="num" style="color:var(--accent)">${hasCostData ? fmt(rev) : (+r.vcPrice ? fmt(+r.vcPrice) : fmt(getPriceFromMaster(r.customer,r.factory)||0)||"" )}</td>
-      <td class="num cost-cell">${hasCostData?fmt(c.toll):""}</td>
+      <td class="num cost-cell">${hasCostData?fmtZ(c.toll):""}</td>
       <td class="num cost-cell">${fuelDisplay}</td>
       <td class="num cost-cell">${wageDisplay}</td>
-      <td class="num cost-cell">${hasCostData?fmt(c.repair):""}</td>
-      <td class="num cost-cell">${hasCostData?fmt(c.other):""}</td>
-      <td class="num cost-cell" style="color:var(--red)">${hasCostData?fmt(cost):""}</td>
-      <td class="num cost-cell" style="color:${profit>=0?"var(--green)":"var(--red)"};font-weight:700">${hasCostData?fmt(profit):""}</td>
+      <td class="num cost-cell">${hasCostData?fmtZ(c.repair):""}</td>
+      <td class="num cost-cell">${hasCostData?fmtZ(c.other):""}</td>
+      <td class="num cost-cell" style="color:var(--red)">${hasCostData?fmtZ(cost):""}</td>
+      <td class="num cost-cell" style="color:${profit>=0?"var(--green)":"var(--red)"};font-weight:700">${hasCostData?fmtZ(profit):""}</td>
       <td class="tl cost-cell" style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.note||""}</td>
       <td class="tl" style="font-size:11px;color:#0369a1;font-weight:600;white-space:nowrap">${(()=>{
         const svc=(c.service||"").toLowerCase().trim();
