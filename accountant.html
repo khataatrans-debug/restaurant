@@ -758,25 +758,24 @@ window.clearSearch=function(){
 /* EXPORT */
 window.exportExcel=function(){
   if(!trkStore.length){showToast("Không có dữ liệu",true);return;}
-  const hdr=["Ngày","Khách","Mã KH","Kho/NM","KM","Xe","Lái xe","Container","Booking","Nơi lấy","Nơi hạ","Đơn giá TK","Loại DV","Phí nâng","Phí hạ","Cược cont","Tổng chi hộ","Tổng DT","Cầu đường","Nhiên liệu","Lương","Sửa chữa","Phí khác","Tổng CP","Lợi nhuận","Thông tin VC","Diễn giải"];
-  function getVcInfo(r,c){
-    const svc=(c.service||"").toLowerCase().trim();
-    const kho=r.factory||"", noiLay=r.depot||"", noiHa=r.port||"", bks=r.vehicleNo||"";
-    let tu="",den="";
-    if(svc.includes("export")||svc==="ex"||svc.includes("xuất")){tu=kho;den=noiHa;}
-    else if(svc.includes("import")||svc==="im"||svc.includes("nhập")){tu=noiHa;den=kho;}
-    else if(svc.includes("ck")||svc.includes("chuyển kho")||svc.includes("chuyen kho")){tu=noiLay;den=noiHa;}
-    else{tu=noiLay||kho;den=noiHa;}
-    if(!tu&&!den)return"";
-    return"Cước vận chuyển Container từ "+tu+" đến "+den+(bks?", BKS: "+bks:"");
-  }
+  const hdr=["Ngày","Khách","Mã KH","Kho/NM","KM","Xe","Lái xe","Container","Booking","Nơi lấy","Nơi hạ","Đơn giá TK","Loại DV","Phí nâng","Phí hạ","Cược cont","Tổng chi hộ","Tổng DT","Cầu đường","Nhiên liệu","Lương","Sửa chữa","Phí khác","Tổng CP","Lợi nhuận","Diễn giải","Thông tin VC"];
   const rows=trkStore.map(r=>{
     const c=costStore[r.id]||{};
     const rev=+c.revenue||0, cost=+c.cost||0;
     const chiHo=(+c.lift||0)+(+c.dropFee||0)+(+c.deposit||0);
     const fuelVal = c.fuel || (calcAutoFuelCost(r.vehicleNo, r.km, r.planDate).cost) || "";
-    const vcInfo = getVcInfo(r,c);
-    return [r.planDate,r.customer,r.cusCode,r.factory,r.km,r.vehicleNo,r.driver,r.containerNo,r.booking,r.depot,r.port,r.price,c.service||"",c.lift||"",c.dropFee||"",c.deposit||"",chiHo||"",rev||"",c.toll||"",fuelVal,c.wage||"",c.repair||"",c.other||"",cost||"",rev-cost||"",vcInfo,c.note||""];
+    const vcInfo=(()=>{
+      const svc=(c.service||"").toLowerCase().trim();
+      const kho=r.factory||""; const noiLay=r.depot||""; const noiHa=r.port||""; const bks=r.vehicleNo||"";
+      let tu="",den="";
+      if(svc.includes("export")||svc==="ex"||svc.includes("xuất")){tu=kho;den=noiHa;}
+      else if(svc.includes("import")||svc==="im"||svc.includes("nhập")){tu=noiHa;den=kho;}
+      else if(svc.includes("ck")||svc.includes("chuyển kho")||svc.includes("chuyen kho")){tu=noiLay;den=noiHa;}
+      else{tu=noiLay||kho;den=noiHa;}
+      if(!tu&&!den) return "";
+      return "Cước vận chuyển Container từ "+tu+" đến "+den+(bks?", BKS: "+bks:"");
+    })();
+    return [r.planDate,r.customer,r.cusCode,r.factory,r.km,r.vehicleNo,r.driver,r.containerNo,r.booking,r.depot,r.port,r.price,c.service||"",c.lift||"",c.dropFee||"",c.deposit||"",chiHo||"",rev||"",c.toll||"",fuelVal,c.wage||"",c.repair||"",c.other||"",cost||"",rev-cost||"",c.note||"",vcInfo];
   });
   const csv=[hdr,...rows].map(r=>r.join(",")).join("\n");
   const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
