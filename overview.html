@@ -1035,8 +1035,16 @@ window.doPrint = function(){
   const date = new Date().toLocaleDateString('vi-VN').replace(/\//g,'-');
   const origTitle = document.title;
   document.title = (isDebit ? 'BangCongNo' : 'BangLuong') + '_' + date;
-  window.print();
-  setTimeout(() => document.title = origTitle, 1000);
+
+  // iOS Safari: window.print() không mở dialog như desktop
+  // → hiện hướng dẫn dùng Share Sheet thay vì gọi window.print() trực tiếp
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  if (isIOS) {
+    alert("📱 Trên iPhone:\n1. Bấm nút Share (□↑) ở thanh trình duyệt\n2. Chọn 'In' (Print)\n3. Ở màn hình xem trước, có thể Pinch để mở rộng → Share → Lưu vào Files (PDF)");
+  } else {
+    window.print();
+  }
+  setTimeout(() => document.title = origTitle, 1500);
 };
 
 </script>
