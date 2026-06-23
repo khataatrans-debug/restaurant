@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "transportation-6d6f5"
+  },
+  "targets": {
+    "transportation-6d6f5": {
+      "hosting": {
+        "tienphatvt": [
+          "tienphatvt"
+        ]
+      }
+    }
+  }
+}
