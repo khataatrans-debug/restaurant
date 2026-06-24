@@ -111,6 +111,7 @@ tr:hover td{background:#e8eeff!important;}
 .tag-ok{display:inline-block;background:#dcfce7;color:#166534;border-radius:20px;padding:1px 10px;font-size:10.5px;font-weight:600;}
 .tag-pending{display:inline-block;background:#fef3c7;color:#92400e;border-radius:20px;padding:1px 10px;font-size:10.5px;font-weight:600;}
 .attach-link{cursor:pointer;color:var(--accent);font-size:11px;text-decoration:underline;}
+@keyframes pulseWarn{0%,100%{opacity:1;}50%{opacity:.55;}}
 </style>
 <!-- Firebase SDK -->
 <script type="module">
@@ -308,7 +309,7 @@ tr:hover td{background:#e8eeff!important;}
     <thead>
       <tr>
         <th>#</th><th>Ngày KH</th><th>Khách hàng</th><th>Mã KH</th>
-        <th>Kho / Nhà máy</th><th>KM</th><th>Booking / Bill</th><th>Nơi lấy</th><th>Nơi hạ</th><th>Số xe</th><th>Mooc</th>
+        <th>Kho / Nhà máy</th><th>KM</th><th>Booking / Bill</th><th>Cut-off</th><th>Nơi lấy</th><th>Nơi hạ</th><th>Số xe</th><th>Mooc</th>
         <th>Lái xe</th><th>SL</th><th>Loại DV</th><th>Số Seal</th><th>Trọng lượng</th><th>NL (lít)</th><th>Container</th>
         <th>Trạng thái</th><th>Ghi chú</th><th>File</th><th>Sửa</th><th>Xóa</th></tr></thead>
     <tbody id="tbody"></tbody>
@@ -554,6 +555,30 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
 
   function isArranged(r) { return r.containerNo && r.vehicleNo; }
 
+  /* ── Cảnh báo Cut-off: còn xa / gần hết hạn (≤1 ngày) / đã quá hạn ── */
+  function cutoffBadge(cutoffStr) {
+    if (!cutoffStr) return "";
+    const today = new Date(); today.setHours(0,0,0,0);
+    const cutoffDate = new Date(cutoffStr + "T00:00:00");
+    if (isNaN(cutoffDate.getTime())) return cutoffStr;
+    const diffDays = Math.round((cutoffDate - today) / 86400000);
+    const fmtDate = `${String(cutoffDate.getDate()).padStart(2,"0")}/${String(cutoffDate.getMonth()+1).padStart(2,"0")}`;
+
+    let style, icon, title;
+    if (diffDays < 0) {
+      style = "background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;font-weight:700;";
+      icon = "⛔"; title = "Đã quá hạn cut-off!";
+    } else if (diffDays <= 1) {
+      style = "background:#fef3c7;color:#92400e;border:1px solid #fcd34d;font-weight:700;animation:pulseWarn 1.4s infinite;";
+      icon = "⚠️"; title = diffDays===0 ? "Cut-off HÔM NAY!" : "Cut-off còn 1 ngày!";
+    } else {
+      style = "background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;font-weight:500;";
+      icon = ""; title = `Còn ${diffDays} ngày`;
+    }
+    return `<span title="${title}" style="display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;white-space:nowrap;${style}">${icon} ${fmtDate}</span>`;
+  }
+
+
   // Real-time listener — sync ngay lập tức giữa mọi thiết bị
   onSnapshot(query(colRef, orderBy("planDate", "desc")), snap => {
     store = snap.docs.map(d => d.data());
@@ -681,12 +706,12 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
 
   window.exportExcel = async function () {
     if (!store.length) { alert("Không có dữ liệu để xuất"); return; }
-    const hdr = ["Ngày","Khách","Mã KH","Nơi lấy","Nơi hạ","Kho","KM","Xe","Mooc","Tài xế","Loại DV","Đơn giá","Lương","NL (lít)","Container","Ghi chú"];
-    const numericCols = new Set([6,11,12,13]); // KM, Đơn giá, Lương, NL
+    const hdr = ["Ngày","Khách","Mã KH","Nơi lấy","Nơi hạ","Kho","KM","Booking","Cut-off","Xe","Mooc","Tài xế","Loại DV","Đơn giá","Lương","NL (lít)","Container","Ghi chú"];
+    const numericCols = new Set([6,13,14,15]); // KM, Đơn giá, Lương, NL
     const rows = store.map(r => [
       r.planDate||"", r.customer||"", r.cusCode||"",
       r.depot||"", r.port||"", r.factory||"",
-      r.km||0, r.vehicleNo||"", r.mooc||"", r.driver||"",
+      r.km||0, r.booking||"", r.cutoff||"", r.vehicleNo||"", r.mooc||"", r.driver||"",
       r.serviceType||"", r.price||0, r.wage||0, r.fuelEst||0,
       r.containerNo||"", r.note||""
     ]);
@@ -721,7 +746,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
         const isNum=numericCols.has(c);
         cell.font={size:10,color:{argb:"FF0F172A"}};
         if(isEven) cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFF7F9FF"}};
-        cell.alignment={horizontal:isNum?"right":"left",vertical:"middle",wrapText:c===15};
+        cell.alignment={horizontal:isNum?"right":"left",vertical:"middle",wrapText:c===17};
         cell.border=allBorder;
         if(isNum) cell.numFmt=numFmt;
       });
@@ -729,7 +754,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
 
     ws.columns=[
       {width:11},{width:16},{width:9},{width:13},{width:13},{width:13},
-      {width:7},{width:13},{width:11},{width:16},{width:9},
+      {width:7},{width:14},{width:11},{width:13},{width:11},{width:16},{width:9},
       {width:11},{width:11},{width:10},{width:16},{width:28}
     ];
 
@@ -782,6 +807,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
         <td class="tl" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.factory||""}">${r.factory||""}</td>
         <td>${r.km||""}</td>
         <td style="font-family:monospace">${r.booking||""}</td>
+        <td>${cutoffBadge(r.cutoff)}</td>
         <td class="tl">${r.depot||""}</td>
         <td class="tl">${r.port||""}</td>
         <td>${r.vehicleNo||""}</td>
