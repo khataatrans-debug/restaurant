@@ -128,6 +128,7 @@ tr:hover td{background:#e8eeff!important;}
 </script>
 <!-- app-config: APP_ID + module filter — đặt SAU Firebase SDK -->
 <script src="app-config.js?v=3"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 </head>
 <body>
 
@@ -471,24 +472,27 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
     calcFuel();
   };
 
-  elVehicleNo.onchange = function () {
+  function updateMoocForVehicle(val) {
     elMooc.value = "";
     elDriver.value = "";
-    const list = _trucks.filter(x => (x.truck||"").trim() === this.value);
+    const list = _trucks.filter(x => (x.truck||"").trim() === val);
     if (!list.length) { fillDatalist("dl-mooc", []); return; }
     const trk = list[0];
     elDriver.value = trk.driver || "";
-    // Lưu định mức NL xe vào dataset để calcFuel dùng
     elVehicleNo.dataset.fuel = trk.fuel || "";
-    // Lấy mooc1-4
     const moocFields = ["mooc","mooc2","mooc3","mooc4"];
     const moocs = [...new Set(
       list.flatMap(t => moocFields.map(k => (t[k]||"").trim()).filter(Boolean))
     )];
     fillDatalist("dl-mooc", moocs);
-    // Tính lại nhiên liệu khi đổi xe
     calcFuel();
-  };
+  }
+  elVehicleNo.onchange = function () { updateMoocForVehicle(this.value); };
+  elVehicleNo.addEventListener("input", function () {
+    // Khi gõ trùng khớp chính xác 1 xe trong master (chọn từ gợi ý hoặc gõ đủ), cập nhật ngay
+    const match = _trucks.find(x => (x.truck||"").trim() === this.value.trim());
+    if (match) updateMoocForVehicle(this.value.trim());
+  });
 
   // ── TÍNH NHIÊN LIỆU ƯỚC TÍNH ──
   // Công thức: NL = km × (định mức xe lít/100km) / 100
@@ -675,24 +679,68 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
   };
 
-  window.exportExcel = function () {
+  window.exportExcel = async function () {
     if (!store.length) { alert("Không có dữ liệu để xuất"); return; }
-    const hdr = ["Ngày","Khách","Mã KH","Nơi lấy","Nơi hạ","Kho","KM","Xe","Mooc","Tài xế","Số Seal","Trọng lượng","NL (lít)","Container","Ghi chú"];
+    const hdr = ["Ngày","Khách","Mã KH","Nơi lấy","Nơi hạ","Kho","KM","Xe","Mooc","Tài xế","Loại DV","Đơn giá","Lương","NL (lít)","Container","Ghi chú"];
+    const numericCols = new Set([6,11,12,13]); // KM, Đơn giá, Lương, NL
     const rows = store.map(r => [
       r.planDate||"", r.customer||"", r.cusCode||"",
       r.depot||"", r.port||"", r.factory||"",
-      r.km||"", r.vehicleNo||"", r.mooc||"", r.driver||"",
-      r.serviceType||"", r.price||"", r.wage||"", r.fuelEst||"",
-      r.containerNo||"", (r.note||"").replace(/,/g," ")
+      r.km||0, r.vehicleNo||"", r.mooc||"", r.driver||"",
+      r.serviceType||"", r.price||0, r.wage||0, r.fuelEst||0,
+      r.containerNo||"", r.note||""
     ]);
-    const csv = [hdr,...rows].map(r=>r.join(",")).join("\n");
-    const blob = new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement("a");
-    a.href=url; a.download="Trucking_Plan.csv";
-    document.body.appendChild(a); a.click();
-    document.body.removeChild(a); URL.revokeObjectURL(url);
+    await exportTruckingXLSX(hdr, rows, numericCols);
   };
+
+  async function exportTruckingXLSX(hdr, rows, numericCols){
+    const wb=new ExcelJS.Workbook();
+    const ws=wb.addWorksheet("Kế hoạch vận tải");
+    ws.views=[{showGridLines:false}];
+
+    const thinBorder={style:"thin",color:{argb:"FFB0B7C3"}};
+    const allBorder={top:thinBorder,bottom:thinBorder,left:thinBorder,right:thinBorder};
+    const numFmt="#,##0;-#,##0;\"\"";
+
+    const hRow=ws.getRow(1);
+    hRow.values=hdr;
+    hRow.eachCell(cell=>{
+      cell.font={bold:true,size:10,color:{argb:"FFFFFFFF"}};
+      cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF0D2248"}};
+      cell.alignment={horizontal:"center",vertical:"middle",wrapText:true};
+      cell.border=allBorder;
+    });
+    hRow.height=28;
+
+    rows.forEach((rowData,i)=>{
+      const r=ws.getRow(2+i);
+      r.values=rowData;
+      const isEven=i%2===1;
+      r.eachCell((cell,colNum)=>{
+        const c=colNum-1;
+        const isNum=numericCols.has(c);
+        cell.font={size:10,color:{argb:"FF0F172A"}};
+        if(isEven) cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFF7F9FF"}};
+        cell.alignment={horizontal:isNum?"right":"left",vertical:"middle",wrapText:c===15};
+        cell.border=allBorder;
+        if(isNum) cell.numFmt=numFmt;
+      });
+    });
+
+    ws.columns=[
+      {width:11},{width:16},{width:9},{width:13},{width:13},{width:13},
+      {width:7},{width:13},{width:11},{width:16},{width:9},
+      {width:11},{width:11},{width:10},{width:16},{width:28}
+    ];
+
+    const buf=await wb.xlsx.writeBuffer();
+    const blob=new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    const date=new Date().toLocaleDateString('vi-VN').replace(/\//g,'-');
+    a.download=`KeHoachVanTai_${date}.xlsx`;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+  }
 
   /* ===== IMPORT MASTER ===== */
   window.importMaster = function (input) {
