@@ -253,19 +253,19 @@ tr:hover td{background:#e8eeff!important;}
     <div class="row row-r1">
       <div class="field"><span class="lbl">Ngày KH</span><input id="planDate" type="date"></div>
       <div class="field"><span class="lbl">Cut-off</span><input id="cutoff" type="date"></div>
-      <div class="field"><span class="lbl">Khách hàng</span><select id="customer"></select></div>
-      <div class="field"><span class="lbl">Nơi lấy</span><select id="depot"></select></div>
-      <div class="field"><span class="lbl">Nơi hạ</span><select id="port"></select></div>
+      <div class="field"><span class="lbl">Khách hàng</span><input id="customer" list="dl-customer" autocomplete="off" placeholder="Gõ để tìm..."><datalist id="dl-customer"></datalist></div>
+      <div class="field"><span class="lbl">Nơi lấy</span><input id="depot" list="dl-depot" autocomplete="off" placeholder="Gõ để tìm..."><datalist id="dl-depot"></datalist></div>
+      <div class="field"><span class="lbl">Nơi hạ</span><input id="port" list="dl-port" autocomplete="off" placeholder="Gõ để tìm..."><datalist id="dl-port"></datalist></div>
       <div class="field"><span class="lbl">Mã KH</span><input id="cusCode" readonly></div>
       <div class="field"><span class="lbl">Booking</span><input id="booking" placeholder="Số booking..."></div>
-      <div class="field"><span class="lbl">Carrier</span><select id="carrier"></select></div>
+      <div class="field"><span class="lbl">Carrier</span><input id="carrier" list="dl-carrier" autocomplete="off" placeholder="Gõ để tìm..."><datalist id="dl-carrier"></datalist></div>
     </div>
     <!-- DÒNG 2: Phương tiện -->
     <div class="row row-r2">
       <div class="field"><span class="lbl">Kho / Nhà máy</span><select id="factory"><option value="">-- Chọn kho --</option></select></div>
       <div class="field"><span class="lbl">Loại DV</span><select id="serviceType"><option value="">-- Chọn --</option><option value="Import">Import</option><option value="Export">Export</option><option value="CK">CK</option></select></div>
-      <div class="field"><span class="lbl">Số xe</span><select id="vehicleNo"></select></div>
-      <div class="field"><span class="lbl">Mooc</span><select id="mooc"></select></div>
+      <div class="field"><span class="lbl">Số xe</span><input id="vehicleNo" list="dl-vehicleNo" autocomplete="off" placeholder="Gõ để tìm..."><datalist id="dl-vehicleNo"></datalist></div>
+      <div class="field"><span class="lbl">Mooc</span><input id="mooc" list="dl-mooc" autocomplete="off" placeholder="Gõ để tìm..."><datalist id="dl-mooc"></datalist></div>
       <div class="field"><span class="lbl">Lái xe</span><input id="driver" readonly></div>
       <div class="field"><span class="lbl">KM</span><input id="km" readonly></div>
       <input type="hidden" id="vcPrice">
@@ -361,6 +361,17 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
     });
   }
 
+  /* ── Gợi ý autocomplete cho input + datalist ── */
+  function fillDatalist(datalistId, list) {
+    const dl = document.getElementById(datalistId);
+    if (!dl) return;
+    dl.innerHTML = "";
+    list.forEach(v => {
+      const o = document.createElement("option");
+      o.value = v; dl.appendChild(o);
+    });
+  }
+
   /* ── gọi lại mỗi khi Firebase RTDB push master data mới ── */
   function rebuildMasterDropdowns() {
     const customers = DBM.customers || [];
@@ -397,14 +408,14 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
       fuel4:    (c.fuel4    || "").trim(),
     }));
 
-    fillSelect(elCustomer,  [...new Set(nc.map(c => c.name))].filter(Boolean));
-    fillSelect("carrier",   carriers);
-    fillSelect(elVehicleNo, [...new Set(_trucks.map(t => (t.truck||"").trim()).filter(Boolean))]);
+    fillDatalist("dl-customer",  [...new Set(nc.map(c => c.name))].filter(Boolean));
+    fillDatalist("dl-carrier",   carriers);
+    fillDatalist("dl-vehicleNo", [...new Set(_trucks.map(t => (t.truck||"").trim()).filter(Boolean))]);
 
     const pickups = [...new Set(locations.map(l => l.pickup).filter(Boolean))];
     const drops   = [...new Set(locations.map(l => l.drop).filter(Boolean))];
-    fillSelect(elDepot, pickups);
-    fillSelect(elPort,  drops);
+    fillDatalist("dl-depot", pickups);
+    fillDatalist("dl-port",  drops);
   }
 
   /* ── CUSTOMER → FACTORY ── */
@@ -461,10 +472,10 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
   };
 
   elVehicleNo.onchange = function () {
-    elMooc.innerHTML = '<option value="">-- Chọn mooc --</option>';
+    elMooc.value = "";
     elDriver.value = "";
     const list = _trucks.filter(x => (x.truck||"").trim() === this.value);
-    if (!list.length) return;
+    if (!list.length) { fillDatalist("dl-mooc", []); return; }
     const trk = list[0];
     elDriver.value = trk.driver || "";
     // Lưu định mức NL xe vào dataset để calcFuel dùng
@@ -474,7 +485,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
     const moocs = [...new Set(
       list.flatMap(t => moocFields.map(k => (t[k]||"").trim()).filter(Boolean))
     )];
-    moocs.forEach(m => elMooc.insertAdjacentHTML("beforeend", `<option>${m}</option>`));
+    fillDatalist("dl-mooc", moocs);
     // Tính lại nhiên liệu khi đổi xe
     calcFuel();
   };
@@ -651,7 +662,6 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
     document.querySelectorAll(".form-inner select").forEach(s => s.selectedIndex = 0);
     elCusCode.value = ""; elKm.value = ""; elDriver.value = "";
     elFactory.innerHTML = '<option value="">-- Chọn kho --</option>';
-    elMooc.innerHTML    = '<option value="">-- Chọn mooc --</option>';
     elQty.value = 1;
   };
 
