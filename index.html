@@ -556,10 +556,10 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
   function isArranged(r) { return r.containerNo && r.vehicleNo; }
 
   /* ── Cảnh báo Cut-off: 4 mốc ──
-     🟢 Bình thường (>2 ngày trước hạn) — chữ đen mặc định, không nổi
-     ⚠️ Vàng (≤1 ngày hoặc hôm nay, trước hạn) — cảnh báo cấp bách, nhấp nháy
-     ⛔ Đỏ (ngày đầu tiên quá hạn) — quá hạn trong ngày, nền đỏ đậm
-     🔘 Xám (từ ngày thứ 2 quá hạn trở đi) — quá hạn lâu, nền xám trung tính
+     🟢 Bình thường (còn ≥2 ngày) — chữ đen mặc định, không nổi
+     ⚠️ Vàng (còn đúng 1 ngày — hôm nay là 1 ngày trước hạn) — cảnh báo, nhấp nháy
+     ⛔ Đỏ (đúng ngày Cut-off — hôm nay là hạn) — nền đỏ đậm
+     🔘 Xám (đã qua ngày Cut-off) — quá hạn, nền xám trung tính
   ── */
   function cutoffBadge(cutoffStr) {
     if (!cutoffStr) return "";
@@ -574,18 +574,18 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
       return `<span style="font-size:12px">${fmtDate}</span>`;
     }
     let style, icon, title;
-    if (diffDays === 0 || diffDays === 1) {
-      // Vàng — còn ≤1 ngày hoặc đúng hôm nay (trước/đúng hạn)
+    if (diffDays === 1) {
+      // Vàng — hôm nay là 1 ngày trước hạn
       style = "background:#fef3c7;color:#92400e;border:1px solid #fcd34d;font-weight:700;animation:pulseWarn 1.4s infinite;";
-      icon = "⚠️"; title = diffDays===0 ? "Cut-off HÔM NAY!" : "Cut-off còn 1 ngày!";
-    } else if (diffDays === -1) {
-      // Đỏ — đúng ngày đầu tiên quá hạn
+      icon = "⚠️"; title = "Còn 1 ngày — Cut-off ngày mai!";
+    } else if (diffDays === 0) {
+      // Đỏ — đúng ngày Cut-off
       style = "background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;font-weight:700;";
-      icon = "⛔"; title = "Quá hạn cut-off trong ngày!";
+      icon = "⛔"; title = "Chỉ cảnh báo đúng trong ngày!";
     } else {
-      // Xám — quá hạn từ ngày thứ 2 trở đi
+      // Xám — đã qua ngày Cut-off
       style = "background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;font-weight:600;";
-      icon = "🔘"; title = `Quá hạn sau ${Math.abs(diffDays)-1} ngày`;
+      icon = "🔘"; title = `Đã quá hạn ${Math.abs(diffDays)} ngày`;
     }
     return `<span title="${title}" style="display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;white-space:nowrap;${style}">${icon} ${fmtDate}</span>`;
   }
