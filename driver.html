@@ -918,6 +918,14 @@ function openOrderModal(trkId){
              <button class="btn btn-sm btn-primary" onclick="saveContainer('${trkId}')" style="white-space:nowrap;padding:6px 12px">💾 Lưu</button>
            </div>`}
     </span></div>
+    <div class="info-row" id="sealRow"><span class="info-label">🔖 Seal:</span><span class="info-val">
+      ${r.sealNo
+        ? r.sealNo
+        : `<div style="display:flex;gap:6px;align-items:center;width:100%">
+             <input id="inpSeal" type="text" placeholder="Nhập số seal..." style="border:1px solid #cbd5e1;border-radius:6px;padding:6px 8px;font-size:13px;flex:1;text-transform:uppercase">
+             <button class="btn btn-sm btn-primary" onclick="saveSeal('${trkId}')" style="white-space:nowrap;padding:6px 12px">💾 Lưu</button>
+           </div>`}
+    </span></div>
     <div class="info-row"><span class="info-label">📍 Nơi lấy:</span><span class="info-val">${r.depot||""}</span></div>
     <div class="info-row"><span class="info-label">📍 Nơi hạ:</span><span class="info-val">${r.port||""}</span></div>
     <div class="info-row"><span class="info-label">🏷️ Loại DV:</span><span class="info-val">${r.serviceType||""}</span></div>
@@ -949,6 +957,22 @@ async function saveContainer(trkId){
     if(r) r.containerNo = val;
     document.getElementById("contRow").innerHTML =
       `<span class="info-label">📦 Cont:</span><span class="info-val">${val}</span>`;
+  }catch(e){ showToast("❌ Lỗi: "+e.message, true); }
+}
+
+// Lưu số Seal riêng — độc lập với việc xác nhận đơn
+async function saveSeal(trkId){
+  const inp = document.getElementById("inpSeal");
+  if(!inp) return;
+  const val = inp.value.trim().toUpperCase();
+  if(!val){ showToast("⚠️ Vui lòng nhập số Seal!", true); return; }
+  try{
+    await db.collection(`trucking_plan_${APP_ID}`).doc(trkId).update({ sealNo: val });
+    showToast("✅ Đã lưu số Seal!");
+    const r = trkStore.find(x=>x.id===trkId);
+    if(r) r.sealNo = val;
+    document.getElementById("sealRow").innerHTML =
+      `<span class="info-label">🔖 Seal:</span><span class="info-val">${val}</span>`;
   }catch(e){ showToast("❌ Lỗi: "+e.message, true); }
 }
 
