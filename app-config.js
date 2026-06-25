@@ -142,6 +142,16 @@
               location.href = "landing.html";
               return;
             }
+            // Nếu hết hạn sử dụng → đăng xuất
+            if (cfg.expiryDate) {
+              const expDate = new Date(cfg.expiryDate + "T23:59:59");
+              if (new Date() > expDate) {
+                alert("⏰ Phần mềm đã hết hạn sử dụng (hết hạn: " + cfg.expiryDate.split("-").reverse().join("/") + ").\nLiên hệ quản trị viên để gia hạn.");
+                sessionStorage.clear();
+                location.href = "landing.html";
+                return;
+              }
+            }
             // Build modules object từ array
             const mods = {};
             Object.keys(DEFAULT_MODULES).forEach(k => mods[k] = false);
@@ -158,6 +168,22 @@
             rtdb.ref("app_config_" + APP_ID).once("value").then(function(s) {
               if (s.exists()) {
                 const cfg2 = s.val();
+                // Check hết hạn (RTDB fallback)
+                if (cfg2.expiryDate) {
+                  const expDate2 = new Date(cfg2.expiryDate + "T23:59:59");
+                  if (new Date() > expDate2) {
+                    alert("⏰ Phần mềm đã hết hạn sử dụng (hết hạn: " + cfg2.expiryDate.split("-").reverse().join("/") + ").\nLiên hệ quản trị viên để gia hạn.");
+                    sessionStorage.clear();
+                    location.href = "landing.html";
+                    return;
+                  }
+                }
+                if (cfg2.active === false) {
+                  alert("Tài khoản công ty đã bị khóa. Liên hệ quản trị viên.");
+                  sessionStorage.clear();
+                  location.href = "landing.html";
+                  return;
+                }
                 window.APP_MODULES = cfg2.modules || DEFAULT_MODULES;
                 window.APP_PLAN    = cfg2.plan || "pro";
               } else {
