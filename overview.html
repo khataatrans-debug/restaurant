@@ -1068,6 +1068,46 @@ async function exportDebitXLSX(hdr, data, totalRow, cus, from, to){
     {width:16},{width:13},{width:16}
   ];
 
+  /* ── Khối chữ ký 3 cột: Người lập bảng / Kế toán trưởng / Giám đốc ── */
+  const blockWidth=Math.floor(numCols/3); // chia 17 cột thành 3 khối ~5-6 cột
+  const col1Start=1, col1End=blockWidth;
+  const col2Start=blockWidth+1, col2End=blockWidth*2;
+  const col3Start=blockWidth*2+1, col3End=numCols;
+
+  const signTitleRow=totalRowIdx+3;
+  const signLineRow=totalRowIdx+7;
+  const signSubRow=totalRowIdx+8;
+
+  ws.mergeCells(signTitleRow,col1Start,signTitleRow,col1End);
+  ws.mergeCells(signTitleRow,col2Start,signTitleRow,col2End);
+  ws.mergeCells(signTitleRow,col3Start,signTitleRow,col3End);
+  ws.getCell(signTitleRow,col1Start).value="NGƯỜI LẬP BẢNG";
+  ws.getCell(signTitleRow,col2Start).value="KẾ TOÁN TRƯỞNG";
+  ws.getCell(signTitleRow,col3Start).value="GIÁM ĐỐC";
+  [col1Start,col2Start,col3Start].forEach(c=>{
+    const cell=ws.getCell(signTitleRow,c);
+    cell.font={bold:true,size:11,color:{argb:"FF0D2248"}};
+    cell.alignment={horizontal:"center"};
+  });
+
+  ws.mergeCells(signSubRow,col1Start,signSubRow,col1End);
+  ws.mergeCells(signSubRow,col2Start,signSubRow,col2End);
+  ws.mergeCells(signSubRow,col3Start,signSubRow,col3End);
+  ws.getCell(signSubRow,col1Start).value="(Ký, họ tên)";
+  ws.getCell(signSubRow,col2Start).value="(Ký, họ tên)";
+  ws.getCell(signSubRow,col3Start).value="(Ký, họ tên, đóng dấu)";
+  [col1Start,col2Start,col3Start].forEach(c=>{
+    const cell=ws.getCell(signSubRow,c);
+    cell.font={italic:true,size:9,color:{argb:"FF94A3B8"}};
+    cell.alignment={horizontal:"center"};
+  });
+
+  ws.columns=[
+    {width:5},{width:12},{width:20},{width:18},{width:11},{width:13},{width:16},
+    {width:16},{width:16},{width:14},{width:12},{width:12},{width:12},{width:12},
+    {width:16},{width:13},{width:16}
+  ];
+
   const buf=await wb.xlsx.writeBuffer();
   const blob=new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
   const a=document.createElement("a");
