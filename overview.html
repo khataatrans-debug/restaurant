@@ -1040,11 +1040,13 @@ async function exportDebitXLSX(hdr, data, totalRow, cus, from, to){
     r.eachCell((cell,colNum)=>{
       const c=colNum-1;
       const isNum=numericCols.has(c);
+      const isTextCode=[4,5,6].includes(c); // Mã KH, Số xe, Container — mã định danh, không phải số học
       cell.font={size:10,color:{argb:"FF0F172A"}};
       if(isEven) cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFF7F9FF"}};
       cell.alignment={horizontal:isNum?"right":(c===0?"center":"left"),vertical:"middle"};
       cell.border=allBorder;
       if(isNum&&c!==0) cell.numFmt=numFmt;
+      if(isTextCode) cell.numFmt="@";
     });
   });
 
@@ -1173,7 +1175,7 @@ async function exportSalaryXLSX(hdr1,data1,totalRow1,hdr2,data2,totalRow2){
   const allBorder={top:thinBorder,bottom:thinBorder,left:thinBorder,right:thinBorder};
   const numFmt="#,##0;-#,##0;\"\"";
 
-  function buildSheet(name, hdr, data, totalRow, numericCols, colWidths){
+  function buildSheet(name, hdr, data, totalRow, numericCols, colWidths, textCols=new Set()){
     const ws=wb.addWorksheet(name);
     ws.views=[{showGridLines:false}];
     const hRow=ws.getRow(1);
@@ -1198,6 +1200,7 @@ async function exportSalaryXLSX(hdr1,data1,totalRow1,hdr2,data2,totalRow2){
         cell.alignment={horizontal:isNum?"right":(c===0?"center":"left"),vertical:"middle"};
         cell.border=allBorder;
         if(isNum) cell.numFmt=numFmt;
+        if(textCols.has(c)) cell.numFmt="@";
       });
     });
 
@@ -1220,11 +1223,13 @@ async function exportSalaryXLSX(hdr1,data1,totalRow1,hdr2,data2,totalRow2){
 
   buildSheet("Chi tiết", hdr1, data1, totalRow1,
     new Set([0,8,9]),
-    [4,12,18,12,16,14,14,14,8,13,18]);
+    [4,12,18,12,16,14,14,14,8,13,18],
+    new Set([3,5]));
 
   buildSheet("Tổng hợp theo lái xe", hdr2, data2, totalRow2,
     new Set([0,3,4,5]),
-    [4,18,12,11,12,14]);
+    [4,18,12,11,12,14],
+    new Set([2]));
 
   const buf=await wb.xlsx.writeBuffer();
   const blob=new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});

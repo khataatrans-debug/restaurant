@@ -129,7 +129,7 @@ tr:hover td{background:#e8eeff!important;}
 
 <!-- FILTER -->
 <div class="filter-wrap">
-  <input type="text" id="searchKw" placeholder="🔍 Tìm khách, xe, container, kho...">
+  <input type="text" id="searchKw" list="dl-search" autocomplete="off" placeholder="🔍 Tìm khách, xe, container, kho..."><datalist id="dl-search"></datalist>
   <input type="date" id="fromDate">
   <span style="color:var(--muted);font-size:11px">→</span>
   <input type="date" id="toDate">
@@ -418,6 +418,7 @@ function calcAutoFuelCost(vehicleNo, km, planDate) {
 /* Load trucking real-time — dữ liệu km luôn mới nhất từ Firestore */
 db.collection(COL_TRK).orderBy("planDate","desc").onSnapshot(snap=>{
   trkStore=snap.docs.map(d=>({id:d.id,...d.data()}));
+  buildSearchDatalist();
   render();
 });
 
@@ -427,6 +428,26 @@ db.collection(COL_COST).onSnapshot(snap=>{
   snap.docs.forEach(d=>{costStore[d.id]=d.data();});
   render();
 });
+
+/* ── Gợi ý autocomplete cho ô tìm kiếm chung ── */
+function buildSearchDatalist(){
+  const dl=document.getElementById("dl-search");
+  if(!dl) return;
+  const set=new Set();
+  trkStore.forEach(r=>{
+    if(r.customer) set.add(r.customer);
+    if(r.vehicleNo) set.add(r.vehicleNo);
+    if(r.containerNo) set.add(r.containerNo);
+    if(r.cusCode) set.add(r.cusCode);
+    if(r.factory) set.add(r.factory);
+    if(r.driver) set.add(r.driver);
+  });
+  dl.innerHTML="";
+  [...set].sort().forEach(v=>{
+    const o=document.createElement("option");
+    o.value=v; dl.appendChild(o);
+  });
+}
 
 /* RENDER */
 function fmt(n){return Number(n||0).toLocaleString("vi-VN");}
@@ -748,6 +769,12 @@ async function saveCost(){
 
 /* SEARCH */
 window.doSearch=function(){render();};
+document.getElementById("searchKw").addEventListener("change", function(){
+  // Tự động lọc khi chọn 1 gợi ý từ datalist (vẫn có thể bấm nút Lọc như trước)
+  const dl=document.getElementById("dl-search");
+  const match=[...dl.options].some(o=>o.value===this.value);
+  if(match) doSearch();
+});
 window.clearSearch=function(){
   document.getElementById("searchKw").value="";
   document.getElementById("fromDate").value="";
@@ -812,11 +839,13 @@ async function exportAccountantXLSX(hdr, rows, numericCols){
     r.eachCell((cell,colNum)=>{
       const c=colNum-1;
       const isNum=numericCols.has(c);
+      const isTextCode=[2,5,7,8].includes(c); // Mã KH, Xe, Container, Booking — mã định danh
       cell.font={size:10,color:{argb:"FF0F172A"}};
       if(isEven) cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFF7F9FF"}};
       cell.alignment={horizontal:isNum?"right":"left",vertical:"middle",wrapText:c===26};
       cell.border=allBorder;
       if(isNum) cell.numFmt=numFmt;
+      if(isTextCode) cell.numFmt="@";
     });
   });
 
