@@ -956,7 +956,7 @@ window.exportDebit=function(){
 
   const hdr=["#","Ngày","Khách hàng","Kho/Nhà máy","Mã KH","Số xe","Container","Nơi lấy","Nơi hạ",
     "Đơn giá VC","Phí nâng","Phí hạ","Cược cont","Phí khác",
-    "Tổng trước thuế","VAT 10%","Tổng sau thuế"];
+    "Tổng trước thuế",`VAT ${currentVAT}%`,"Tổng sau thuế"];
   const data=rows.map((r,i)=>{
     const c=costStore[r.id]||{};
     const price=+c.truckPrice||+r.vcPrice||getPriceFromMaster(r.customer,r.factory)||+r.price||0, lift=+c.lift||0, dropFee=+c.dropFee||0,
