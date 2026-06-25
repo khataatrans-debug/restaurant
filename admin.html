@@ -486,9 +486,11 @@ function renderTable(rows){
       <td>${getExpiryBadge(c)}</td>
       <td><span class="badge badge-${c.status==="inactive"?"inactive":"active"}">${c.status==="inactive"?"Khóa":"Active"}</span></td>
       <td>
-        <button class="btn-sm btn-primary" style="margin-right:4px" onclick="openEditModal('${c.id}')">✏️ Sửa</button>
-        <button class="btn-sm btn-gray" style="margin-right:4px" onclick="copyLoginLink('${c.appId||c.id}')">🔗</button>
-        <button class="btn-sm btn-danger" onclick="deleteCompany('${c.id}','${c.appId||c.id}')">🗑️</button>
+        <div style="display:flex;gap:4px;white-space:nowrap">
+          <button class="btn-sm btn-primary" title="Sửa" onclick="openEditModal('${c.id}')" style="padding:5px 9px">✏️</button>
+          <button class="btn-sm btn-gray" title="Copy link đăng nhập" onclick="copyLoginLink('${c.appId||c.id}')" style="padding:5px 9px">🔗</button>
+          <button class="btn-sm btn-danger" title="Xóa công ty" onclick="deleteCompany('${c.id}','${c.appId||c.id}')" style="padding:5px 9px">🗑️</button>
+        </div>
       </td>
     </tr>`).join("");
 }
