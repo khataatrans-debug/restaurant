@@ -257,12 +257,12 @@ tfoot td{background:#f0f4ff;font-weight:700;border-top:2px solid var(--accent);f
 
   <!-- FILTER -->
   <div class="filter-wrap">
-    <input type="text" id="dSearch" placeholder="🔍 Tìm khách hàng, mã KH, container...">
+    <input type="text" id="dSearch" list="dl-dSearch" autocomplete="off" placeholder="🔍 Tìm khách hàng, mã KH, container..."><datalist id="dl-dSearch"></datalist>
     <span class="sep">Từ</span>
     <input type="date" id="dFrom">
     <span class="sep">đến</span>
     <input type="date" id="dTo">
-    <select id="dCus" style="width:180px"><option value="">-- Tất cả khách hàng --</option></select>
+    <input id="dCus" list="dl-dCus" autocomplete="off" placeholder="-- Tất cả khách hàng --" style="width:180px"><datalist id="dl-dCus"></datalist>
     <button class="btn btn-accent btn-sm" onclick="renderDebit()">Lọc</button>
     <button class="btn btn-gray btn-sm" onclick="clearDebit()">Reset</button>
     <button class="btn btn-excel btn-sm" onclick="exportDebit()">↓ Excel</button>
@@ -361,12 +361,12 @@ tfoot td{background:#f0f4ff;font-weight:700;border-top:2px solid var(--accent);f
 
   <!-- FILTER -->
   <div class="filter-wrap">
-    <input type="text" id="sSearch" placeholder="🔍 Tìm lái xe, số xe...">
+    <input type="text" id="sSearch" list="dl-sSearch" autocomplete="off" placeholder="🔍 Tìm lái xe, số xe..."><datalist id="dl-sSearch"></datalist>
     <span class="sep">Từ</span>
     <input type="date" id="sFrom">
     <span class="sep">đến</span>
     <input type="date" id="sTo">
-    <select id="sDriver" style="width:180px"><option value="">-- Tất cả lái xe --</option></select>
+    <input id="sDriver" list="dl-sDriver" autocomplete="off" placeholder="-- Tất cả lái xe --" style="width:180px"><datalist id="dl-sDriver"></datalist>
     <button class="btn btn-accent btn-sm" onclick="renderSalary()">Lọc</button>
     <button class="btn btn-gray btn-sm" onclick="clearSalary()">Reset</button>
     <button class="btn btn-excel btn-sm" onclick="exportSalary()">↓ Excel</button>
@@ -716,15 +716,42 @@ function buildSelects(){
   });
   const dCus=document.getElementById("dCus");
   const sCur=dCus.value;
-  dCus.innerHTML='<option value="">-- Tất cả khách hàng --</option>';
-  [...cusSet].sort().forEach(n=>{const o=document.createElement("option");o.value=o.textContent=n;dCus.appendChild(o);});
+  const dlCus=document.getElementById("dl-dCus");
+  dlCus.innerHTML="";
+  [...cusSet].sort().forEach(n=>{const o=document.createElement("option");o.value=n;dlCus.appendChild(o);});
   dCus.value=sCur;
 
   const sDrv=document.getElementById("sDriver");
   const sCur2=sDrv.value;
-  sDrv.innerHTML='<option value="">-- Tất cả lái xe --</option>';
-  [...drSet].sort().forEach(n=>{const o=document.createElement("option");o.value=o.textContent=n;sDrv.appendChild(o);});
+  const dlDrv=document.getElementById("dl-sDriver");
+  dlDrv.innerHTML="";
+  [...drSet].sort().forEach(n=>{const o=document.createElement("option");o.value=n;dlDrv.appendChild(o);});
   sDrv.value=sCur2;
+
+  /* Gợi ý cho 2 ô tìm kiếm chung (Công nợ + Lương) */
+  const dSearchSet=new Set();
+  trkStore.forEach(r=>{
+    if(r.customer) dSearchSet.add(r.customer);
+    if(r.cusCode) dSearchSet.add(r.cusCode);
+    if(r.containerNo) dSearchSet.add(r.containerNo);
+    if(r.vehicleNo) dSearchSet.add(r.vehicleNo);
+  });
+  const dlDSearch=document.getElementById("dl-dSearch");
+  if(dlDSearch){
+    dlDSearch.innerHTML="";
+    [...dSearchSet].sort().forEach(v=>{const o=document.createElement("option");o.value=v;dlDSearch.appendChild(o);});
+  }
+
+  const sSearchSet=new Set();
+  trkStore.forEach(r=>{
+    if(r.driver) sSearchSet.add(r.driver);
+    if(r.vehicleNo) sSearchSet.add(r.vehicleNo);
+  });
+  const dlSSearch=document.getElementById("dl-sSearch");
+  if(dlSSearch){
+    dlSSearch.innerHTML="";
+    [...sSearchSet].sort().forEach(v=>{const o=document.createElement("option");o.value=v;dlSSearch.appendChild(o);});
+  }
 }
 
 /* ══════════════════════════════════════

@@ -288,7 +288,7 @@ tr:hover td{background:#e8eeff!important;}
   <!-- FILTER BAR -->
   <div class="filter-bar">
     <div class="filter-l">
-      <input type="text" id="searchKeyword" placeholder="🔍 Tìm khách, xe, container...">
+      <input type="text" id="searchKeyword" list="dl-search" autocomplete="off" placeholder="🔍 Tìm khách, xe, container..."><datalist id="dl-search"></datalist>
       <input type="date" id="fromDate">
       <span style="color:var(--muted);font-size:11px">→</span>
       <input type="date" id="toDate">
@@ -594,8 +594,30 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
   // Real-time listener — sync ngay lập tức giữa mọi thiết bị
   onSnapshot(query(colRef, orderBy("planDate", "desc")), snap => {
     store = snap.docs.map(d => d.data());
+    buildSearchDatalist();
     render();
   });
+
+  /* ── Gợi ý autocomplete cho ô tìm kiếm chung ── */
+  function buildSearchDatalist(){
+    const dl = document.getElementById("dl-search");
+    if (!dl) return;
+    const set = new Set();
+    store.forEach(r => {
+      if (r.customer) set.add(r.customer);
+      if (r.vehicleNo) set.add(r.vehicleNo);
+      if (r.containerNo) set.add(r.containerNo);
+      if (r.cusCode) set.add(r.cusCode);
+      if (r.factory) set.add(r.factory);
+      if (r.driver) set.add(r.driver);
+      if (r.booking) set.add(r.booking);
+    });
+    dl.innerHTML = "";
+    [...set].sort().forEach(v => {
+      const o = document.createElement("option");
+      o.value = v; dl.appendChild(o);
+    });
+  }
 
   filterArranged.onchange    = () => render();
   filterNotArranged.onchange = () => render();
