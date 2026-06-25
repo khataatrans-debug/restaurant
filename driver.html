@@ -919,8 +919,8 @@ function openOrderModal(trkId){
            </div>`}
     </span></div>
     <div class="info-row" id="sealRow"><span class="info-label">🔖 Seal:</span><span class="info-val">
-      ${r.sealNo
-        ? r.sealNo
+      ${r.price
+        ? r.price
         : `<div style="display:flex;gap:6px;align-items:center;width:100%">
              <input id="inpSeal" type="text" placeholder="Nhập số seal..." style="border:1px solid #cbd5e1;border-radius:6px;padding:6px 8px;font-size:13px;flex:1;text-transform:uppercase">
              <button class="btn btn-sm btn-primary" onclick="saveSeal('${trkId}')" style="white-space:nowrap;padding:6px 12px">💾 Lưu</button>
@@ -967,10 +967,10 @@ async function saveSeal(trkId){
   const val = inp.value.trim().toUpperCase();
   if(!val){ showToast("⚠️ Vui lòng nhập số Seal!", true); return; }
   try{
-    await db.collection(`trucking_plan_${APP_ID}`).doc(trkId).update({ sealNo: val });
+    await db.collection(`trucking_plan_${APP_ID}`).doc(trkId).update({ price: val });
     showToast("✅ Đã lưu số Seal!");
     const r = trkStore.find(x=>x.id===trkId);
-    if(r) r.sealNo = val;
+    if(r) r.price = val;
     document.getElementById("sealRow").innerHTML =
       `<span class="info-label">🔖 Seal:</span><span class="info-val">${val}</span>`;
   }catch(e){ showToast("❌ Lỗi: "+e.message, true); }
