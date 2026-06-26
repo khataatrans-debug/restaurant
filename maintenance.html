@@ -557,24 +557,17 @@ tr:hover td{background:#e8eeff!important;}
   <div style="margin:14px 18px 0;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding-bottom:6px;border-bottom:1px solid var(--border)">
     🪪 Theo dõi hạn phù hiệu — nhập tay theo ngày trên giấy phép xe
   </div>
-  <div class="form-panel" style="margin:10px 18px;border:1px solid var(--border);border-radius:8px">
-    <div class="fg" style="grid-template-columns:1fr 1fr 1fr 1fr;margin-bottom:0">
-      <div class="field"><label>Số xe</label>
-        <select id="bTruck"><option value="">— Chọn xe —</option></select>
-      </div>
-      <div class="field"><label>Ngày cấp</label><input id="bIssued" type="date"></div>
-      <div class="field"><label>Ngày hết hạn phù hiệu</label><input id="bExpiry" type="date"></div>
-      <div class="field" style="align-self:end">
-        <button class="btn btn-green" onclick="saveBadge()" style="width:100%">💾 Lưu hạn phù hiệu</button>
-      </div>
-    </div>
+  <div class="filter-wrap" style="margin:10px 18px">
+    <input type="text" id="fBadgeKw" placeholder="🔍 Tìm số xe..." oninput="renderBadge()">
+    <button class="btn btn-gray btn-sm" onclick="document.getElementById('fBadgeKw').value='';renderBadge()">Xóa lọc</button>
+    <button class="btn btn-excel btn-sm" onclick="exportBadge()">↓ Excel</button>
   </div>
   <div class="tbl-wrap" style="margin:8px 18px 24px">
     <table>
       <thead><tr>
-        <th>#</th><th>Số xe</th><th>Ngày cấp</th><th>Ngày hết hạn phù hiệu</th><th>Còn lại</th><th>Trạng thái</th><th>Xóa</th>
+        <th>#</th><th>Số xe</th><th>Ngày cấp</th><th>Ngày hết hạn phù hiệu</th><th>Còn lại</th><th>Trạng thái</th><th>Lưu</th><th>Xóa</th>
       </tr></thead>
-      <tbody id="tbody-badge"><tr><td colspan="7" class="loading">⏳ Đang tải...</td></tr></tbody>
+      <tbody id="tbody-badge"><tr><td colspan="8" class="loading">⏳ Đang tải...</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -797,15 +790,6 @@ function buildVehicleDropdowns(){
   mSel.innerHTML='<option value="">— Chọn mooc —</option>';
   moocs.forEach(v=>{ const o=document.createElement("option");o.value=v;o.textContent="🚌 "+v;mSel.appendChild(o); });
   mSel.value=mVal;
-
-  // Badge (phù hiệu) truck dropdown
-  const bSel=document.getElementById("bTruck");
-  if(bSel){
-    const bVal=bSel.value;
-    bSel.innerHTML='<option value="">— Chọn xe —</option>';
-    trucks.forEach(v=>{ const o=document.createElement("option");o.value=v;o.textContent="🚛 "+v;bSel.appendChild(o); });
-    bSel.value=bVal;
-  }
 
   // Fuel truck dropdown
   const fSel=document.getElementById("fuelTruck");
@@ -1391,8 +1375,9 @@ function renderCycle(){
       <td class="num">${r.kmTotal?fmt(r.kmTotal)+' km':'—'}</td>
       <td>${r.lastDate||'—'}</td>
       <td class="num">
-        <input type="number" min="0" value="${r.normKm||''}" placeholder="Nhập định mức..."
-          style="width:110px;height:28px;text-align:right;border:1px solid var(--border);border-radius:5px;padding:0 6px;font-size:12px"
+        <input type="text" inputmode="numeric" value="${r.normKm?fmt(r.normKm):''}" placeholder="Nhập định mức..."
+          style="width:120px;height:28px;text-align:right;border:1px solid var(--border);border-radius:5px;padding:0 6px;font-size:12px"
+          oninput="formatNormInput(this)"
           onchange="saveCycleNorm('${r.xe.replace(/'/g,"\\'")}', this.value)">
         <span style="font-size:11px;color:var(--muted)">km</span>
       </td>
@@ -1403,9 +1388,16 @@ function renderCycle(){
   }).join("");
 }
 
+window.formatNormInput=function(input){
+  let raw=input.value.replace(/[^\d]/g,""); // chỉ giữ số
+  if(!raw){ input.value=""; return; }
+  input.value=Number(raw).toLocaleString("vi-VN");
+};
+
 window.saveCycleNorm=function(xe, val){
   DB.cycleNorms=DB.cycleNorms||{};
-  const norm=parseFloat(val)||0;
+  const raw=String(val).replace(/[^\d]/g,""); // bỏ dấu phân cách trước khi lưu số thật
+  const norm=parseFloat(raw)||0;
   if(norm>0) DB.cycleNorms[xe]=norm;
   else delete DB.cycleNorms[xe];
   pushDB();
@@ -1486,59 +1478,115 @@ window.exportCycle=async function(){
 /* ══════════════════════════════════════════
    TAB 6: HẠN PHÙ HIỆU — nhập tay theo giấy phép
 ══════════════════════════════════════════ */
-window.saveBadge=function(){
-  const truck=document.getElementById("bTruck").value;
-  const issued=document.getElementById("bIssued").value;
-  const expiry=document.getElementById("bExpiry").value;
-  if(!truck||!expiry){ showToast("Chọn xe và ngày hết hạn!",true); return; }
+window.saveBadgeRow=function(xe){
+  const row=document.querySelector(`tr[data-badge-xe="${CSS.escape(xe)}"]`);
+  if(!row) return;
+  const issued=row.querySelector(".badge-issued").value;
+  const expiry=row.querySelector(".badge-expiry").value;
+  if(!expiry){ showToast("Chọn ngày hết hạn!",true); return; }
   DB.badges=DB.badges||[];
-  const idx=DB.badges.findIndex(b=>b.truck===truck);
+  const idx=DB.badges.findIndex(b=>b.truck===xe);
   if(idx>=0){ DB.badges[idx].expiry=expiry; DB.badges[idx].issued=issued; }
-  else DB.badges.push({truck,issued,expiry});
+  else DB.badges.push({truck:xe,issued,expiry});
   pushDB();
-  document.getElementById("bTruck").value="";
-  document.getElementById("bIssued").value="";
-  document.getElementById("bExpiry").value="";
-  showToast("✅ Đã lưu hạn phù hiệu");
+  showToast("✅ Đã lưu hạn phù hiệu cho "+xe);
+  renderBadge();
 };
 
-window.deleteBadge=function(idx){
-  if(!confirm("Xóa hạn phù hiệu này?")) return;
-  DB.badges.splice(idx,1);
+window.deleteBadgeRow=function(xe){
+  if(!confirm("Xóa hạn phù hiệu của xe "+xe+"?")) return;
+  DB.badges=DB.badges||[];
+  const idx=DB.badges.findIndex(b=>b.truck===xe);
+  if(idx>=0) DB.badges.splice(idx,1);
   pushDB();
   showToast("✅ Đã xóa");
+  renderBadge();
 };
 
 function renderBadge(){
   const tbody=document.getElementById("tbody-badge");
   if(!tbody) return;
-  const rows=[...(DB.badges||[])].sort((a,b)=>a.expiry.localeCompare(b.expiry));
+  const kw=(document.getElementById("fBadgeKw")?.value||"").toLowerCase();
+
+  const trucks=getAllTrucks();
+  DB.badges=DB.badges||[];
+  const byTruck={};
+  DB.badges.forEach(b=>{ byTruck[b.truck]=b; });
+
+  const today=new Date(); today.setHours(0,0,0,0);
+  let rows=trucks.map(xe=>{
+    const b=byTruck[xe]||{};
+    let days=null, status="nodata";
+    if(b.expiry){
+      const exp=new Date(b.expiry+"T00:00:00");
+      days=Math.ceil((exp-today)/86400000);
+      status = days<0 ? "overdue" : days<=30 ? "soon" : "ok";
+    }
+    return {xe, issued:b.issued||"", expiry:b.expiry||"", days, status};
+  });
+
+  if(kw) rows=rows.filter(r=>r.xe.toLowerCase().includes(kw));
+  rows.sort((a,b)=>{
+    const order={overdue:0,soon:1,ok:2,nodata:3};
+    return order[a.status]-order[b.status];
+  });
 
   if(!rows.length){
-    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">Chưa có dữ liệu hạn phù hiệu</td></tr>';
+    tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--muted)">Không có xe nào trong Master Data</td></tr>';
     return;
   }
 
-  const today=new Date(); today.setHours(0,0,0,0);
   tbody.innerHTML=rows.map((r,i)=>{
-    const realIdx=DB.badges.indexOf(r);
-    const exp=new Date(r.expiry+"T00:00:00");
-    const days=Math.ceil((exp-today)/86400000);
-    let badge,rowCls="";
-    if(days<0){ badge='<span class="badge-overdue warn-blink">⛔ Hết hạn '+Math.abs(days)+' ngày trước</span>'; rowCls="row-danger"; }
-    else if(days<=30){ badge='<span class="badge-soon warn-blink">⚠️ Còn '+days+' ngày</span>'; rowCls="row-warn"; }
-    else { badge='<span class="badge-ok">✅ Còn '+days+' ngày</span>'; }
-    return `<tr class="${rowCls}">
+    let badge, rowCls="";
+    if(r.status==="nodata"){
+      badge='<span class="badge" style="background:#f1f5f9;color:#64748b">Chưa nhập</span>';
+    } else if(r.status==="overdue"){
+      badge='<span class="badge-overdue warn-blink">⛔ Hết hạn '+Math.abs(r.days)+' ngày trước</span>';
+      rowCls="row-danger";
+    } else if(r.status==="soon"){
+      badge='<span class="badge-soon warn-blink">⚠️ Còn '+r.days+' ngày</span>';
+      rowCls="row-warn";
+    } else {
+      badge='<span class="badge-ok">✅ Còn '+r.days+' ngày</span>';
+    }
+    const xeEsc=r.xe.replace(/'/g,"\\'");
+    return `<tr class="${rowCls}" data-badge-xe="${r.xe}">
       <td>${i+1}</td>
-      <td style="font-weight:700">🚛 ${r.truck}</td>
-      <td>${r.issued?r.issued.split("-").reverse().join("/"):"—"}</td>
-      <td>${r.expiry.split("-").reverse().join("/")}</td>
-      <td class="num">${days>=0?days+' ngày':'—'}</td>
+      <td style="font-weight:700">🚛 ${r.xe}</td>
+      <td><input type="date" class="badge-issued" value="${r.issued}" style="height:28px;border:1px solid var(--border);border-radius:5px;padding:0 6px;font-size:12px"></td>
+      <td><input type="date" class="badge-expiry" value="${r.expiry}" style="height:28px;border:1px solid var(--border);border-radius:5px;padding:0 6px;font-size:12px"></td>
+      <td class="num">${r.days!==null?r.days+' ngày':'—'}</td>
       <td>${badge}</td>
-      <td><button class="btn-del" onclick="deleteBadge(${realIdx})">🗑️ Xóa</button></td>
+      <td><button class="btn btn-green btn-sm" onclick="saveBadgeRow('${xeEsc}')">💾 Lưu</button></td>
+      <td><button class="btn-del" onclick="deleteBadgeRow('${xeEsc}')">🗑️ Xóa</button></td>
     </tr>`;
   }).join("");
 }
+
+window.exportBadge=async function(){
+  const trucks=getAllTrucks();
+  DB.badges=DB.badges||[];
+  const byTruck={};
+  DB.badges.forEach(b=>{ byTruck[b.truck]=b; });
+  const today=new Date(); today.setHours(0,0,0,0);
+  const rows=trucks.map(xe=>{
+    const b=byTruck[xe]||{};
+    let days="";
+    if(b.expiry){
+      const exp=new Date(b.expiry+"T00:00:00");
+      days=Math.ceil((exp-today)/86400000);
+    }
+    return [xe, b.issued||"", b.expiry||"", days];
+  });
+  if(!rows.length){ showToast("Không có dữ liệu để xuất",true); return; }
+  const hdr=["Số xe","Ngày cấp","Ngày hết hạn phù hiệu","Còn lại (ngày)"];
+  const numericCols=new Set([3]);
+  const textCols=new Set([0]);
+  const colWidths=[14,14,18,15];
+  const date=new Date().toLocaleDateString('vi-VN').replace(/\//g,'-');
+  await buildStyledXLSX("Hạn phù hiệu", hdr, rows, numericCols, textCols, colWidths, `HanPhuHieu_${date}.xlsx`);
+  showToast("✅ Đã xuất Excel");
+};
 
 /* ══════════════════════════════════════════
    TAB 3: ĐỔ NHIÊN LIỆU
