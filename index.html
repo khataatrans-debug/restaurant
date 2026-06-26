@@ -279,6 +279,17 @@ tr:hover td{background:#e8eeff!important;}
       <div class="field"><span class="lbl">Trọng lượng (tấn)</span><input id="wage" type="text" placeholder="VD: 25.5"></div>
       <div class="field"><span class="lbl">Số lượng</span><input id="qty" type="number" min="1" placeholder="1"></div>
       <div class="field"><span class="lbl">Số Container</span><input id="containerNo" placeholder="XXXX0000000"></div>
+      <div class="field"><span class="lbl">Loại Container</span><select id="containerType">
+        <option value="">-- Chọn --</option>
+        <option value="20DC">20DC</option>
+        <option value="40DC">40DC</option>
+        <option value="40HC">40HC</option>
+        <option value="20RF">20RF</option>
+        <option value="40RH">40RH</option>
+        <option value="40RF">40RF</option>
+      </select></div>
+      <div class="field"><span class="lbl">Tên tàu / Số chuyến</span><input id="vesselVoyage" placeholder="VD: MSC ABC / 123N"></div>
+      <div class="field"><span class="lbl">Cảng chuyển tải / Cảng đích</span><input id="transitPort" placeholder="VD: Singapore / Rotterdam"></div>
       <div class="field"><span class="lbl">Ghi chú</span><input id="note" placeholder="Ghi chú thêm..."></div>
       <div class="field"><span class="lbl">File đính kèm</span><input id="attachFile" type="file"></div>
     </div>
@@ -311,6 +322,7 @@ tr:hover td{background:#e8eeff!important;}
         <th>#</th><th>Ngày KH</th><th>Khách hàng</th><th>Mã KH</th>
         <th>Kho / Nhà máy</th><th>KM</th><th>Booking / Bill</th><th>Cut-off</th><th>Nơi lấy</th><th>Nơi hạ</th><th>Số xe</th><th>Mooc</th>
         <th>Lái xe</th><th>Loại DV</th><th>Số Seal</th><th>Trọng lượng</th><th>NL (lít)</th><th>Container</th>
+        <th>Loại Cont</th><th>Tên tàu/Số chuyến</th><th>Cảng chuyển tải/Đích</th>
         <th>Trạng thái</th><th>Ghi chú</th><th>File</th><th>Sửa</th><th>Xóa</th></tr></thead>
     <tbody id="tbody"></tbody>
   </table>
@@ -335,6 +347,9 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
   const elCusCode     = document.getElementById("cusCode");
   const elQty         = document.getElementById("qty");
   const elContainerNo = document.getElementById("containerNo");
+  const elContainerType = document.getElementById("containerType");
+  const elVesselVoyage  = document.getElementById("vesselVoyage");
+  const elTransitPort   = document.getElementById("transitPort");
   const elNote        = document.getElementById("note");
   const elBooking     = document.getElementById("booking");
   const elCarrier     = document.getElementById("carrier");
@@ -641,7 +656,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
           vehicleNo:elVehicleNo.value, mooc:elMooc.value, driver:elDriver.value,
           price:(elPrice.value||'').trim(), wage:(elWage.value||'').trim(), serviceType:document.getElementById('serviceType')?.value||'', fuelEst:elFuelEst.value,
           vcPrice: parseFloat(document.getElementById('vcPrice')?.value)||0,
-          containerNo:elContainerNo.value, note:elNote.value,
+          containerNo:elContainerNo.value, containerType:elContainerType.value, vesselVoyage:elVesselVoyage.value, transitPort:elTransitPort.value, note:elNote.value,
           attachName: attachName || existing.attachName || "",
           attachData: attachData || existing.attachData || ""
         };
@@ -657,7 +672,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
             vehicleNo:elVehicleNo.value, mooc:elMooc.value, driver:elDriver.value,
             price:(elPrice.value||'').trim(), wage:(elWage.value||'').trim(), serviceType:document.getElementById('serviceType')?.value||'', fuelEst:elFuelEst.value,
             vcPrice: parseFloat(document.getElementById('vcPrice')?.value)||0,
-            containerNo:elContainerNo.value, note:elNote.value,
+            containerNo:elContainerNo.value, containerType:elContainerType.value, vesselVoyage:elVesselVoyage.value, transitPort:elTransitPort.value, note:elNote.value,
             attachName, attachData
           };
           await saveDoc(rec);
@@ -707,6 +722,9 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
       elFuelEst.value = r.fuelEst || "";
     }, 0);
     elContainerNo.value = r.containerNo || "";
+    elContainerType.value = r.containerType || "";
+    elVesselVoyage.value  = r.vesselVoyage  || "";
+    elTransitPort.value   = r.transitPort   || "";
     elNote.value        = r.note        || "";
     elQty.value = 1;
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -740,14 +758,14 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
 
   window.exportExcel = async function () {
     if (!store.length) { alert("Không có dữ liệu để xuất"); return; }
-    const hdr = ["Ngày","Khách","Mã KH","Nơi lấy","Nơi hạ","Kho","KM","Booking","Cut-off","Xe","Mooc","Tài xế","Loại DV","Đơn giá","Lương","NL (lít)","Container","Ghi chú"];
+    const hdr = ["Ngày","Khách","Mã KH","Nơi lấy","Nơi hạ","Kho","KM","Booking","Cut-off","Xe","Mooc","Tài xế","Loại DV","Đơn giá","Lương","NL (lít)","Container","Loại Cont","Tên tàu/Số chuyến","Cảng chuyển tải/Đích","Ghi chú"];
     const numericCols = new Set([6,13,14,15]); // KM, Đơn giá, Lương, NL
     const rows = store.map(r => [
       r.planDate||"", r.customer||"", r.cusCode||"",
       r.depot||"", r.port||"", r.factory||"",
       r.km||0, r.booking||"", r.cutoff||"", r.vehicleNo||"", r.mooc||"", r.driver||"",
       r.serviceType||"", r.price||0, r.wage||0, r.fuelEst||0,
-      r.containerNo||"", r.note||""
+      r.containerNo||"", r.containerType||"", r.vesselVoyage||"", r.transitPort||"", r.note||""
     ]);
     await exportTruckingXLSX(hdr, rows, numericCols);
   };
@@ -778,7 +796,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
       r.eachCell((cell,colNum)=>{
         const c=colNum-1;
         const isNum=numericCols.has(c);
-        const isTextCode=[2,7,9,10,16].includes(c); // Mã KH, Booking, Xe, Mooc, Container — mã định danh
+        const isTextCode=[2,7,9,10,16,17,18,19].includes(c); // Mã KH, Booking, Xe, Mooc, Container, Loại Cont, Tàu/Chuyến, Cảng — mã định danh
         cell.font={size:10,color:{argb:"FF0F172A"}};
         if(isEven) cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFF7F9FF"}};
         cell.alignment={horizontal:isNum?"right":"left",vertical:"middle",wrapText:c===17};
@@ -854,6 +872,9 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
         <td style="color:#0d9f6e;font-weight:600">${r.wage||""}</td>
         <td style="color:#1d6ef5">${r.fuelEst||""}</td>
         <td style="font-family:monospace">${r.containerNo||""}</td>
+        <td style="font-weight:600;color:#0369a1">${r.containerType||""}</td>
+        <td class="tl">${r.vesselVoyage||""}</td>
+        <td class="tl">${r.transitPort||""}</td>
         <td>${ok?'<span class="tag-ok">✔ Đã sắp</span>':'<span class="tag-pending">⏳ Chờ sắp</span>'}</td>
         <td class="tl">${r.note||""}</td>
         <td>${r.attachName?`<span class="attach-link" onclick="downloadFile('${r.id}')">📎 ${r.attachName}</span>`:""}</td>
