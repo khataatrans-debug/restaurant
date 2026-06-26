@@ -1,9 +1,16 @@
-const CACHE = 'driver-v1';
+const CACHE = 'app-v2';
+
 const ASSETS = [
+  '/login.html',
   '/driver.html',
   '/app-config.js',
   '/manifest.json',
-  '/icon-192.png'
+
+  '/icon-192.png',
+  '/icon-512.png',
+
+  '/icon-admin-192.png',
+  '/icon-admin-512.png'
 ];
 
 self.addEventListener('install', e => {
@@ -14,7 +21,11 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.map(k => caches.delete(k)))
+      Promise.all(
+        keys
+          .filter(k => k !== CACHE)
+          .map(k => caches.delete(k))
+      )
     )
   );
   self.clients.claim();
