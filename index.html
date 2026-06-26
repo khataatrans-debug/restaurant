@@ -55,7 +55,6 @@ body{font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif;background:var(--b
 .btn-sm     {padding:3px 9px;font-size:11.5px;}
 .btn-edit   {background:#fef9c3;color:#854d0e;border:1px solid #fde047;}
 .btn-del    {background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;}
-.btn-split  {background:#e0e7ff;color:#4338ca;border:1px solid #c7d2fe;}
 
 /* ── FORM CARD ── */
 .form-card{background:var(--white);margin:12px 16px 0;border-radius:var(--r);border:1px solid var(--border);box-shadow:var(--shadow);}
@@ -72,7 +71,7 @@ body{font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif;background:var(--b
 /* Hàng 1: 3 ngày + khách hàng + nơi lấy + nơi hạ + mã KH — 7 cột đều */
 .row-r1{ grid-template-columns: repeat(8, 1fr); }
 .row-r2{ grid-template-columns: repeat(7, 1fr); }
-.row-r3{ grid-template-columns: 1fr 1fr 1fr 1fr 0.7fr 1.4fr 1.6fr 2fr 1fr; }
+.row-r3{ grid-template-columns: 1fr 1fr 1fr 1fr 2fr 1.2fr; }
 
 /* ── FIELD ── */
 .field{display:flex;flex-direction:column;gap:2px;}
@@ -324,39 +323,9 @@ tr:hover td{background:#e8eeff!important;}
         <th>Kho / Nhà máy</th><th>KM</th><th>Booking / Bill</th><th>Cut-off</th><th>Nơi lấy</th><th>Nơi hạ</th><th>Số xe</th><th>Mooc</th>
         <th>Lái xe</th><th>Loại DV</th><th>Số Seal</th><th>Trọng lượng</th><th>NL (lít)</th><th>Container</th>
         <th>Loại Cont</th><th>Tên tàu/Số chuyến</th><th>Cảng chuyển tải/Đích</th>
-        <th>Xe đoạn 2</th><th>Lái xe đoạn 2</th>
-        <th>Trạng thái</th><th>Ghi chú</th><th>File</th><th>Sửa</th><th>Chia xe</th><th>Xóa</th></tr></thead>
+        <th>Trạng thái</th><th>Ghi chú</th><th>File</th><th>Sửa</th><th>Xóa</th></tr></thead>
     <tbody id="tbody"></tbody>
   </table>
-</div>
-
-<!-- MODAL CHIA XE -->
-<div id="splitModalBg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;align-items:center;justify-content:center">
-  <div style="background:#fff;border-radius:12px;padding:24px;width:420px;max-width:92vw;box-shadow:0 10px 40px rgba(0,0,0,.2)">
-    <h3 style="margin:0 0 4px;font-size:16px;color:#0d2248">🚛 Chia xe đoạn 2</h3>
-    <p style="margin:0 0 16px;font-size:12px;color:#64748b">
-      Xe gốc kéo về kho, xe đoạn 2 kéo ra cảng/điểm hạ. KM và lương sẽ tự chia đôi (50/50) — có thể sửa lại sau khi lưu.
-    </p>
-    <div style="display:flex;flex-direction:column;gap:10px">
-      <div class="field"><span class="lbl">Xe đoạn 1 (gốc)</span><input id="splitVehicle1" readonly style="background:#f1f5f9"></div>
-      <div class="field"><span class="lbl">Xe đoạn 2 <b style="color:#dc2626">*</b></span>
-        <input id="splitVehicle2" list="dl-vehicleNo" autocomplete="off" placeholder="Gõ để tìm xe...">
-      </div>
-      <div class="field"><span class="lbl">Lái xe đoạn 2</span><input id="splitDriver2" readonly style="background:#f1f5f9"></div>
-      <div style="display:flex;gap:10px">
-        <div class="field" style="flex:1"><span class="lbl">KM đoạn 1</span><input id="splitKm1" type="number"></div>
-        <div class="field" style="flex:1"><span class="lbl">KM đoạn 2</span><input id="splitKm2" type="number"></div>
-      </div>
-      <div style="display:flex;gap:10px">
-        <div class="field" style="flex:1"><span class="lbl">Lương đoạn 1</span><input id="splitWage1" type="text"></div>
-        <div class="field" style="flex:1"><span class="lbl">Lương đoạn 2</span><input id="splitWage2" type="text"></div>
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:20px;justify-content:flex-end">
-      <button class="btn btn-sm" style="background:#f1f5f9;color:#475569" onclick="closeSplit()">Hủy</button>
-      <button class="btn btn-sm btn-save" onclick="saveSplit()">💾 Lưu chia xe</button>
-    </div>
-  </div>
 </div>
 
 <script type="module">
@@ -595,71 +564,6 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
     catch(e) { console.error("Lỗi xóa:", e); }
   }
 
-  /* ===== CHIA XE ĐOẠN 2 ===== */
-  let splitTargetId = null;
-
-  window.openSplit = function(id) {
-    const r = store.find(x => x.id === id);
-    if (!r) return;
-    if (!r.vehicleNo) { alert("Chuyến này chưa có Xe đoạn 1 — vui lòng nhập xe trước khi chia."); return; }
-    splitTargetId = id;
-    document.getElementById("splitVehicle1").value = r.vehicleNo + (r.driver?" — "+r.driver:"");
-    document.getElementById("splitVehicle2").value = r.vehicleNo2 || "";
-    document.getElementById("splitDriver2").value  = r.driver2   || "";
-
-    const km   = parseFloat(r.km)||0;
-    const wage = parseFloat(String(r.wage||"").replace(/[^\d.]/g,""))||0;
-    if (r.vehicleNo2) {
-      // Đã chia trước đó — giữ nguyên giá trị đã lưu
-      document.getElementById("splitKm1").value   = r.km1   ?? km;
-      document.getElementById("splitKm2").value   = r.km2   ?? 0;
-      document.getElementById("splitWage1").value = r.wage1 ?? r.wage;
-      document.getElementById("splitWage2").value = r.wage2 ?? "";
-    } else {
-      // Mặc định chia đôi 50/50
-      document.getElementById("splitKm1").value   = km   ? (km/2).toFixed(1)   : "";
-      document.getElementById("splitKm2").value   = km   ? (km/2).toFixed(1)   : "";
-      document.getElementById("splitWage1").value = wage ? Math.round(wage/2) : "";
-      document.getElementById("splitWage2").value = wage ? Math.round(wage/2) : "";
-    }
-    document.getElementById("splitModalBg").style.display = "flex";
-  };
-
-  window.closeSplit = function() {
-    document.getElementById("splitModalBg").style.display = "none";
-    splitTargetId = null;
-  };
-
-  // Tự điền lái xe đoạn 2 khi chọn xe đoạn 2
-  document.getElementById("splitVehicle2").addEventListener("input", function() {
-    const match = _trucks.find(x => (x.truck||"").trim() === this.value.trim());
-    document.getElementById("splitDriver2").value = match ? (match.driver||"") : "";
-  });
-
-  window.saveSplit = async function() {
-    if (!splitTargetId) return;
-    const v2 = document.getElementById("splitVehicle2").value.trim();
-    if (!v2) { alert("Vui lòng chọn Xe đoạn 2!"); return; }
-    const r = store.find(x => x.id === splitTargetId);
-    if (!r) return;
-
-    const km1   = parseFloat(document.getElementById("splitKm1").value)   || 0;
-    const km2   = parseFloat(document.getElementById("splitKm2").value)   || 0;
-    const wage1 = document.getElementById("splitWage1").value.trim();
-    const wage2 = document.getElementById("splitWage2").value.trim();
-    const driver2 = document.getElementById("splitDriver2").value.trim();
-
-    const updated = {
-      ...r,
-      km: km1,           // KM chính của dòng (đoạn 1) — để báo cáo/tổng KM không bị nhân đôi
-      wage: wage1,        // Lương chính (đoạn 1)
-      km1, wage1,
-      vehicleNo2: v2, driver2, km2, wage2,
-    };
-    await saveDoc(updated);
-    closeSplit();
-  };
-
   /* ===== STORE ===== */
   window.store  = [];
   window.editId = null;
@@ -854,15 +758,14 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
 
   window.exportExcel = async function () {
     if (!store.length) { alert("Không có dữ liệu để xuất"); return; }
-    const hdr = ["Ngày","Khách","Mã KH","Nơi lấy","Nơi hạ","Kho","KM","Booking","Cut-off","Xe","Mooc","Tài xế","Loại DV","Đơn giá","Lương","NL (lít)","Container","Loại Cont","Tên tàu/Số chuyến","Cảng chuyển tải/Đích","Xe đoạn 2","Lái xe đoạn 2","Ghi chú"];
+    const hdr = ["Ngày","Khách","Mã KH","Nơi lấy","Nơi hạ","Kho","KM","Booking","Cut-off","Xe","Mooc","Tài xế","Loại DV","Đơn giá","Lương","NL (lít)","Container","Loại Cont","Tên tàu/Số chuyến","Cảng chuyển tải/Đích","Ghi chú"];
     const numericCols = new Set([6,13,14,15]); // KM, Đơn giá, Lương, NL
     const rows = store.map(r => [
       r.planDate||"", r.customer||"", r.cusCode||"",
       r.depot||"", r.port||"", r.factory||"",
       r.km||0, r.booking||"", r.cutoff||"", r.vehicleNo||"", r.mooc||"", r.driver||"",
       r.serviceType||"", r.price||0, r.wage||0, r.fuelEst||0,
-      r.containerNo||"", r.containerType||"", r.vesselVoyage||"", r.transitPort||"",
-      r.vehicleNo2||"", r.driver2||"", r.note||""
+      r.containerNo||"", r.containerType||"", r.vesselVoyage||"", r.transitPort||"", r.note||""
     ]);
     await exportTruckingXLSX(hdr, rows, numericCols);
   };
@@ -893,7 +796,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
       r.eachCell((cell,colNum)=>{
         const c=colNum-1;
         const isNum=numericCols.has(c);
-        const isTextCode=[2,7,9,10,16,17,18,19,20,21].includes(c); // Mã KH, Booking, Xe, Mooc, Container, Loại Cont, Tàu/Chuyến, Cảng, Xe2, LX2 — mã định danh
+        const isTextCode=[2,7,9,10,16,17,18,19].includes(c); // Mã KH, Booking, Xe, Mooc, Container, Loại Cont, Tàu/Chuyến, Cảng — mã định danh
         cell.font={size:10,color:{argb:"FF0F172A"}};
         if(isEven) cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFF7F9FF"}};
         cell.alignment={horizontal:isNum?"right":"left",vertical:"middle",wrapText:c===17};
@@ -972,13 +875,10 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
         <td style="font-weight:600;color:#0369a1">${r.containerType||""}</td>
         <td class="tl">${r.vesselVoyage||""}</td>
         <td class="tl">${r.transitPort||""}</td>
-        <td>${r.vehicleNo2?'🚛 '+r.vehicleNo2:'<span style="color:#cbd5e1">—</span>'}</td>
-        <td class="tl">${r.driver2?r.driver2:'<span style="color:#cbd5e1">—</span>'}</td>
         <td>${ok?'<span class="tag-ok">✔ Đã sắp</span>':'<span class="tag-pending">⏳ Chờ sắp</span>'}</td>
         <td class="tl">${r.note||""}</td>
         <td>${r.attachName?`<span class="attach-link" onclick="downloadFile('${r.id}')">📎 ${r.attachName}</span>`:""}</td>
         <td><button class="btn btn-edit btn-sm" onclick="edit('${r.id}')">✏️ Sửa</button></td>
-        <td><button class="btn btn-split btn-sm" onclick="openSplit('${r.id}')" title="Chia xe đoạn 2">${r.vehicleNo2?'🚛 Đã chia':'➕ Chia xe'}</button></td>
         <td><button class="btn btn-del  btn-sm" onclick="delRow('${r.id}')">🗑️ Xóa</button></td>`;
       tbody.appendChild(tr);
     });
