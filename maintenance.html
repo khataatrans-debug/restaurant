@@ -149,6 +149,7 @@ tr:hover td{background:#e8eeff!important;}
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 
 
 <!-- ══ HTML ══ -->
@@ -529,7 +530,7 @@ tr:hover td{background:#e8eeff!important;}
 ════════════════════════════════════════ -->
 <div id="tab-cycle" class="tab-content" style="display:none">
   <div style="margin:14px 18px 0;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding-bottom:6px;border-bottom:1px solid var(--border)">
-    ⏰ Theo dõi chu kỳ bảo dưỡng theo KM — Số xe lấy từ Master Data, KM tổng lấy từ Quản lý nhiên liệu
+    ⏰ Theo dõi chu kỳ bảo dưỡng theo KM — Số xe lấy từ Master Data, KM tổng lấy từ Quản lý nhiên liệu, Định mức nhập tay riêng theo từng xe
   </div>
   <div class="filter-wrap" style="margin:10px 18px">
     <input type="text" id="fCycleKw" placeholder="🔍 Tìm số xe..." oninput="renderCycle()">
@@ -540,11 +541,11 @@ tr:hover td{background:#e8eeff!important;}
     <table>
       <thead><tr>
         <th>#</th><th>Số xe</th><th>KM tổng hiện tại</th>
-        <th>Lần BD gần nhất</th><th>KM lúc BD gần nhất</th>
-        <th>Định mức BD (km)</th><th>KM đã chạy từ lần BD</th>
+        <th>Lần BD gần nhất</th>
+        <th>Định mức BD (nhập tay)</th><th>KM đã chạy từ lần BD</th>
         <th>KM còn lại đến hạn</th><th>Trạng thái</th>
       </tr></thead>
-      <tbody id="tbody-cycle"><tr><td colspan="9" class="loading">⏳ Đang tải...</td></tr></tbody>
+      <tbody id="tbody-cycle"><tr><td colspan="8" class="loading">⏳ Đang tải...</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -557,10 +558,11 @@ tr:hover td{background:#e8eeff!important;}
     🪪 Theo dõi hạn phù hiệu — nhập tay theo ngày trên giấy phép xe
   </div>
   <div class="form-panel" style="margin:10px 18px;border:1px solid var(--border);border-radius:8px">
-    <div class="fg" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:0">
+    <div class="fg" style="grid-template-columns:1fr 1fr 1fr 1fr;margin-bottom:0">
       <div class="field"><label>Số xe</label>
         <select id="bTruck"><option value="">— Chọn xe —</option></select>
       </div>
+      <div class="field"><label>Ngày cấp</label><input id="bIssued" type="date"></div>
       <div class="field"><label>Ngày hết hạn phù hiệu</label><input id="bExpiry" type="date"></div>
       <div class="field" style="align-self:end">
         <button class="btn btn-green" onclick="saveBadge()" style="width:100%">💾 Lưu hạn phù hiệu</button>
@@ -570,9 +572,9 @@ tr:hover td{background:#e8eeff!important;}
   <div class="tbl-wrap" style="margin:8px 18px 24px">
     <table>
       <thead><tr>
-        <th>#</th><th>Số xe</th><th>Ngày hết hạn phù hiệu</th><th>Còn lại</th><th>Trạng thái</th><th>Xóa</th>
+        <th>#</th><th>Số xe</th><th>Ngày cấp</th><th>Ngày hết hạn phù hiệu</th><th>Còn lại</th><th>Trạng thái</th><th>Xóa</th>
       </tr></thead>
-      <tbody id="tbody-badge"><tr><td colspan="6" class="loading">⏳ Đang tải...</td></tr></tbody>
+      <tbody id="tbody-badge"><tr><td colspan="7" class="loading">⏳ Đang tải...</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -1343,17 +1345,15 @@ function renderCycle(){
   const trucks=getAllTrucks();
   const kmTotalByXe=getKmTotalByXe();
   const lastRepairByXe=getLastRepairByXe();
+  DB.cycleNorms=DB.cycleNorms||{};
 
   let rows=trucks.map(xe=>{
     const kmTotal=kmTotalByXe[xe]||0;
     const lastR=lastRepairByXe[xe];
-    const normKm=lastR?parseNormKm(lastR.norm):0;
-    const kmAtLastRepair=kmTotal>0&&lastR?kmTotal:0; // không lưu kmAt lúc BD trong repairs, dùng kmTotal hiện tại để tính từ mốc gần nhất nếu có
+    const normKm=+DB.cycleNorms[xe]||0; // Định mức nhập tay riêng theo xe, không lấy từ ghi chú sửa chữa
     let kmSinceRepair=0, kmRemain=null, status="nodata";
 
     if(normKm>0 && kmTotal>0){
-      // Không có field kmAt lúc bảo dưỡng trong dữ liệu cũ → coi mốc 0 là lần BD gần nhất,
-      // kmSinceRepair tạm dùng kmTotal modulo định mức để ước lượng đã chạy bao nhiêu trong chu kỳ hiện tại
       kmSinceRepair = kmTotal % normKm;
       kmRemain = normKm - kmSinceRepair;
       status = kmRemain<=0 ? "overdue" : kmRemain<=normKm*0.1 ? "soon" : "ok";
@@ -1368,14 +1368,14 @@ function renderCycle(){
   });
 
   if(!rows.length){
-    tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--muted)">Không có xe nào trong Master Data</td></tr>';
+    tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--muted)">Không có xe nào trong Master Data</td></tr>';
     return;
   }
 
   tbody.innerHTML=rows.map((r,i)=>{
     let badge, rowCls="";
     if(r.status==="nodata"){
-      badge='<span class="badge" style="background:#f1f5f9;color:#64748b">Chưa có dữ liệu</span>';
+      badge='<span class="badge" style="background:#f1f5f9;color:#64748b">Chưa nhập định mức</span>';
     } else if(r.status==="overdue"){
       badge='<span class="badge-overdue warn-blink">⛔ Quá hạn '+fmt(Math.abs(r.kmRemain))+' km</span>';
       rowCls="row-danger";
@@ -1390,8 +1390,12 @@ function renderCycle(){
       <td style="font-weight:700">🚛 ${r.xe}</td>
       <td class="num">${r.kmTotal?fmt(r.kmTotal)+' km':'—'}</td>
       <td>${r.lastDate||'—'}</td>
-      <td class="num">${r.normKm?fmt(r.kmTotal-r.kmSinceRepair)+' km':'—'}</td>
-      <td class="num">${r.normKm?fmt(r.normKm)+' km':'(chưa nhập định mức)'}</td>
+      <td class="num">
+        <input type="number" min="0" value="${r.normKm||''}" placeholder="Nhập định mức..."
+          style="width:110px;height:28px;text-align:right;border:1px solid var(--border);border-radius:5px;padding:0 6px;font-size:12px"
+          onchange="saveCycleNorm('${r.xe.replace(/'/g,"\\'")}', this.value)">
+        <span style="font-size:11px;color:var(--muted)">km</span>
+      </td>
       <td class="num">${r.normKm?fmt(r.kmSinceRepair)+' km':'—'}</td>
       <td class="num" style="font-weight:700">${r.normKm?fmt(r.kmRemain)+' km':'—'}</td>
       <td>${badge}</td>
@@ -1399,24 +1403,83 @@ function renderCycle(){
   }).join("");
 }
 
-window.exportCycle=function(){
+window.saveCycleNorm=function(xe, val){
+  DB.cycleNorms=DB.cycleNorms||{};
+  const norm=parseFloat(val)||0;
+  if(norm>0) DB.cycleNorms[xe]=norm;
+  else delete DB.cycleNorms[xe];
+  pushDB();
+  showToast("✅ Đã lưu định mức bảo dưỡng cho "+xe);
+  renderCycle();
+};
+
+/* ── Helper: xuất XLSX chuyên nghiệp (dùng chung) ── */
+async function buildStyledXLSX(sheetName, hdr, rows, numericCols, textCols, colWidths, filename){
+  const wb=new ExcelJS.Workbook();
+  const ws=wb.addWorksheet(sheetName);
+  ws.views=[{showGridLines:false}];
+
+  const thinBorder={style:"thin",color:{argb:"FFB0B7C3"}};
+  const allBorder={top:thinBorder,bottom:thinBorder,left:thinBorder,right:thinBorder};
+  const numFmt="#,##0;-#,##0;\"\"";
+
+  const hRow=ws.getRow(1);
+  hRow.values=hdr;
+  hRow.eachCell(cell=>{
+    cell.font={bold:true,size:10,color:{argb:"FFFFFFFF"}};
+    cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF0D2248"}};
+    cell.alignment={horizontal:"center",vertical:"middle",wrapText:true};
+    cell.border=allBorder;
+  });
+  hRow.height=28;
+
+  rows.forEach((rowData,i)=>{
+    const r=ws.getRow(2+i);
+    r.values=rowData;
+    const isEven=i%2===1;
+    r.eachCell((cell,colNum)=>{
+      const c=colNum-1;
+      const isNum=numericCols.has(c);
+      const isText=textCols.has(c);
+      cell.font={size:10,color:{argb:"FF0F172A"}};
+      if(isEven) cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFF7F9FF"}};
+      cell.alignment={horizontal:isNum?"right":"left",vertical:"middle"};
+      cell.border=allBorder;
+      if(isNum) cell.numFmt=numFmt;
+      if(isText) cell.numFmt="@";
+    });
+  });
+
+  ws.columns=colWidths.map(w=>({width:w}));
+
+  const buf=await wb.xlsx.writeBuffer();
+  const blob=new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=filename;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+}
+
+window.exportCycle=async function(){
   const trucks=getAllTrucks();
   const kmTotalByXe=getKmTotalByXe();
   const lastRepairByXe=getLastRepairByXe();
+  DB.cycleNorms=DB.cycleNorms||{};
   const rows=trucks.map(xe=>{
     const kmTotal=kmTotalByXe[xe]||0;
     const lastR=lastRepairByXe[xe];
-    const normKm=lastR?parseNormKm(lastR.norm):0;
+    const normKm=+DB.cycleNorms[xe]||0;
     const kmSinceRepair=normKm>0?kmTotal%normKm:0;
-    const kmRemain=normKm>0?normKm-kmSinceRepair:"";
-    return [xe,kmTotal,lastR?lastR.date:"",normKm||"",kmSinceRepair||"",kmRemain];
+    const kmRemain=normKm>0?normKm-kmSinceRepair:0;
+    return [xe,kmTotal,lastR?lastR.date:"",normKm,kmSinceRepair,kmRemain];
   });
+  if(!rows.length){ showToast("Không có dữ liệu để xuất",true); return; }
   const hdr=["Số xe","KM tổng hiện tại","Lần BD gần nhất","Định mức BD (km)","KM đã chạy","KM còn lại"];
-  const csv=[hdr,...rows].map(r=>r.map(c=>'"'+String(c||"").replace(/"/g,'""')+'"').join(",")).join("\n");
-  const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);a.download="HanBaoDuong_"+new Date().toISOString().slice(0,10)+".csv";
-  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  const numericCols=new Set([1,3,4,5]);
+  const textCols=new Set([0]);
+  const colWidths=[13,16,15,16,13,13];
+  const date=new Date().toLocaleDateString('vi-VN').replace(/\//g,'-');
+  await buildStyledXLSX("Hạn bảo dưỡng", hdr, rows, numericCols, textCols, colWidths, `HanBaoDuong_${date}.xlsx`);
   showToast("✅ Đã xuất Excel");
 };
 
@@ -1425,14 +1488,16 @@ window.exportCycle=function(){
 ══════════════════════════════════════════ */
 window.saveBadge=function(){
   const truck=document.getElementById("bTruck").value;
+  const issued=document.getElementById("bIssued").value;
   const expiry=document.getElementById("bExpiry").value;
   if(!truck||!expiry){ showToast("Chọn xe và ngày hết hạn!",true); return; }
   DB.badges=DB.badges||[];
   const idx=DB.badges.findIndex(b=>b.truck===truck);
-  if(idx>=0) DB.badges[idx].expiry=expiry;
-  else DB.badges.push({truck,expiry});
+  if(idx>=0){ DB.badges[idx].expiry=expiry; DB.badges[idx].issued=issued; }
+  else DB.badges.push({truck,issued,expiry});
   pushDB();
   document.getElementById("bTruck").value="";
+  document.getElementById("bIssued").value="";
   document.getElementById("bExpiry").value="";
   showToast("✅ Đã lưu hạn phù hiệu");
 };
@@ -1450,7 +1515,7 @@ function renderBadge(){
   const rows=[...(DB.badges||[])].sort((a,b)=>a.expiry.localeCompare(b.expiry));
 
   if(!rows.length){
-    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--muted)">Chưa có dữ liệu hạn phù hiệu</td></tr>';
+    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">Chưa có dữ liệu hạn phù hiệu</td></tr>';
     return;
   }
 
@@ -1466,6 +1531,7 @@ function renderBadge(){
     return `<tr class="${rowCls}">
       <td>${i+1}</td>
       <td style="font-weight:700">🚛 ${r.truck}</td>
+      <td>${r.issued?r.issued.split("-").reverse().join("/"):"—"}</td>
       <td>${r.expiry.split("-").reverse().join("/")}</td>
       <td class="num">${days>=0?days+' ngày':'—'}</td>
       <td>${badge}</td>
