@@ -960,13 +960,11 @@ function renderRepair(){
   let sumTotal=0;
   rows.forEach((r,i)=>{
     sumTotal+=+r.total||0;
-    const isNew = r.isNew === "Thay mới"
-  ? `<span class="badge badge-green">Thay mới</span>`
-  : r.isNew === "Sửa chữa"
-  ? `<span class="badge badge-amber">Sửa chữa</span>`
-  : r.isNew === "Bảo dưỡng định kỳ"
-  ? `<span class="badge badge-blue">Bảo dưỡng định kỳ</span>`
-  : r.isNew || "";
+    const isNew=r.isNew==="Thay mới"
+      ? `<span class="badge badge-green">Thay mới</span>`
+      : r.isNew==="Sửa chữa"
+      ? `<span class="badge badge-amber">Sửa chữa</span>`
+      : r.isNew||"";
     tbody.innerHTML+=`<tr>
       <td>${i+1}</td>
       <td>${r.date}</td>
