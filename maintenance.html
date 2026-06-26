@@ -530,30 +530,18 @@ tr:hover td{background:#e8eeff!important;}
 ════════════════════════════════════════ -->
 <div id="tab-cycle" class="tab-content" style="display:none">
   <div style="margin:14px 18px 0;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding-bottom:6px;border-bottom:1px solid var(--border)">
-    ⏰ Theo dõi chu kỳ bảo dưỡng theo KM — Số xe lấy từ Master Data, KM tổng cộng dồn từ các chuyến (Performance), Định mức nhập tay riêng theo từng xe
+    ⏰ Theo dõi chu kỳ bảo dưỡng theo KM — Số xe lấy từ Master Data, KM tổng cộng dồn từ các chuyến (Performance) trong khoảng thời gian lọc, Định mức nhập tay riêng theo từng xe
   </div>
 
-  <div class="ov-grid" style="padding:14px 18px 0">
-    <div class="ov-card accent">
-      <div class="ov-label">🛣️ Tổng KM toàn đội xe</div>
-      <div class="ov-val" id="cyc-totalKm">0 km</div>
-      <div class="ov-sub" id="cyc-totalTrips">0 chuyến</div>
-    </div>
-    <div class="ov-card" style="border-left:3px solid #166534">
-      <div class="ov-label">✅ Xe còn an toàn</div>
-      <div class="ov-val" id="cyc-ok">0 xe</div>
-    </div>
-    <div class="ov-card amber">
-      <div class="ov-label">⚠️ Sắp đến hạn BD (≤10% định mức)</div>
-      <div class="ov-val" id="cyc-soon">0 xe</div>
-    </div>
-    <div class="ov-card" style="border-left:3px solid #991b1b">
-      <div class="ov-label">⛔ Quá hạn bảo dưỡng</div>
-      <div class="ov-val" id="cyc-overdue">0 xe</div>
-    </div>
+  <div class="filter-wrap" style="margin:14px 18px 0">
+    <label style="font-size:12px;font-weight:600;color:var(--muted)">Từ ngày:</label>
+    <input type="date" id="cycFromDate" onchange="renderCycle()">
+    <label style="font-size:12px;font-weight:600;color:var(--muted)">Đến ngày:</label>
+    <input type="date" id="cycToDate" onchange="renderCycle()">
+    <button class="btn btn-gray btn-sm" onclick="clearCycleDateFilter()">Xóa lọc ngày</button>
   </div>
 
-  <div class="filter-wrap" style="margin:10px 18px">
+  <div class="filter-wrap" style="margin:8px 18px 0">
     <input type="text" id="fCycleKw" placeholder="🔍 Tìm số xe..." oninput="renderCycle()">
     <button class="btn btn-gray btn-sm" onclick="document.getElementById('fCycleKw').value='';renderCycle()">Xóa lọc</button>
     <button class="btn btn-excel btn-sm" onclick="exportCycle()">↓ Excel</button>
@@ -623,9 +611,9 @@ const ALL_NAV=[
   {page:"accountant.html",  label:"📒 kế toán"},
   {page:"performance.html", label:"📈 Hiệu suất"},
   {page:"overview.html",    label:"📊 Tổng quan"},
+  {page:"master.html",      label:"📂 Dữ liệu gốc",      adminOnly:true},
   {page:"maintenance.html", label:"🔧 Bảo dưỡng",  adminOnly:true},
   {page:"fuel.html",        label:"⛽ Nhiên liệu",  adminOnly:true},
-  {page:"master.html",      label:"📂 Dữ liệu gốc",      adminOnly:true},
   {page:"users.html",       label:"👑 Người dùng",        adminOnly:true},
 ];
 
@@ -744,6 +732,9 @@ function saveDB(){
   clearTimeout(saveTimer);
   saveTimer=setTimeout(()=>pushDB(),300);
 }
+// Firebase RTDB cấm ký tự . # $ [ ] / trong key → escape khi dùng biển số xe làm key object
+function escKey(s){ return (s||"").replace(/[.#$\[\]\/]/g,"_"); }
+
 async function pushDB(){
   try{
     await _set(_ref(MAINT_REF),DB);
@@ -1323,26 +1314,38 @@ window.clearTyreSearch=function(){
 
 // Lấy KM tổng (đồng hồ) cao nhất hiện tại của mỗi xe, từ lịch sử đổ nhiên liệu
 // Tổng KM thực tế của mỗi xe — cộng dồn từ các chuyến trong trucking_plan (giống Performance)
-function getKmTotalByXe(){
+// Có thể lọc theo khoảng ngày (fromDate/toDate dạng "YYYY-MM-DD")
+function getKmTotalByXe(fromDate,toDate){
   const map={};
   truckingStore.forEach(r=>{
     const xe=(r.vehicleNo||"").trim();
     if(!xe) return;
+    if(fromDate && (!r.planDate || r.planDate<fromDate)) return;
+    if(toDate && (!r.planDate || r.planDate>toDate)) return;
     map[xe]=(map[xe]||0)+(+r.km||0);
   });
   return map;
 }
 
-// KM đã chạy SAU ngày bảo dưỡng/sửa chữa gần nhất — cộng các chuyến có planDate > ngày BD
-function getKmSinceDateByXe(xe, sinceDate){
+// KM đã chạy SAU ngày bảo dưỡng/sửa chữa gần nhất — cộng các chuyến có planDate > ngày BD,
+// đồng thời tôn trọng khoảng lọc Từ ngày/Đến ngày nếu người dùng có chọn
+function getKmSinceDateByXe(xe, sinceDate, fromDate, toDate){
   if(!sinceDate) return 0;
   return truckingStore.reduce((sum,r)=>{
     const rxe=(r.vehicleNo||"").trim();
     if(rxe!==xe) return sum;
     if(!r.planDate || r.planDate<=sinceDate) return sum;
+    if(fromDate && r.planDate<fromDate) return sum;
+    if(toDate && r.planDate>toDate) return sum;
     return sum+(+r.km||0);
   },0);
 }
+
+window.clearCycleDateFilter=function(){
+  document.getElementById("cycFromDate").value="";
+  document.getElementById("cycToDate").value="";
+  renderCycle();
+};
 
 // Parse số từ chuỗi định mức tự do, VD: "10.000km" "10000 km" "10,000" → 10000
 function parseNormKm(str){
@@ -1366,9 +1369,11 @@ function renderCycle(){
   const tbody=document.getElementById("tbody-cycle");
   if(!tbody) return;
   const kw=(document.getElementById("fCycleKw")?.value||"").toLowerCase();
+  const fromDate=document.getElementById("cycFromDate")?.value||"";
+  const toDate=document.getElementById("cycToDate")?.value||"";
 
   const trucks=getAllTrucks();
-  const kmTotalByXe=getKmTotalByXe();
+  const kmTotalByXe=getKmTotalByXe(fromDate,toDate);
   const lastRepairByXe=getLastRepairByXe();
   DB.cycleNorms=DB.cycleNorms||{};
 
@@ -1376,15 +1381,15 @@ function renderCycle(){
     const kmTotal=kmTotalByXe[xe]||0;
     const lastR=lastRepairByXe[xe];
     const lastRepairDate=lastR?lastR.date:"";
-    const normKm=+DB.cycleNorms[xe]||0; // Định mức nhập tay riêng theo xe (tab Hạn bảo dưỡng)
+    const normKm=+DB.cycleNorms[escKey(xe)]||0; // Định mức nhập tay riêng theo xe (tab Hạn bảo dưỡng)
     let kmSinceRepair=0, kmRemain=null, status="nodata";
 
     if(normKm>0){
       if(lastRepairDate){
-        // Có ngày BD gần nhất → cộng đúng các chuyến phát sinh SAU ngày đó
-        kmSinceRepair = getKmSinceDateByXe(xe, lastRepairDate);
+        // Có ngày BD gần nhất → cộng đúng các chuyến phát sinh SAU ngày đó, trong khoảng lọc (nếu có)
+        kmSinceRepair = getKmSinceDateByXe(xe, lastRepairDate, fromDate, toDate);
       } else if(kmTotal>0){
-        // Chưa từng bảo dưỡng → tính từ toàn bộ KM đã chạy
+        // Chưa từng bảo dưỡng → tính từ toàn bộ KM đã chạy (trong khoảng lọc)
         kmSinceRepair = kmTotal % normKm;
       }
       kmRemain = normKm - kmSinceRepair;
@@ -1392,18 +1397,6 @@ function renderCycle(){
     }
     return {xe, kmTotal, lastDate:lastRepairDate, normKm, kmSinceRepair, kmRemain, status};
   });
-
-  // Cập nhật summary cards (dựa trên toàn bộ đội xe, không bị ảnh hưởng bởi ô tìm kiếm)
-  const totalKm=Object.values(kmTotalByXe).reduce((s,v)=>s+v,0);
-  const totalTrips=truckingStore.length;
-  const cntOk=rows.filter(r=>r.status==="ok").length;
-  const cntSoon=rows.filter(r=>r.status==="soon").length;
-  const cntOverdue=rows.filter(r=>r.status==="overdue").length;
-  document.getElementById("cyc-totalKm").textContent=fmt(totalKm)+" km";
-  document.getElementById("cyc-totalTrips").textContent=fmt(totalTrips)+" chuyến";
-  document.getElementById("cyc-ok").textContent=cntOk+" xe";
-  document.getElementById("cyc-soon").textContent=cntSoon+" xe";
-  document.getElementById("cyc-overdue").textContent=cntOverdue+" xe";
 
   if(kw) rows=rows.filter(r=>r.xe.toLowerCase().includes(kw));
   rows.sort((a,b)=>{
@@ -1458,8 +1451,8 @@ window.saveCycleNorm=function(xe, val){
   DB.cycleNorms=DB.cycleNorms||{};
   const raw=String(val).replace(/[^\d]/g,""); // bỏ dấu phân cách trước khi lưu số thật
   const norm=parseFloat(raw)||0;
-  if(norm>0) DB.cycleNorms[xe]=norm;
-  else delete DB.cycleNorms[xe];
+  if(norm>0) DB.cycleNorms[escKey(xe)]=norm;
+  else delete DB.cycleNorms[escKey(xe)];
   pushDB();
   showToast("✅ Đã lưu định mức bảo dưỡng cho "+xe);
   renderCycle();
@@ -1513,18 +1506,20 @@ async function buildStyledXLSX(sheetName, hdr, rows, numericCols, textCols, colW
 }
 
 window.exportCycle=async function(){
+  const fromDate=document.getElementById("cycFromDate")?.value||"";
+  const toDate=document.getElementById("cycToDate")?.value||"";
   const trucks=getAllTrucks();
-  const kmTotalByXe=getKmTotalByXe();
+  const kmTotalByXe=getKmTotalByXe(fromDate,toDate);
   const lastRepairByXe=getLastRepairByXe();
   DB.cycleNorms=DB.cycleNorms||{};
   const rows=trucks.map(xe=>{
     const kmTotal=kmTotalByXe[xe]||0;
     const lastR=lastRepairByXe[xe];
     const lastRepairDate=lastR?lastR.date:"";
-    const normKm=+DB.cycleNorms[xe]||0;
+    const normKm=+DB.cycleNorms[escKey(xe)]||0;
     let kmSinceRepair=0;
     if(normKm>0){
-      kmSinceRepair = lastRepairDate ? getKmSinceDateByXe(xe,lastRepairDate) : (kmTotal>0?kmTotal%normKm:0);
+      kmSinceRepair = lastRepairDate ? getKmSinceDateByXe(xe,lastRepairDate,fromDate,toDate) : (kmTotal>0?kmTotal%normKm:0);
     }
     const kmRemain=normKm>0?normKm-kmSinceRepair:0;
     return [xe,kmTotal,lastRepairDate,normKm,kmSinceRepair,kmRemain];
