@@ -203,7 +203,7 @@ tr:hover td{background:#e8eeff!important;}
 
     <!-- Row 2: chi tiết -->
     <div class="fg" style="grid-template-columns:repeat(7,1fr);margin-bottom:8px">
-      <div class="field"><label>Định mức bảo dưỡng</label><input id="rNorm" placeholder="Vd: 10.000km"></div>
+      <div class="field"><label>KM lúc bảo dưỡng/sửa chữa</label><input id="rNorm" placeholder="Vd: 10000"></div>
       <div class="field"><label>Thay mới / Sửa</label>
         <select id="rIsNew">
           <option value="">— Chọn —</option>
@@ -258,7 +258,7 @@ tr:hover td{background:#e8eeff!important;}
           <th>Đầu kéo</th>
           <th>Mooc</th>
           <th>Diễn giải</th>
-          <th>Định mức BD</th>
+          <th>KM lúc BD/SC</th>
           <th>Thay mới/Sửa</th>
           <th>Loại SC</th>
           <th>Mã SC</th>
@@ -542,10 +542,11 @@ tr:hover td{background:#e8eeff!important;}
       <thead><tr>
         <th>#</th><th>Số xe</th><th>KM tổng hiện tại</th>
         <th>Lần BD gần nhất</th>
+        <th>KM lúc BD/SC gần nhất</th>
         <th>Định mức BD (nhập tay)</th><th>KM đã chạy từ lần BD</th>
         <th>KM còn lại đến hạn</th><th>Trạng thái</th>
       </tr></thead>
-      <tbody id="tbody-cycle"><tr><td colspan="8" class="loading">⏳ Đang tải...</td></tr></tbody>
+      <tbody id="tbody-cycle"><tr><td colspan="9" class="loading">⏳ Đang tải...</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -999,7 +1000,7 @@ window.clearRepairSearch=function(){
 };
 
 window.exportRepair=function(){
-  const hdr=["Ngày","Đầu kéo","Mooc","Diễn giải","Định mức BD","Thay mới/Sửa","Loại SC","Mã SC","Bảo hành","ĐVT","SL","Đơn giá","Thành tiền","Người đề xuất","Người duyệt"];
+  const hdr=["Ngày","Đầu kéo","Mooc","Diễn giải","KM lúc BD/SC","Thay mới/Sửa","Loại SC","Mã SC","Bảo hành","ĐVT","SL","Đơn giá","Thành tiền","Người đề xuất","Người duyệt"];
   const rows=DB.repairs.map(r=>[r.date,r.truck||r.vehicle||"",r.mooc||"",r.desc,r.norm,r.isNew,r.repair,r.repairCode,r.warranty,r.unit,r.qty,r.unitPrice,r.total,r.proposer,r.approver]);
   const csv=[hdr,...rows].map(r=>r.map(c=>'"'+(c||"")+'"').join(",")).join("\n");
   const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
@@ -1288,8 +1289,9 @@ window.clearTyreSearch=function(){
    TAB 5: HẠN BẢO DƯỠNG (theo KM)
    — Số xe: lấy từ Master Data (getAllTrucks)
    — KM tổng hiện tại: kmAt cao nhất trong DB.fuels theo xe
-   — Định mức BD: parse số từ field "norm" (text) của lần
-     bảo dưỡng GẦN NHẤT mỗi xe trong DB.repairs
+   — KM lúc BD/SC gần nhất: lấy từ field "norm" của lần bảo
+     dưỡng/sửa chữa gần nhất trong DB.repairs (tab Bảo dưỡng)
+   — Định mức BD: nhập tay riêng theo từng xe (DB.cycleNorms)
 ══════════════════════════════════════════ */
 
 // Lấy KM tổng (đồng hồ) cao nhất hiện tại của mỗi xe, từ lịch sử đổ nhiên liệu
@@ -1334,15 +1336,22 @@ function renderCycle(){
   let rows=trucks.map(xe=>{
     const kmTotal=kmTotalByXe[xe]||0;
     const lastR=lastRepairByXe[xe];
-    const normKm=+DB.cycleNorms[xe]||0; // Định mức nhập tay riêng theo xe, không lấy từ ghi chú sửa chữa
+    const kmAtLastRepair=lastR?(+lastR.norm||0):0; // KM thực tế lúc bảo dưỡng/sửa chữa gần nhất (nhập ở tab Bảo dưỡng)
+    const normKm=+DB.cycleNorms[xe]||0; // Định mức nhập tay riêng theo xe (tab Hạn bảo dưỡng)
     let kmSinceRepair=0, kmRemain=null, status="nodata";
 
     if(normKm>0 && kmTotal>0){
-      kmSinceRepair = kmTotal % normKm;
+      if(kmAtLastRepair>0 && kmTotal>=kmAtLastRepair){
+        // Có mốc KM lúc BD thực tế → tính chính xác KM đã chạy từ lần BD gần nhất
+        kmSinceRepair = kmTotal - kmAtLastRepair;
+      } else {
+        // Chưa có mốc thực tế → ước lượng theo chu kỳ định mức
+        kmSinceRepair = kmTotal % normKm;
+      }
       kmRemain = normKm - kmSinceRepair;
       status = kmRemain<=0 ? "overdue" : kmRemain<=normKm*0.1 ? "soon" : "ok";
     }
-    return {xe, kmTotal, lastDate:lastR?lastR.date:"", normKm, kmSinceRepair, kmRemain, status};
+    return {xe, kmTotal, lastDate:lastR?lastR.date:"", kmAtLastRepair, normKm, kmSinceRepair, kmRemain, status};
   });
 
   if(kw) rows=rows.filter(r=>r.xe.toLowerCase().includes(kw));
@@ -1352,7 +1361,7 @@ function renderCycle(){
   });
 
   if(!rows.length){
-    tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--muted)">Không có xe nào trong Master Data</td></tr>';
+    tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--muted)">Không có xe nào trong Master Data</td></tr>';
     return;
   }
 
@@ -1374,6 +1383,7 @@ function renderCycle(){
       <td style="font-weight:700">🚛 ${r.xe}</td>
       <td class="num">${r.kmTotal?fmt(r.kmTotal)+' km':'—'}</td>
       <td>${r.lastDate||'—'}</td>
+      <td class="num">${r.kmAtLastRepair?fmt(r.kmAtLastRepair)+' km':'—'}</td>
       <td class="num">
         <input type="text" inputmode="numeric" value="${r.normKm?fmt(r.normKm):''}" placeholder="Nhập định mức..."
           style="width:120px;height:28px;text-align:right;border:1px solid var(--border);border-radius:5px;padding:0 6px;font-size:12px"
@@ -1460,16 +1470,20 @@ window.exportCycle=async function(){
   const rows=trucks.map(xe=>{
     const kmTotal=kmTotalByXe[xe]||0;
     const lastR=lastRepairByXe[xe];
+    const kmAtLastRepair=lastR?(+lastR.norm||0):0;
     const normKm=+DB.cycleNorms[xe]||0;
-    const kmSinceRepair=normKm>0?kmTotal%normKm:0;
+    let kmSinceRepair=0;
+    if(normKm>0 && kmTotal>0){
+      kmSinceRepair = (kmAtLastRepair>0 && kmTotal>=kmAtLastRepair) ? (kmTotal-kmAtLastRepair) : (kmTotal%normKm);
+    }
     const kmRemain=normKm>0?normKm-kmSinceRepair:0;
-    return [xe,kmTotal,lastR?lastR.date:"",normKm,kmSinceRepair,kmRemain];
+    return [xe,kmTotal,lastR?lastR.date:"",kmAtLastRepair,normKm,kmSinceRepair,kmRemain];
   });
   if(!rows.length){ showToast("Không có dữ liệu để xuất",true); return; }
-  const hdr=["Số xe","KM tổng hiện tại","Lần BD gần nhất","Định mức BD (km)","KM đã chạy","KM còn lại"];
-  const numericCols=new Set([1,3,4,5]);
+  const hdr=["Số xe","KM tổng hiện tại","Lần BD gần nhất","KM lúc BD/SC gần nhất","Định mức BD (km)","KM đã chạy","KM còn lại"];
+  const numericCols=new Set([1,3,4,5,6]);
   const textCols=new Set([0]);
-  const colWidths=[13,16,15,16,13,13];
+  const colWidths=[13,16,15,17,16,13,13];
   const date=new Date().toLocaleDateString('vi-VN').replace(/\//g,'-');
   await buildStyledXLSX("Hạn bảo dưỡng", hdr, rows, numericCols, textCols, colWidths, `HanBaoDuong_${date}.xlsx`);
   showToast("✅ Đã xuất Excel");
