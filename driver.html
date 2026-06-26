@@ -709,6 +709,7 @@ function renderReqFuelList(){
 
   function renderFuelDocs(docs){
     const el = document.getElementById("reqFuelList");
+    if(!el) return; // Tab Nhiên liệu chưa render — bỏ qua, sẽ render lại khi mở tab
     const sel = document.getElementById("reqFuelMonthFilter");
     const month = sel ? sel.value : "";
     const filtered = month ? docs.filter(a=>(a.date||"").startsWith(month)) : docs;
