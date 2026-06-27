@@ -395,9 +395,9 @@ tr:hover td{background:#e8eeff!important;}
 
     <!-- Row 1 -->
     <div class="fg" style="grid-template-columns:130px 1fr 1fr 1fr 1fr;margin-bottom:8px">
-      <div class="field"><label>Ngày</label><input id="tDate" type="date"></div>
+      <div class="field"><label>Ngày</label><input id="tDate" type="date" onchange="updateTyreKmInfo()"></div>
       <div class="field"><label>Số xe</label>
-        <select id="tTruck"><option value="">— Chọn xe —</option></select>
+        <select id="tTruck" onchange="updateTyreKmInfo()"><option value="">— Chọn xe —</option></select>
       </div>
       <div class="field"><label>Mooc</label>
         <select id="tMooc"><option value="">— Chọn mooc —</option></select>
@@ -408,9 +408,9 @@ tr:hover td{background:#e8eeff!important;}
 
     <!-- Row 2 -->
     <div class="fg" style="grid-template-columns:1fr 1fr 1fr 1fr 2fr 1fr;margin-bottom:8px">
-      <div class="field"><label>KM lúc thay</label><input id="tKmAt" type="number" placeholder="0"></div>
-      <div class="field"><label>KM đã sử dụng</label><input id="tKmUsed" type="number" placeholder="0" oninput="calcTyreUsed()"></div>
-      <div class="field"><label>KM định mức thay</label><input id="tKmStd" type="number" placeholder="Vd: 80000" oninput="calcTyreUsed()"></div>
+      <div class="field"><label>KM lúc thay</label><input id="tKmAt" type="number" placeholder="0" readonly style="background:#f8fafc;color:var(--muted)"></div>
+      <div class="field"><label>KM đã dùng (sau thay)</label><input id="tKmUsed" type="number" readonly style="background:#f8fafc;color:var(--muted)"></div>
+      <div class="field"><label>Định mức thay (riêng theo xe)</label><input id="tKmStd" type="number" placeholder="Vd: 80000" oninput="formatNormInput(this)" onchange="saveTyreNorm()"></div>
       <div class="field"><label>KM còn lại</label><input id="tKmRemain" type="number" readonly style="background:#f0fdf4;font-weight:700;color:var(--green)"></div>
       <div class="field"><label>Diễn giải</label><input id="tDesc" placeholder="Ghi chú thêm về tình trạng vỏ..."></div>
       <div class="field" style="align-self:end">
@@ -419,6 +419,10 @@ tr:hover td{background:#e8eeff!important;}
           <button class="btn btn-gray"  onclick="cancelTyre()">✕ Hủy</button>
         </div>
       </div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px">
+      🛣️ Tổng KM hiện tại của xe (cộng dồn từ chuyến): <strong id="tTotalKm" style="color:var(--accent)">—</strong>
+      &nbsp;|&nbsp; <em>KM lúc thay và KM đã dùng tự tính từ dữ liệu chuyến (Performance), không nhập tay</em>
     </div>
   </div>
 
@@ -639,9 +643,9 @@ const ALL_NAV=[
   {page:"accountant.html",  label:"📒 kế toán"},
   {page:"performance.html", label:"📈 Hiệu suất"},
   {page:"overview.html",    label:"📊 Tổng quan"},
+  {page:"master.html",      label:"📂 Dữ liệu gốc",      adminOnly:true},
   {page:"maintenance.html", label:"🔧 Bảo dưỡng",  adminOnly:true},
   {page:"fuel.html",        label:"⛽ Nhiên liệu",  adminOnly:true},
-  {page:"master.html",      label:"📂 Dữ liệu gốc",      adminOnly:true},
   {page:"users.html",       label:"👑 Người dùng",        adminOnly:true},
 ];
 
@@ -1217,17 +1221,63 @@ window.exportRepairOv=function(){
 /* ══════════════════════════════════════════
    TAB 2: QUẢN LÝ VỎ XE
 ══════════════════════════════════════════ */
-function calcTyreUsed(){
-  const kmAt  =+document.getElementById("tKmAt").value||0;
-  const kmStd =+document.getElementById("tKmStd").value||0;
-  // Km đã sử dụng = km định mức - (km định mức - km lúc thay) — tức là km lúc thay nếu từ 0
-  // Ta không biết km trước nên để người dùng nhập; chỉ tính km còn lại
-  // km còn lại = định mức - đã dùng
-  const used =+document.getElementById("tKmUsed").value||0;
-  const remain=kmStd>0&&used>0?Math.max(0,kmStd-used):"";
-  document.getElementById("tKmRemain").value=remain;
+// Tự tính KM lúc thay + KM đã dùng (sau khi thay) dựa vào dữ liệu chuyến (Performance), và load định mức đã lưu riêng theo xe
+window.updateTyreKmInfo=function(){
+  const truck=tv(document.getElementById("tTruck").value);
+  const date=tv(document.getElementById("tDate").value);
+  const totalEl=document.getElementById("tTotalKm");
+  const kmAtEl=document.getElementById("tKmAt");
+  const kmUsedEl=document.getElementById("tKmUsed");
+  const kmStdEl=document.getElementById("tKmStd");
+  const kmRemainEl=document.getElementById("tKmRemain");
+
+  if(!truck){ totalEl.textContent="—"; kmAtEl.value=""; kmUsedEl.value=""; kmRemainEl.value=""; return; }
+
+  // Tổng KM hiện tại của xe — cộng dồn toàn bộ chuyến (giống Hạn bảo dưỡng)
+  const totalKm=getKmTotalByXe()[truck]||0;
+  totalEl.textContent=fmt(totalKm)+" km";
+
+  // KM lúc thay = tổng KM của xe tính đến hết ngày được chọn (nếu có chọn ngày), ngược lại lấy tổng hiện tại
+  const kmAt = date ? getKmUpToDateByXe(truck,date) : totalKm;
+  kmAtEl.value=kmAt;
+
+  // Định mức riêng theo xe (đã lưu trước đó nếu có)
+  DB.tyreNorms=DB.tyreNorms||{};
+  const norm=+DB.tyreNorms[escKey(truck)]||0;
+  if(norm>0) kmStdEl.value=fmt(norm);
+
+  // KM đã dùng sau khi thay = các chuyến phát sinh SAU ngày thay (date), tính đến hiện tại
+  const used = date ? getKmSinceDateByXe(truck,date) : 0;
+  kmUsedEl.value=used;
+
+  const remain = norm>0 ? Math.max(0, norm-used) : "";
+  kmRemainEl.value=remain;
+};
+
+// Lưu định mức thay vỏ riêng theo xe (escKey để tránh ký tự "." không hợp lệ trong key RTDB)
+window.saveTyreNorm=function(){
+  const truck=tv(document.getElementById("tTruck").value);
+  if(!truck){ return; }
+  const raw=String(document.getElementById("tKmStd").value).replace(/[^\d]/g,"");
+  const norm=parseFloat(raw)||0;
+  DB.tyreNorms=DB.tyreNorms||{};
+  if(norm>0) DB.tyreNorms[escKey(truck)]=norm;
+  else delete DB.tyreNorms[escKey(truck)];
+  pushDB();
+  showToast("✅ Đã lưu định mức thay vỏ cho "+truck);
+  updateTyreKmInfo();
+};
+
+// KM tổng của xe tính đến hết 1 ngày cụ thể (dùng làm "KM lúc thay")
+function getKmUpToDateByXe(xe,uptoDate){
+  return truckingStore.reduce((sum,r)=>{
+    const rxe=(r.vehicleNo||"").trim();
+    if(rxe!==xe) return sum;
+    if(!r.planDate || r.planDate>uptoDate) return sum;
+    return sum+(+r.km||0);
+  },0);
 }
-window.calcTyreUsed=calcTyreUsed;
+window.calcTyreUsed=function(){}; // giữ lại để tránh lỗi nếu còn nơi gọi cũ, không còn tác dụng
 
 window.addTyre=function(){
   const date=tv(document.getElementById("tDate").value);
@@ -1240,7 +1290,7 @@ window.addTyre=function(){
     serial: tv(document.getElementById("tSerial").value),
     kmAt:   +document.getElementById("tKmAt").value||0,
     kmUsed: +document.getElementById("tKmUsed").value||0,
-    kmStd:  +document.getElementById("tKmStd").value||0,
+    kmStd:  parseFloat(String(document.getElementById("tKmStd").value).replace(/[^\d]/g,""))||0,
     kmRemain:+document.getElementById("tKmRemain").value||0,
     pos:    tv(document.getElementById("tPos").value),
     desc:   tv(document.getElementById("tDesc").value),
@@ -1260,10 +1310,11 @@ window.editTyre=function(i){
   document.getElementById("tSerial").value =r.serial||"";
   document.getElementById("tKmAt").value   =r.kmAt||"";
   document.getElementById("tKmUsed").value =r.kmUsed||"";
-  document.getElementById("tKmStd").value  =r.kmStd||"";
+  document.getElementById("tKmStd").value  =r.kmStd?fmt(r.kmStd):"";
   document.getElementById("tKmRemain").value=r.kmRemain||"";
   document.getElementById("tPos").value    =r.pos||"";
   document.getElementById("tDesc").value   =r.desc||"";
+  document.getElementById("tTotalKm").textContent=fmt(getKmTotalByXe()[r.truck]||0)+" km";
   document.getElementById("tEditBanner").style.display="block";
   document.getElementById("tDate").focus();
 };
@@ -1279,6 +1330,7 @@ window.cancelTyre=function(){
   ["tDate","tSerial","tKmAt","tKmUsed","tKmStd","tKmRemain","tPos","tDesc"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("tTruck").value="";
   document.getElementById("tMooc").value="";
+  document.getElementById("tTotalKm").textContent="—";
   document.getElementById("tEditBanner").style.display="none";
 };
 
