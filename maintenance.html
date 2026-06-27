@@ -406,8 +406,8 @@ tr:hover td{background:#e8eeff!important;}
 
     <!-- Row 2 -->
     <div class="fg" style="grid-template-columns:1fr 1fr 1fr 1fr 2fr 1fr;margin-bottom:8px">
-      <div class="field"><label>KM lúc thay <span style="color:var(--muted);font-weight:400">(tự tính, sửa được)</span></label><input id="tKmAt" type="number" placeholder="0" style="background:#f8fafc"></div>
-      <div class="field"><label>KM đã dùng (sau thay)</label><input id="tKmUsed" type="number" style="background:#f8fafc"></div>
+      <div class="field"><label>KM trên đồng hồ lúc thay <span style="color:var(--muted);font-weight:400">(nhập tay)</span></label><input id="tKmAt" type="number" placeholder="Nhập số KM trên đồng hồ..."></div>
+      <div class="field"><label>KM đã dùng (sau thay) <span style="color:var(--muted);font-weight:400">(tự động theo chuyến)</span></label><input id="tKmUsed" type="number" readonly style="background:#f8fafc;color:var(--muted)"></div>
       <div class="field"><label>Định mức thay (riêng theo xe/mooc)</label><input id="tKmStd" type="number" placeholder="Vd: 80000" oninput="formatNormInput(this)" onchange="saveTyreNorm()"></div>
       <div class="field"><label>KM còn lại</label><input id="tKmRemain" type="number" readonly style="background:#f0fdf4;font-weight:700;color:var(--green)"></div>
       <div class="field"><label>Diễn giải</label><input id="tDesc" placeholder="Ghi chú thêm về tình trạng vỏ..."></div>
@@ -420,7 +420,7 @@ tr:hover td{background:#e8eeff!important;}
     </div>
     <div style="font-size:11px;color:var(--muted);margin-bottom:8px">
       🛣️ Tổng KM hiện tại (cộng dồn từ chuyến, theo xe hoặc mooc đang chọn): <strong id="tTotalKm" style="color:var(--accent)">—</strong>
-      &nbsp;|&nbsp; <em>KM lúc thay = tổng KM tính đến ngày thay; KM đã dùng = KM phát sinh từ sau ngày thay đến nay — tự tính từ dữ liệu chuyến (theo xe hoặc mooc tương ứng), có thể sửa tay nếu cần hiệu chỉnh theo đồng hồ thực tế</em>
+      &nbsp;|&nbsp; <em>KM lúc thay = nhập tay theo đồng hồ thực tế khi thay vỏ; KM đã dùng = tự động link theo dữ liệu chuyến (theo xe hoặc mooc tương ứng), tính từ chuyến sau ngày thay đến hiện tại</em>
     </div>
   </div>
 
@@ -1205,35 +1205,30 @@ window.exportRepairOv=function(){
 /* ══════════════════════════════════════════
    TAB 2: QUẢN LÝ VỎ XE
 ══════════════════════════════════════════ */
-// Tự tính KM lúc thay + KM đã dùng (sau khi thay) dựa vào dữ liệu chuyến (Performance), và load định mức đã lưu riêng theo xe/mooc
+// Tự LINK "KM đã dùng" theo dữ liệu chuyến (từ ngày thay về sau); "KM lúc thay" là ô nhập tay theo đồng hồ thực tế, không tự tính
 // Ô tVehicle nhận 1 trong 2: số xe (đầu kéo) HOẶC số mooc — tự nhận diện loại để tính KM đúng nguồn
 window.updateTyreKmInfo=function(){
   const entity=tv(document.getElementById("tVehicle").value);
   const date=tv(document.getElementById("tDate").value);
   const totalEl=document.getElementById("tTotalKm");
-  const kmAtEl=document.getElementById("tKmAt");
   const kmUsedEl=document.getElementById("tKmUsed");
   const kmStdEl=document.getElementById("tKmStd");
   const kmRemainEl=document.getElementById("tKmRemain");
 
-  if(!entity){ totalEl.textContent="—"; kmAtEl.value=""; kmUsedEl.value=""; kmRemainEl.value=""; return; }
+  if(!entity){ totalEl.textContent="—"; kmUsedEl.value=""; kmRemainEl.value=""; return; }
 
   const type=getVehicleType(entity);
 
-  // Tổng KM hiện tại của xe/mooc — cộng dồn toàn bộ chuyến (giống Hạn bảo dưỡng, mở rộng cho cả mooc)
+  // Tổng KM hiện tại của xe/mooc — chỉ để tham khảo, KHÔNG dùng để tính KM lúc thay (vì ô đó nhập tay)
   const totalKm=getKmTotalByEntity(entity,type);
   totalEl.textContent=fmt(totalKm)+" km"+(type==="mooc"?" 🚌":" 🚛")+(type==="mooc"&&totalKm===0?" (mooc này chưa có chuyến nào trong dữ liệu)":"");
-
-  // KM lúc thay = tổng KM tính đến hết ngày được chọn (nếu có chọn ngày), ngược lại lấy tổng hiện tại
-  const kmAt = date ? getKmUpToDateByEntity(entity,type,date) : totalKm;
-  kmAtEl.value=kmAt;
 
   // Định mức riêng theo xe/mooc (đã lưu trước đó nếu có)
   DB.tyreNorms=DB.tyreNorms||{};
   const norm=+DB.tyreNorms[escKey(entity)]||0;
   if(norm>0) kmStdEl.value=fmt(norm);
 
-  // KM đã dùng sau khi thay = các chuyến phát sinh SAU ngày thay (date), tính đến hiện tại
+  // KM đã dùng = TỰ ĐỘNG LINK theo chuyến, cộng dồn từ chuyến SAU ngày thay (tDate) đến hiện tại
   const used = date ? getKmSinceDateByEntity(entity,type,date) : 0;
   kmUsedEl.value=used;
 
