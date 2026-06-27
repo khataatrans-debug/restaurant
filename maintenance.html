@@ -407,7 +407,7 @@ tr:hover td{background:#e8eeff!important;}
 
     <!-- Row 2 -->
     <div class="fg" style="grid-template-columns:1fr 1fr 1fr 1fr 2fr 1fr;margin-bottom:8px">
-      <div class="field"><label>KM trên đồng hồ lúc thay <span style="color:var(--muted);font-weight:400">(nhập tay)</span></label><input id="tKmAt" type="number" placeholder="Nhập số KM trên đồng hồ..."></div>
+      <div class="field"><label>KM lúc thay (đồng hồ <span style="color:var(--muted);font-weight:400">- nhập tay)</span></label><input id="tKmAt" type="number" placeholder="Nhập số KM trên đồng hồ..."></div>
       <div class="field"><label>KM đã dùng (sau thay) <span style="color:var(--muted);font-weight:400">(tự động theo chuyến)</span></label><input id="tKmUsed" type="number" readonly style="background:#f8fafc;color:var(--muted)"></div>
       <div class="field"><label>Định mức thay (riêng theo xe/mooc)</label><input id="tKmStd" type="number" placeholder="Vd: 80000" oninput="formatNormInput(this)" onchange="saveTyreNorm()"></div>
       <div class="field"><label>KM còn lại</label><input id="tKmRemain" type="number" readonly style="background:#f0fdf4;font-weight:700;color:var(--green)"></div>
@@ -421,7 +421,7 @@ tr:hover td{background:#e8eeff!important;}
     </div>
     <div style="font-size:11px;color:var(--muted);margin-bottom:8px">
       🛣️ Tổng KM hiện tại (cộng dồn từ chuyến, theo xe hoặc mooc đang chọn): <strong id="tTotalKm" style="color:var(--accent)">—</strong>
-      &nbsp;|&nbsp; <em>KM lúc thay = nhập tay theo đồng hồ thực tế khi thay vỏ; KM đã dùng = tự động link theo dữ liệu chuyến (theo xe hoặc mooc tương ứng), tính từ chuyến sau ngày thay đến hiện tại</em>
+      &nbsp;|&nbsp; <em>KM lúc thay (đồng hồ - nhập tay) = nhập tay theo đồng hồ thực tế khi thay vỏ; KM đã dùng = tự động link theo dữ liệu chuyến (theo xe hoặc mooc tương ứng), tính từ chuyến sau ngày thay đến hiện tại</em>
     </div>
   </div>
 
@@ -448,8 +448,8 @@ tr:hover td{background:#e8eeff!important;}
           <th>Ngày</th>
           <th>Số xe / Mooc</th>
           <th>Số Seri</th>
-          <th>KM lúc thay</th>
-          <th title="Tổng KM cộng dồn từ chuyến tính đến ngày thay — đối chiếu với KM lúc thay nhập tay">Lũy kế (đối chiếu)</th>
+          <th>KM lúc thay (đồng hồ - nhập tay)</th>
+          <th title="Tổng KM cộng dồn từ chuyến tính đến ngày thay — đối chiếu với KM lúc thay (đồng hồ - nhập tay)">KM tổng hiện tại</th>
           <th>KM đã dùng</th>
           <th>KM định mức</th>
           <th>KM còn lại</th>
@@ -1417,7 +1417,7 @@ function renderTyre(){
       <td style="font-weight:700">${vType==="mooc"?"🚌 ":"🚛 "}${veh}</td>
       <td style="font-family:monospace">${r.serial||""}</td>
       <td class="num">${r.kmAt?fmt(r.kmAt):""}</td>
-      <td class="num" style="color:var(--muted)" title="Tổng KM cộng dồn từ chuyến tính đến ngày thay — để đối chiếu với KM trên đồng hồ nhập tay">${luyKe?fmt(luyKe):""}</td>
+      <td class="num" style="color:var(--muted)" title="Tổng KM cộng dồn từ chuyến tính đến ngày thay — để đối chiếu với KM lúc thay (đồng hồ - nhập tay)">${luyKe?fmt(luyKe):""}</td>
       <td class="num" title="Tự động tính lại mỗi khi có chuyến mới — giống tab Hạn bảo dưỡng">${fmt(kmUsedLive)}</td>
       <td class="num">${r.kmStd?fmt(r.kmStd):""}</td>
       <td class="num" style="color:${(kmRemainLive>0&&kmRemainLive<5000)?'var(--red)':'var(--green)'};font-weight:700">${kmRemainLive!==null?fmt(kmRemainLive):""}</td>
