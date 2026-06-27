@@ -47,6 +47,7 @@ body{font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif;background:var(--b
 .btn{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border:none;border-radius:5px;font-size:12px;font-family:inherit;font-weight:600;cursor:pointer;transition:.15s;white-space:nowrap;}
 .btn:hover{filter:brightness(1.07);}
 .btn-blue{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;}
+.btn-amber{background:#fffbeb;color:#b45309;border:1px solid #fde68a;}
 .btn-gray{background:#f1f5f9;color:#475569;border:1px solid var(--border);}
 .btn-green{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;}
 .btn-red{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;}
@@ -433,6 +434,7 @@ tr:hover td{background:#e8eeff!important;}
     <select id="fTyreVehicle"><option value="">Tất cả xe / mooc</option></select>
     <button class="btn btn-blue btn-sm" onclick="doTyreSearch()">Lọc</button>
     <button class="btn btn-gray btn-sm" onclick="clearTyreSearch()">Reset</button>
+    <button class="btn btn-amber btn-sm" onclick="recalcAllTyreKmUsed()" title="Tính lại KM đã dùng cho các dòng cũ (đã thay trước khi có tính năng tự link theo chuyến)">🔄 Tính lại KM đã dùng</button>
     <button class="btn btn-excel btn-sm" onclick="exportTyre()">↓ Excel</button>
     <div class="pill">Tổng: <strong id="tyreCount">0</strong> bộ vỏ</div>
   </div>
@@ -447,6 +449,7 @@ tr:hover td{background:#e8eeff!important;}
           <th>Số xe / Mooc</th>
           <th>Số Seri</th>
           <th>KM lúc thay</th>
+          <th title="Tổng KM cộng dồn từ chuyến tính đến ngày thay — đối chiếu với KM lúc thay nhập tay">Lũy kế (đối chiếu)</th>
           <th>KM đã dùng</th>
           <th>KM định mức</th>
           <th>KM còn lại</th>
@@ -1354,6 +1357,26 @@ window.cancelTyre=function(){
   document.getElementById("tEditBanner").style.display="none";
 };
 
+// Tính lại KM đã dùng (+ KM còn lại) cho TẤT CẢ các dòng vỏ xe đã lưu trước đó —
+// dùng cho dữ liệu cũ được nhập trước khi có tính năng tự link theo chuyến, hoặc khi
+// dữ liệu chuyến mới được bổ sung sau này và cần cập nhật lại số liệu cho chính xác.
+window.recalcAllTyreKmUsed=function(){
+  if(!DB.tyres.length) return showToast("Chưa có dữ liệu vỏ xe để tính lại",true);
+  if(!confirm(`Tính lại KM đã dùng cho toàn bộ ${DB.tyres.length} dòng, dựa theo dữ liệu chuyến hiện tại?`)) return;
+  let changed=0;
+  DB.tyres.forEach(r=>{
+    const entity=r.vehicle||r.truck||r.mooc;
+    if(!entity||!r.date) return;
+    const type=r.vehicleType||getVehicleType(entity);
+    const used=getKmSinceDateByEntity(entity,type,r.date);
+    r.vehicle=entity; r.vehicleType=type; r.kmUsed=used;
+    if(r.kmStd>0) r.kmRemain=Math.max(0,r.kmStd-used);
+    changed++;
+  });
+  saveDB();renderTyre();
+  showToast(`✅ Đã tính lại KM đã dùng cho ${changed} dòng`);
+};
+
 window.doTyreSearch =function(){renderTyre();};
 window.clearTyreSearch=function(){
   ["fTyreKw","fTyreFrom","fTyreTo"].forEach(id=>document.getElementById(id).value="");
@@ -1383,15 +1406,17 @@ function renderTyre(){
     const statusCls=pct>=90?"badge-red":pct>=70?"badge-amber":"badge-green";
     const veh=r.vehicle||r.truck||r.mooc||"";
     const vType=r.vehicleType||(r.mooc&&!r.truck?"mooc":"truck");
+    const luyKe=veh?getKmUpToDateByEntity(veh,vType,r.date):null; // tổng lũy kế đến ngày thay — đối chiếu với KM lúc thay nhập tay
     tbody.innerHTML+=`<tr>
       <td>${i+1}</td>
       <td>${r.date}</td>
       <td style="font-weight:700">${vType==="mooc"?"🚌 ":"🚛 "}${veh}</td>
       <td style="font-family:monospace">${r.serial||""}</td>
       <td class="num">${r.kmAt?fmt(r.kmAt):""}</td>
-      <td class="num">${r.kmUsed?fmt(r.kmUsed):""}</td>
+      <td class="num" style="color:var(--muted)" title="Tổng KM cộng dồn từ chuyến tính đến ngày thay — để đối chiếu với KM trên đồng hồ nhập tay">${luyKe?fmt(luyKe):""}</td>
+      <td class="num">${r.kmUsed!==undefined&&r.kmUsed!==null?fmt(r.kmUsed):""}</td>
       <td class="num">${r.kmStd?fmt(r.kmStd):""}</td>
-      <td class="num" style="color:${(r.kmRemain>0&&r.kmRemain<5000)?'var(--red)':'var(--green)'};font-weight:700">${r.kmRemain?fmt(r.kmRemain):""}</td>
+      <td class="num" style="color:${(r.kmRemain>0&&r.kmRemain<5000)?'var(--red)':'var(--green)'};font-weight:700">${r.kmRemain!==undefined&&r.kmRemain!==null?fmt(r.kmRemain):""}</td>
       <td>${r.pos?`<span class="badge badge-blue">${r.pos}</span>`:""}</td>
       <td class="tl">${r.desc||""}</td>
       <td><button class="btn-edit" onclick="editTyre(${idxMap[i]})">✏️ Sửa</button></td>
