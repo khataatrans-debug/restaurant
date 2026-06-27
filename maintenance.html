@@ -448,8 +448,8 @@ tr:hover td{background:#e8eeff!important;}
           <th>Ngày</th>
           <th>Số xe / Mooc</th>
           <th>Số Seri</th>
+          <th title="Tổng KM hiện tại của xe/mooc, cộng dồn toàn bộ chuyến — giống công thức Hạn bảo dưỡng, không giới hạn theo ngày thay">KM tổng hiện tại</th>
           <th>KM lúc thay (đồng hồ - nhập tay)</th>
-          <th title="Tổng KM cộng dồn từ chuyến tính đến ngày thay — đối chiếu với KM lúc thay (đồng hồ - nhập tay)">KM tổng hiện tại</th>
           <th>KM đã dùng</th>
           <th>KM định mức</th>
           <th>KM còn lại</th>
@@ -1406,7 +1406,9 @@ function renderTyre(){
   rows.forEach((r,i)=>{
     const veh=r.vehicle||r.truck||r.mooc||"";
     const vType=r.vehicleType||(r.mooc&&!r.truck?"mooc":"truck");
-    const luyKe=veh?getKmUpToDateByEntity(veh,vType,r.date):null; // tổng lũy kế đến ngày thay — đối chiếu với KM lúc thay nhập tay
+    // KM tổng hiện tại: TỔNG TOÀN BỘ chuyến của xe/mooc, KHÔNG giới hạn theo ngày thay —
+    // đúng cùng công thức với cột "KM tổng hiện tại" của tab Hạn bảo dưỡng (getKmTotalByXe không truyền date).
+    const kmTotalNow = veh ? getKmTotalByEntity(veh,vType) : null;
     // KM đã dùng / KM còn lại: TÍNH LIVE mỗi lần render (giống tab Hạn bảo dưỡng) — luôn cập nhật theo
     // dữ liệu chuyến mới nhất, không phụ thuộc số đã lưu tĩnh lúc thêm/sửa.
     const kmUsedLive = veh ? getKmSinceDateByEntity(veh,vType,r.date) : (r.kmUsed||0);
@@ -1416,8 +1418,8 @@ function renderTyre(){
       <td>${r.date}</td>
       <td style="font-weight:700">${vType==="mooc"?"🚌 ":"🚛 "}${veh}</td>
       <td style="font-family:monospace">${r.serial||""}</td>
+      <td class="num" title="Tổng KM hiện tại của xe/mooc (cộng dồn toàn bộ chuyến, không giới hạn theo ngày thay)">${kmTotalNow?fmt(kmTotalNow):""}</td>
       <td class="num">${r.kmAt?fmt(r.kmAt):""}</td>
-      <td class="num" style="color:var(--muted)" title="Tổng KM cộng dồn từ chuyến tính đến ngày thay — để đối chiếu với KM lúc thay (đồng hồ - nhập tay)">${luyKe?fmt(luyKe):""}</td>
       <td class="num" title="Tự động tính lại mỗi khi có chuyến mới — giống tab Hạn bảo dưỡng">${fmt(kmUsedLive)}</td>
       <td class="num">${r.kmStd?fmt(r.kmStd):""}</td>
       <td class="num" style="color:${(kmRemainLive>0&&kmRemainLive<5000)?'var(--red)':'var(--green)'};font-weight:700">${kmRemainLive!==null?fmt(kmRemainLive):""}</td>
