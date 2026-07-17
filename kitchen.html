@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>👨‍🍳 Bếp – Kanban</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://firestore.googleapis.com">
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<style>
+:root{
+  --navy:#0d2248; --accent:#1d6ef5; --green:#0d9f6e; --red:#e03131; --amber:#e67700;
+  --border:#e2e8f5; --muted:#64748b; --bg:#eef1f8; --white:#ffffff; --text:#0f172a; --alt:#f7f9ff;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;overflow:hidden;}
+
+.nav{background:var(--navy);display:flex;align-items:center;padding:0 14px;height:46px;gap:2px;flex-shrink:0;box-shadow:0 2px 8px rgba(13,34,72,.3);z-index:50;}
+.nav a{color:rgba(255,255,255,.6);text-decoration:none;font-size:12.5px;font-weight:600;padding:6px 10px;border-radius:5px;white-space:nowrap;}
+.nav a:hover{background:rgba(255,255,255,.1);color:#fff;}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.nav-user{color:rgba(255,255,255,.75);font-size:11.5px;font-weight:500;display:none;}
+.btn-logout{background:rgba(255,255,255,.1);color:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.15);border-radius:5px;padding:5px 10px;font-size:11.5px;font-family:inherit;cursor:pointer;}
+
+.station-bar{background:var(--white);border-bottom:1px solid var(--border);padding:9px 12px;display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.station-bar select{flex:1;height:40px;font-size:13.5px;font-weight:700;color:var(--navy);border:1.5px solid var(--border);border-radius:8px;padding:0 10px;font-family:inherit;background:var(--alt);max-width:340px;}
+
+.tabbar{display:flex;background:var(--white);border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;}
+.tab{flex:1;min-width:78px;text-align:center;padding:9px 4px;font-size:11px;font-weight:700;color:var(--muted);border:none;background:none;font-family:inherit;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;}
+.tab .tab-n{display:block;font-size:16px;font-weight:800;margin-top:1px;}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.tab[data-col="new"].active{color:var(--accent);border-bottom-color:var(--accent);}
+.tab[data-col="cooking"].active{color:var(--amber);border-bottom-color:var(--amber);}
+.tab[data-col="done"].active{color:var(--green);border-bottom-color:var(--green);}
+.tab[data-col="cancelled"].active{color:var(--red);border-bottom-color:var(--red);}
+
+.kanban{flex:1;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;gap:0;}
+.kcol{flex:0 0 100%;scroll-snap-align:start;display:flex;flex-direction:column;min-height:0;background:var(--bg);}
+.kcol-head{background:var(--navy);color:#fff;padding:9px 14px;font-size:12.5px;font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:8px;letter-spacing:.02em;flex-shrink:0;}
+.kcol-head .n{background:rgba(255,255,255,.16);border-radius:20px;padding:1px 11px;font-size:11.5px;font-weight:800;}
+.kcol[data-col="cooking"] .kcol-head{background:var(--amber);}
+.kcol[data-col="done"] .kcol-head{background:var(--green);}
+.kcol[data-col="cancelled"] .kcol-head{background:#7a2323;}
+.kcol-body{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:14px;}
+.empty{text-align:center;color:var(--muted);padding:60px 20px;font-size:13px;line-height:1.7;}
+.empty .big{font-size:38px;margin-bottom:8px;}
+
+.card{background:var(--white);border:1.5px solid var(--border);border-left:6px solid var(--accent);border-radius:10px;box-shadow:0 2px 6px rgba(13,34,72,.07);overflow:hidden;flex-shrink:0;}
+.card.cooking{border-left-color:var(--amber);}
+.card.done{border-left-color:var(--green);}
+.card.cancelled{border-left-color:var(--red);opacity:.85;}
+.card.warn{box-shadow:0 2px 8px rgba(230,119,0,.3);}
+.card.late{animation:latePulse 1.6s infinite;}
+@keyframes latePulse{0%,100%{box-shadow:0 2px 6px rgba(224,49,49,.22);}50%{box-shadow:0 2px 10px rgba(224,49,49,.45);}}
+
+.card-head{display:flex;justify-content:space-between;align-items:flex-start;padding:10px 12px 2px;gap:8px;}
+.card-table{font-size:12.5px;font-weight:800;color:var(--navy);}
+.card-timer{font-size:12px;font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums;flex-shrink:0;}
+.card.warn .card-timer{color:var(--amber);}
+.card.late .card-timer{color:var(--red);}
+
+.card-body{padding:4px 12px 10px;}
+.card-name{font-size:15.5px;font-weight:800;color:var(--text);line-height:1.35;}
+.card-qty{display:inline-block;background:var(--navy);color:#fff;font-weight:800;font-size:12px;border-radius:5px;padding:1px 8px;margin-right:6px;}
+.card-combo{font-size:10.5px;color:var(--muted);margin-top:2px;}
+.card-cancel-tag{font-size:10.5px;font-weight:700;color:#b91c1c;margin-top:4px;}
+
+.card-actions{display:flex;gap:6px;padding:0 10px 10px;}
+.card-actions button{flex:1;height:42px;border-radius:8px;border:none;font-family:inherit;font-weight:700;font-size:12.5px;cursor:pointer;transition:.15s;}
+.card-actions button:hover{filter:brightness(1.08);}
+.act-primary{background:var(--accent);color:#fff;}
+.card.cooking .act-primary{background:var(--green);}
+.act-secondary{background:var(--alt);color:var(--muted);border:1px solid var(--border)!important;flex:0 0 42px!important;}
+.act-danger{background:#fee2e2;color:#991b1b;flex:0 0 42px!important;}
+
+/* ── DESKTOP: bảng Kanban 4 cột song song, giống layout section-header của các trang khác ── */
+@media (min-width:880px){
+  .tabbar{display:none;}
+  .kanban{overflow-x:hidden;scroll-snap-type:none;display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:14px;background:var(--bg);}
+  .kcol{flex:unset;scroll-snap-align:unset;background:var(--white);border:1px solid var(--border);border-radius:var(--r,8px);box-shadow:var(--shadow,0 1px 3px rgba(13,34,72,.08));overflow:hidden;max-height:calc(100vh - 46px - 57px - 28px);}
+  .kcol-head{border-radius:0;}
+  .kcol-body{padding:12px;}
+}
+</style>
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+  import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy, where, limit, getDocs, writeBatch, getDoc }
+    from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+  import { getDatabase, ref, onValue, get }
+    from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
+  window.__fbApp  = { initializeApp };
+  window.__fbFS   = { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy, where, limit, getDocs, writeBatch, getDoc };
+  window.__fbRTDB = { getDatabase, ref, onValue, get };
+  window.__fbReady = true;
+  if (window.__fbReadyCb) window.__fbReadyCb();
+</script>
+<script src="app-config.js?v=4"></script>
+<script src="nav-menu.js?v=1"></script>
+</head>
+<body>
+
+<script>
+(function() {
+  const CURRENT_KEY = "LOGIN_USER";
+  const THIS_PAGE   = "kitchen.html";
+  const raw = localStorage.getItem(CURRENT_KEY);
+  const app2=new URLSearchParams(location.search).get("app")||"";const sep2=app2?"?app="+app2:"";
+  if (!raw) { location.href="login.html"+sep2; return; }
+  const session = JSON.parse(raw);
+  if (session.role !== "admin" && session.role !== "viceadmin" && !(session.pages || []).includes(THIS_PAGE)) {
+    location.href=((session.pages&&session.pages[0])||"login.html")+sep2;
+    return;
+  }
+  document.addEventListener("DOMContentLoaded", function() {
+    document.getElementById("userInfo").textContent = `👤 ${session.username}`;
+    document.getElementById("btnLogout").onclick = function() {
+      localStorage.removeItem(CURRENT_KEY);
+      location.href="login.html"+(location.search||"");
+    };
+  });
+})();
+</script>
+
+<nav class="nav" id="mainNav">
+  <a href="index.html">🏠 Trang chủ</a>
+  <div class="nav-right">
+    <span class="nav-user" id="userInfo"></span>
+    <button class="btn-logout" id="btnLogout">↩ Thoát</button>
+  </div>
+</nav>
+
+<div class="station-bar">
+  <select id="stationSelect" onchange="onStationChange(this.value)">
+    <option value="">-- Chọn trạm bếp --</option>
+  </select>
+</div>
+
+<div class="tabbar" id="tabbar">
+  <button class="tab active" data-col="new" onclick="goToCol('new')">🆕 Món mới<span class="tab-n" data-cnt="new">0</span></button>
+  <button class="tab" data-col="cooking" onclick="goToCol('cooking')">🔥 Đang làm<span class="tab-n" data-cnt="cooking">0</span></button>
+  <button class="tab" data-col="done" onclick="goToCol('done')">✅ Hoàn thành<span class="tab-n" data-cnt="done">0</span></button>
+  <button class="tab" data-col="cancelled" onclick="goToCol('cancelled')">🚫 Hủy<span class="tab-n" data-cnt="cancelled">0</span></button>
+</div>
+
+<div class="kanban" id="kanban">
+  <div class="kcol" data-col="new">
+    <div class="kcol-head">🆕 Món mới <span class="n" data-cnt="new">0</span></div>
+    <div class="kcol-body" id="col-new"></div>
+  </div>
+  <div class="kcol" data-col="cooking">
+    <div class="kcol-head">🔥 Đang làm <span class="n" data-cnt="cooking">0</span></div>
+    <div class="kcol-body" id="col-cooking"></div>
+  </div>
+  <div class="kcol" data-col="done">
+    <div class="kcol-head">✅ Hoàn thành <span class="n" data-cnt="done">0</span></div>
+    <div class="kcol-body" id="col-done"></div>
+  </div>
+  <div class="kcol" data-col="cancelled">
+    <div class="kcol-head">🚫 Hủy <span class="n" data-cnt="cancelled">0</span></div>
+    <div class="kcol-body" id="col-cancelled"></div>
+  </div>
+</div>
+
+<script type="module">
+let w=0; while(!window.__fbReady && w<4000){await new Promise(r=>setTimeout(r,30));w+=30;}
+await new Promise(r=>document.readyState==="loading"?document.addEventListener("DOMContentLoaded",r):r());
+{
+  const { initializeApp } = window.__fbApp;
+  const { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } = window.__fbFS;
+  const APP_ID = window.APP_ID || new URLSearchParams(location.search).get("app") || "";
+
+  const _fbapp = initializeApp({
+    apiKey: "AIzaSyAPmHlNgx-w5KfK4LF490pvdYA_mGgcX_k",
+    authDomain: "transportation-6d6f5.firebaseapp.com",
+    databaseURL: "https://transportation-6d6f5-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "transportation-6d6f5",
+    storageBucket: "transportation-6d6f5.firebasestorage.app",
+    messagingSenderId: "1097685849973",
+    appId: "1:1097685849973:web:79ad636e3dfd0b12f7653c"
+  });
+  const db = getFirestore(_fbapp);
+
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+  const STATION_KEY = "KITCHEN_STATION_" + APP_ID;
+  const COLS = ["new","cooking","done","cancelled"];
+  const ALL = "__ALL__";
+  const UNASSIGNED = "⚠️ Chưa gán máy in";
+  let PRINTERS = [];
+  let TICKETS = {};
+  let selectedStation = localStorage.getItem(STATION_KEY) || ALL;
+  let activeCol = "new";
+  const LOADED = { printers:false, tickets:false };
+  let STORE_ERROR = null; // lỗi thật (permission/network) — khác với "chưa có phiếu nào"
+
+  function onSnapshotErr(label) {
+    return function(err) {
+      console.error(`[Kitchen] Lỗi tải "${label}":`, err);
+      STORE_ERROR = `Không tải được dữ liệu "${label}": ${err.message||err}`;
+      renderBoard();
+    };
+  }
+
+  onSnapshot(collection(db, `rt_printers_${APP_ID}`), snap => {
+    PRINTERS = snap.docs.map(d => d.data()).filter(p => p.status === "active");
+    LOADED.printers = true;
+    renderStationSelect();
+  }, onSnapshotErr("trạm bếp"));
+  onSnapshot(collection(db, `pos_kitchen_tickets_${APP_ID}`), snap => {
+    TICKETS = {};
+    snap.docs.forEach(d => { const t = d.data(); TICKETS[t.id] = t; });
+    LOADED.tickets = true;
+    renderBoard();
+  }, onSnapshotErr("phiếu bếp"));
+
+  function renderStationSelect() {
+    const sel = document.getElementById("stationSelect");
+    sel.innerHTML =
+      `<option value="${ALL}">🔎 Tất cả các món (mọi trạm)</option>` +
+      PRINTERS.map(p => `<option value="${esc(p.name)}">${esc(p.name)}</option>`).join("") +
+      `<option value="${esc(UNASSIGNED)}">${esc(UNASSIGNED)} (chưa cấu hình máy in)</option>`;
+    const valid = selectedStation===ALL || selectedStation===UNASSIGNED || PRINTERS.some(p=>p.name===selectedStation);
+    if (!valid) selectedStation = ALL;
+    sel.value = selectedStation;
+  }
+  window.onStationChange = function(v) {
+    selectedStation = v;
+    localStorage.setItem(STATION_KEY, v);
+    renderBoard();
+  };
+
+  // ── Danh sách món (đơn vị thẻ) trải từ tất cả phiếu bếp của trạm đang chọn ──
+  function cardsForStation() {
+    const out = [];
+    Object.values(TICKETS).forEach(tk => {
+      if (selectedStation !== ALL) {
+        const stations = (tk.stationName||"").split(",").map(s=>s.trim());
+        if (!stations.includes(selectedStation)) return;
+      }
+      (tk.items||[]).forEach((it, idx) => {
+        out.push({ ticketId: tk.id, idx, tableLabel: tk.tableLabel, createdAt: tk.createdAt||0, ...it });
+      });
+    });
+    return out;
+  }
+  function elapsedLabel(ms) {
+    const s = Math.max(0, Math.floor(ms/1000));
+    return String(Math.floor(s/60)).padStart(2,"0") + ":" + String(s%60).padStart(2,"0");
+  }
+  function urgencyClass(ms) {
+    const min = ms/60000;
+    if (min >= 10) return "late";
+    if (min >= 5) return "warn";
+    return "";
+  }
+
+  function cardHTML(c) {
+    const now = Date.now();
+    const elapsed = now - c.createdAt;
+    const uc = c.status==="new" || c.status==="cooking" ? urgencyClass(elapsed) : "";
+    let actionsHTML = "";
+    if (c.status === "new") {
+      actionsHTML = `
+        <div class="card-actions">
+          <button class="act-primary" onclick="setStatus('${esc(c.ticketId)}',${c.idx},'cooking')">▶ Bắt đầu làm</button>
+          <button class="act-danger" title="Báo hủy (hết món...)" onclick="askCancel('${esc(c.ticketId)}',${c.idx})">✕</button>
+        </div>`;
+    } else if (c.status === "cooking") {
+      actionsHTML = `
+        <div class="card-actions">
+          <button class="act-secondary" title="Trả về Món mới" onclick="setStatus('${esc(c.ticketId)}',${c.idx},'new')">↩</button>
+          <button class="act-primary" onclick="setStatus('${esc(c.ticketId)}',${c.idx},'done')">✅ Xong</button>
+          <button class="act-danger" title="Báo hủy" onclick="askCancel('${esc(c.ticketId)}',${c.idx})">✕</button>
+        </div>`;
+    } else if (c.status === "done") {
+      actionsHTML = `
+        <div class="card-actions">
+          <button class="act-secondary" style="flex:1!important" onclick="setStatus('${esc(c.ticketId)}',${c.idx},'cooking')">↩ Hoàn tác</button>
+        </div>`;
+    }
+    const cancelTag = c.status==="cancelled"
+      ? `<div class="card-cancel-tag">${c.cancelReason==="waiter" ? "🚫 Nhân viên order báo hủy" : "🚫 Bếp báo hủy"}</div>` : "";
+    return `
+      <div class="card ${c.status} ${uc}">
+        <div class="card-head">
+          <div class="card-table">${esc(c.tableLabel||"")}</div>
+          <div class="card-timer" data-created="${c.createdAt}">${elapsedLabel(elapsed)}</div>
+        </div>
+        <div class="card-body">
+          <div class="card-name"><span class="card-qty">x${c.qty}</span>${esc(c.name)}</div>
+          ${c.fromCombo?`<div class="card-combo">Từ combo: ${esc(c.fromCombo)}</div>`:""}
+          ${cancelTag}
+        </div>
+        ${actionsHTML}
+      </div>`;
+  }
+
+  function renderBoard() {
+    // 1) Lỗi thật (permission/network...) — hiện rõ, không lẫn với "chưa có phiếu"
+    if (STORE_ERROR) {
+      COLS.forEach(col => {
+        document.getElementById("col-"+col).innerHTML = `<div class="empty" style="color:#991b1b"><div class="big">⚠️</div>${esc(STORE_ERROR)}<br><span style="font-size:11px;color:var(--muted)">Kiểm tra kết nối mạng hoặc mở Console (F12) để xem chi tiết.</span></div>`;
+        document.querySelectorAll(`[data-cnt="${col}"]`).forEach(el => el.textContent = "0");
+      });
+      return;
+    }
+    // 2) Đang tải lần đầu — chưa có phản hồi nào từ Firestore, không được kết luận "chưa có phiếu"
+    if (!LOADED.printers || !LOADED.tickets) {
+      COLS.forEach(col => {
+        document.getElementById("col-"+col).innerHTML = `<div class="empty"><div class="big">⏳</div>Đang tải dữ liệu...</div>`;
+        document.querySelectorAll(`[data-cnt="${col}"]`).forEach(el => el.textContent = "0");
+      });
+      return;
+    }
+    if (!selectedStation) {
+      COLS.forEach(col => {
+        document.getElementById("col-"+col).innerHTML = `<div class="empty"><div class="big">🧑‍🍳</div>Chọn trạm bếp ở trên để bắt đầu xem phiếu.</div>`;
+        document.querySelectorAll(`[data-cnt="${col}"]`).forEach(el => el.textContent = "0");
+      });
+      return;
+    }
+    const cards = cardsForStation();
+    const byCol = { new:[], cooking:[], done:[], cancelled:[] };
+    cards.forEach(c => (byCol[c.status]||byCol.new).push(c));
+    COLS.forEach(col => {
+      const list = byCol[col].sort((a,b)=>a.createdAt-b.createdAt);
+      document.querySelectorAll(`[data-cnt="${col}"]`).forEach(el => el.textContent = String(list.length));
+      const emptyMsgs = {
+        new: "Không có món mới nào đang chờ. 🎉",
+        cooking: "Chưa có món nào đang làm.",
+        done: "Chưa có món nào hoàn thành.",
+        cancelled: "Chưa có món nào bị hủy."
+      };
+      document.getElementById("col-"+col).innerHTML = list.length
+        ? list.map(cardHTML).join("")
+        : `<div class="empty"><div class="big">${col==='new'?'🎉':'—'}</div>${emptyMsgs[col]}</div>`;
+    });
+  }
+
+  window.setStatus = async function(ticketId, idx, status) {
+    const tk = TICKETS[ticketId]; if (!tk) return;
+    const items = (tk.items||[]).slice();
+    if (!items[idx]) return;
+    items[idx] = { ...items[idx], status };
+    const allDone = items.every(it => it.status==="done" || it.status==="cancelled");
+    try {
+      await setDoc(doc(db, `pos_kitchen_tickets_${APP_ID}`, ticketId), { ...tk, items, allDone, allDoneAt: allDone?Date.now():null });
+    } catch(e) { alert("Lỗi cập nhật: " + e.message); }
+  };
+  window.askCancel = function(ticketId, idx) {
+    if (confirm("Xác nhận HỦY món này? Nhân viên order sẽ được báo để thông báo lại với khách.")) {
+      const tk = TICKETS[ticketId]; if (!tk) return;
+      const items = (tk.items||[]).slice();
+      if (!items[idx]) return;
+      items[idx] = { ...items[idx], status:"cancelled", cancelReason:"kitchen" };
+      const allDone = items.every(it => it.status==="done" || it.status==="cancelled");
+      setDoc(doc(db, `pos_kitchen_tickets_${APP_ID}`, ticketId), { ...tk, items, allDone, allDoneAt: allDone?Date.now():null })
+        .catch(e => alert("Lỗi báo hủy: " + e.message));
+    }
+  };
+
+  // ── Điều hướng tab / cuộn ngang giữa 4 cột ──
+  window.goToCol = function(col) {
+    document.getElementById("col-"+col).scrollIntoView({ behavior:"smooth", inline:"start", block:"nearest" });
+  };
+  const kanban = document.getElementById("kanban");
+  kanban.addEventListener("scroll", () => {
+    const idx = Math.round(kanban.scrollLeft / kanban.clientWidth);
+    const col = COLS[Math.max(0,Math.min(COLS.length-1,idx))];
+    if (col !== activeCol) {
+      activeCol = col;
+      document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.col===col));
+    }
+  }, { passive:true });
+
+  // ── Cập nhật đồng hồ đếm giờ mỗi giây, không render lại toàn bộ ──
+  setInterval(() => {
+    document.querySelectorAll("[data-created]").forEach(el => {
+      const created = Number(el.dataset.created)||Date.now();
+      const elapsed = Date.now() - created;
+      el.textContent = elapsedLabel(elapsed);
+      const card = el.closest(".card");
+      if (card && (card.classList.contains("new") || card.classList.contains("cooking"))) {
+        const uc = urgencyClass(elapsed);
+        card.classList.remove("warn","late");
+        if (uc) card.classList.add(uc);
+      }
+    });
+  }, 1000);
+
+  renderStationSelect();
+  renderBoard();
+}
+</script>
+</body>
+</html>

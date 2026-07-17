@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🏠 Dashboard | Hệ thống Quản lý</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+  import { getFirestore, collection, doc, onSnapshot, deleteDoc }
+    from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+  window.__fbApp  = { initializeApp };
+  window.__fbFS   = { getFirestore, collection, doc, onSnapshot, deleteDoc };
+  window.__fbReady = true;
+  if (window.__fbReadyCb) window.__fbReadyCb();
+</script>
+<!-- app-config: cấp APP_ID theo tenant — đặt SAU Firebase SDK, giống các trang module khác -->
+<script src="app-config.js?v=3"></script>
+<script src="nav-menu.js?v=1"></script>
+<style>
+:root {
+  --navy:    #0a1a3d;
+  --navy-2:  #12275c;
+  --blue:    #1a3a8f;
+  --accent:  #2563eb;
+  --gold:    #c9a227;
+  --gold-soft:#e9d99c;
+  --green:   #0d9f6e;
+  --red:     #e0303a;
+  --amber:   #e67700;
+  --purple:  #7c3aed;
+  --cyan:    #0891b2;
+  --border:  #e4e8f3;
+  --muted:   #64748b;
+  --bg:      #f2f4fa;
+  --white:   #ffffff;
+  --text:    #101a33;
+  --shadow:    0 1px 3px rgba(10,26,61,.08), 0 1px 2px rgba(10,26,61,.04);
+  --shadow-lg: 0 10px 28px rgba(10,26,61,.12), 0 2px 6px rgba(10,26,61,.06);
+  --r:      8px;
+  --r-lg:   16px;
+  --sidebar-w: 280px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);font-size:13px;min-height:100vh;overflow-x:hidden;}
+.mono{font-family:'JetBrains Mono',ui-monospace,monospace;}
+a:focus-visible, button:focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
+
+/* ══════════════════ SIDEBAR — 4 module (accordion) ══════════════════ */
+.sidebar{
+  position:fixed;left:0;top:0;bottom:0;width:var(--sidebar-w);
+  background:linear-gradient(190deg,var(--navy) 0%,var(--navy-2) 100%);
+  display:flex;flex-direction:column;z-index:200;
+  box-shadow:2px 0 18px rgba(10,26,61,.18);
+}
+.side-brand{display:flex;align-items:center;gap:10px;padding:20px 20px 18px;border-bottom:1px solid rgba(255,255,255,.08);text-decoration:none;transition:background .15s;}
+.side-brand:hover{background:rgba(255,255,255,.04);}
+.side-brand-mark{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--gold) 0%,var(--gold-soft) 100%);display:flex;align-items:center;justify-content:center;font-size:16px;flex:none;box-shadow:0 3px 10px rgba(201,162,39,.35);}
+.side-brand-text{line-height:1.25;}
+.side-brand-title{font-size:13.5px;font-weight:800;color:#fff;letter-spacing:.01em;margin-bottom:4px;}
+.side-brand-sub{font-size:9.5px;color:rgba(255,255,255,.5);font-weight:600;text-transform:uppercase;letter-spacing:.06em;}
+
+.side-nav{flex:1;overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:4px;}
+.side-nav::-webkit-scrollbar{width:5px;}
+.side-nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:4px;}
+
+.mod-block{border-radius:10px;overflow:hidden;}
+.mod-head{
+  display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;cursor:pointer;
+  color:rgba(255,255,255,.85);font-family:inherit;text-align:left;
+  font-size:12.5px;font-weight:700;padding:11px 12px;border-radius:9px;transition:background .15s,color .15s;
+}
+.mod-head .ic{font-size:16px;width:19px;text-align:center;flex:none;}
+.mod-head .lbl{flex:1;}
+.mod-head .chev{font-size:10px;color:rgba(255,255,255,.4);transition:transform .25s;flex:none;}
+.mod-head:hover{background:rgba(255,255,255,.07);color:#fff;}
+.mod-block.open > .mod-head{background:rgba(37,99,235,.18);color:#fff;}
+.mod-block.open > .mod-head .chev{transform:rotate(90deg);color:var(--gold-soft);}
+.mod-block.has-active > .mod-head{color:#fff;}
+.mod-block.has-active > .mod-head .ic{filter:drop-shadow(0 0 4px rgba(201,162,39,.5));}
+
+.mod-children{max-height:0;overflow:hidden;transition:max-height .3s ease;display:flex;flex-direction:column;padding-left:6px;}
+.mod-block.open > .mod-children{max-height:400px;}
+.mod-children a{
+  display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.55);text-decoration:none;
+  font-size:12px;font-weight:500;padding:8px 12px 8px 33px;border-radius:8px;position:relative;
+  transition:background .15s,color .15s;white-space:nowrap;
+}
+.mod-children a::before{content:'';position:absolute;left:20px;top:0;bottom:0;width:1px;background:rgba(255,255,255,.12);}
+.mod-children a:last-child::before{bottom:50%;}
+.mod-children a:hover{background:rgba(255,255,255,.06);color:#fff;}
+.mod-children a.active{background:rgba(37,99,235,.25);color:#fff;font-weight:700;}
+.mod-children a.active::after{content:'';position:absolute;left:-1px;top:50%;translate:0 -50%;width:3px;height:16px;background:var(--gold);border-radius:0 3px 3px 0;}
+
+.side-foot{padding:14px 16px 18px;border-top:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;gap:10px;}
+.side-user{display:flex;align-items:center;gap:9px;}
+.side-user-av{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;color:#fff;}
+.side-user-info{line-height:1.3;overflow:hidden;}
+.side-user-name{font-size:12px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.side-user-role{font-size:10px;color:rgba(255,255,255,.5);font-weight:600;text-transform:uppercase;letter-spacing:.05em;}
+.btn-logout{background:rgba(255,255,255,.08);color:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.14);border-radius:7px;padding:7px 11px;font-size:11.5px;font-family:inherit;font-weight:600;cursor:pointer;transition:.15s;}
+.btn-logout:hover{background:rgba(224,48,49,.75);border-color:transparent;color:#fff;}
+
+/* ══════════════════ MAIN ══════════════════ */
+.main{margin-left:var(--sidebar-w);min-height:100vh;display:flex;flex-direction:column;}
+
+/* HERO */
+.hero{background:linear-gradient(120deg,var(--navy) 0%,var(--blue) 100%);padding:22px 28px 30px;color:#fff;position:relative;overflow:hidden;}
+.hero::after{content:'';position:absolute;right:-60px;top:-70px;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(201,162,39,.25) 0%,rgba(201,162,39,0) 70%);}
+.hero-top{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:14px;position:relative;z-index:1;}
+.hero-greet{font-size:11px;font-weight:600;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;}
+.hero-title{font-size:21px;font-weight:800;letter-spacing:-.01em;}
+.hero-date{font-size:12px;color:rgba(255,255,255,.65);font-weight:500;margin-top:4px;}
+.hero-clock{font-size:12px;color:rgba(255,255,255,.9);background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);padding:6px 14px;border-radius:20px;font-weight:700;}
+
+.wrap{max-width:1400px;margin:0 auto;padding:0 24px;width:100%;}
+
+/* ══════════════════ 70 / 30 SPLIT ══════════════════ */
+.split{display:grid;grid-template-columns:70% 30%;gap:16px;margin-top:-20px;position:relative;z-index:2;align-items:stretch;padding-bottom:34px;}
+
+/* -- 70%: KPI column -- */
+.kpi-col{display:flex;flex-direction:column;gap:12px;}
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.kpi-card{background:var(--white);border-radius:var(--r-lg);border:1px solid var(--border);box-shadow:var(--shadow-lg);padding:16px 16px 15px;display:flex;flex-direction:column;gap:8px;position:relative;overflow:hidden;}
+.kpi-card::before{content:'';position:absolute;left:0;top:0;right:0;height:3px;background:var(--card-color,var(--accent));}
+.kpi-top{display:flex;align-items:center;justify-content:space-between;}
+.kpi-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+.kpi-icon{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;}
+.kpi-val{font-size:22px;font-weight:700;color:var(--navy);letter-spacing:-.01em;}
+.kpi-sub{font-size:10.5px;color:var(--muted);font-weight:500;}
+
+.kpi-note{background:linear-gradient(135deg,var(--navy) 0%,var(--navy-2) 100%);border-radius:var(--r-lg);padding:16px 18px;color:#fff;box-shadow:var(--shadow-lg);display:flex;gap:12px;align-items:center;}
+.kpi-note-ic{font-size:20px;flex:none;}
+.kpi-note-text{font-size:11.5px;color:rgba(255,255,255,.8);line-height:1.5;}
+.kpi-note-text b{color:var(--gold-soft);}
+
+/* -- Linkcard: card số liệu có thể bấm vào để mở trang liên quan -- */
+.linkcard-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;}
+.linkcard{background:var(--alt);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:block;text-decoration:none;color:inherit;transition:.15s;cursor:pointer;}
+.linkcard:hover{border-color:var(--accent);box-shadow:0 4px 12px rgba(29,110,245,.12);transform:translateY(-1px);}
+.lc-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:flex;align-items:center;gap:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lc-val{font-size:20px;font-weight:700;margin-top:5px;letter-spacing:-.01em;}
+.lc-sub{font-size:10.5px;color:var(--muted);font-weight:500;margin-top:2px;}
+
+/* -- 30%: Procurement stepper (static, vertical, compact) -- */
+.flow-panel{background:var(--white);border-radius:var(--r-lg);border:1px solid var(--border);box-shadow:var(--shadow-lg);padding:18px 20px;display:flex;flex-direction:column;height:100%;}
+.flow-head{margin-bottom:14px;}
+.flow-title{font-size:12.5px;font-weight:700;color:var(--navy);}
+.flow-title span{display:block;font-size:10px;color:var(--muted);font-weight:500;margin-top:2px;}
+
+.stepper{position:relative;padding-left:2px;}
+.step{display:flex;gap:12px;position:relative;padding-bottom:22px;}
+.step:last-child{padding-bottom:0;}
+.step-line{position:absolute;left:14px;top:30px;bottom:0;width:2px;background:var(--border);}
+.step:last-child .step-line{display:none;}
+.step.done .step-line{background:var(--green);}
+
+.step-badge{width:29px;height:29px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;background:var(--white);border:2px solid var(--border);color:var(--muted);z-index:1;}
+.step.done .step-badge{background:var(--green);border-color:var(--green);color:#fff;}
+.step.current .step-badge{background:var(--amber);border-color:var(--amber);color:#fff;box-shadow:0 0 0 4px rgba(230,119,0,.16);}
+.step.bad .step-badge{background:var(--red);border-color:var(--red);color:#fff;box-shadow:0 0 0 4px rgba(224,48,49,.16);}
+.step.bad .step-line{background:var(--red);}
+
+.step-body{padding-top:4px;}
+.step-name{font-size:12px;font-weight:700;color:var(--navy);}
+.step.done .step-name{color:var(--green);}
+.step.current .step-name{color:var(--amber);}
+.step.bad .step-name{color:var(--red);}
+.step-sub{font-size:10px;color:var(--muted);font-weight:600;margin-top:2px;}
+.step-ref{font-size:9.5px;color:var(--muted);font-weight:600;margin-top:2px;}
+.step-ref b{color:var(--navy);font-family:'JetBrains Mono',monospace;}
+
+footer{text-align:center;color:var(--muted);font-size:11px;padding:6px 0 26px;}
+
+/* ══════════════════ ROW 2: Nhật ký hoạt động + Dải thương hiệu ══════════════════ */
+.split2{display:grid;grid-template-columns:70% 30%;gap:16px;padding-bottom:34px;align-items:stretch;}
+
+.activity-panel{background:var(--white);border-radius:var(--r-lg);border:1px solid var(--border);box-shadow:var(--shadow-lg);padding:18px 20px;display:flex;flex-direction:column;}
+.panel-head{margin-bottom:6px;}
+.panel-title{font-size:12.5px;font-weight:700;color:var(--navy);}
+.panel-title span{display:block;font-size:10px;color:var(--muted);font-weight:500;margin-top:2px;}
+
+.activity-list{display:flex;flex-direction:column;margin-top:8px;}
+.activity-item{display:flex;gap:12px;align-items:flex-start;padding:10px 2px;border-bottom:1px solid var(--border);}
+.activity-item:last-child{border-bottom:none;}
+.activity-ic{width:30px;height:30px;border-radius:9px;background:#eff6ff;display:flex;align-items:center;justify-content:center;font-size:14px;flex:none;}
+.activity-body{flex:1;min-width:0;}
+.activity-text{font-size:11.5px;color:var(--text);line-height:1.5;}
+.activity-text b{color:var(--navy);font-family:'JetBrains Mono',monospace;font-weight:700;}
+.activity-time{font-size:10px;color:var(--muted);font-weight:600;margin-top:2px;}
+.activity-empty{color:var(--muted);font-size:12px;text-align:center;padding:26px 10px;}
+
+/* -- Dải hoạ tiết thương hiệu (ảnh thật + overlay gradient) -- */
+.brand-panel{
+  position:relative;overflow:hidden;border-radius:var(--r-lg);
+  background:
+    linear-gradient(165deg, rgba(10,26,61,.94) 0%, rgba(18,39,92,.86) 45%, rgba(26,58,143,.62) 100%),
+    url('brand-truck.png') center 62% / cover no-repeat,
+    linear-gradient(155deg,var(--navy) 0%,var(--navy-2) 65%,var(--blue) 130%);
+  box-shadow:var(--shadow-lg);padding:22px 20px;display:flex;flex-direction:column;
+  justify-content:space-between;color:#fff;
+}
+.brand-panel::after{
+  content:'';position:absolute;right:-40px;bottom:-50px;width:180px;height:180px;border-radius:50%;
+  background:radial-gradient(circle,rgba(201,162,39,.32) 0%,rgba(201,162,39,0) 70%);pointer-events:none;
+}
+.brand-eyebrow{position:relative;z-index:1;font-size:9.5px;font-weight:700;color:var(--gold-soft);text-transform:uppercase;letter-spacing:.1em;}
+.brand-tagline{position:relative;z-index:1;font-size:14.5px;font-weight:800;line-height:1.4;margin-top:6px;letter-spacing:-.01em;text-shadow:0 2px 10px rgba(0,0,0,.35);}
+
+.brand-icons{position:relative;z-index:1;display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px;}
+.brand-icon-card{background:rgba(10,20,45,.55);backdrop-filter:blur(3px);border:1px solid rgba(255,255,255,.16);border-radius:11px;padding:10px 8px;display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center;}
+.brand-icon-card .bic{font-size:19px;}
+.brand-icon-card .bin{font-size:9.5px;font-weight:700;color:rgba(255,255,255,.92);}
+
+.rev-trend-head{font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:20px 0 14px;}
+.rev-bar-row{display:flex;align-items:center;gap:10px;padding:6px 0;}
+.rev-bar-day{width:44px;font-size:11.5px;color:var(--muted);font-weight:600;flex-shrink:0;}
+.rev-bar-track{flex:1;height:14px;background:#f1f5f9;border-radius:4px;overflow:hidden;}
+.rev-bar-fill{height:100%;background:linear-gradient(90deg,#0d9f6e,#22c55e);border-radius:4px;}
+.rev-bar-val{width:88px;text-align:right;font-size:11.5px;font-weight:700;color:var(--navy);flex-shrink:0;}
+
+/* ══════════════════ RESPONSIVE ══════════════════ */
+.sidebar-toggle-btn{
+  display:none;position:fixed;top:14px;left:14px;z-index:250;
+  width:42px;height:42px;border-radius:9px;border:none;
+  background:#fff;color:var(--navy);font-size:19px;cursor:pointer;
+  align-items:center;justify-content:center;
+  box-shadow:0 3px 12px rgba(10,26,61,.35);
+}
+.sidebar-backdrop{
+  display:none;position:fixed;inset:0;z-index:190;
+  background:rgba(9,16,38,.5);
+}
+.sidebar-backdrop.show{display:block;}
+@media (max-width:980px){
+  .split{grid-template-columns:1fr;}
+  .split2{grid-template-columns:1fr;}
+  .kpi-grid{grid-template-columns:1fr 1fr;}
+}
+@media (max-width:760px){
+  :root{--sidebar-w:0px;}
+  .sidebar{width:262px;transform:translateX(-100%);transition:transform .2s;}
+  .sidebar.open{transform:translateX(0);}
+  .main{margin-left:0;}
+  .kpi-grid{grid-template-columns:1fr;}
+  .sidebar-toggle-btn{display:flex;}
+}
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important;}
+}
+
+/* ══════════════════ KPI CARD CLICKABLE + MODAL CHI TIẾT DOANH THU CHƯA THU ══════════════════ */
+.kpi-card.clickable{cursor:pointer;transition:box-shadow .15s, transform .15s;}
+.kpi-card.clickable:hover{box-shadow:0 6px 18px rgba(10,26,61,.12);transform:translateY(-1px);}
+.kpi-card.clickable .kpi-sub::after{content:" · Bấm để xem chi tiết →";color:var(--card-color,#2563eb);font-weight:600;}
+
+.pr-modal-backdrop{display:none;position:fixed;inset:0;z-index:400;background:rgba(9,16,38,.55);align-items:center;justify-content:center;padding:16px;}
+.pr-modal-backdrop.show{display:flex;}
+.pr-modal{background:#fff;border-radius:12px;max-width:560px;width:100%;max-height:82vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+.pr-modal-head{padding:16px 18px;border-bottom:1px solid #e2e8f5;display:flex;align-items:center;justify-content:space-between;}
+.pr-modal-title{font-size:15px;font-weight:800;color:var(--navy);}
+.pr-modal-sub{font-size:11.5px;color:#64748b;margin-top:2px;}
+.pr-modal-close{border:none;background:#f1f5fb;color:#475569;width:30px;height:30px;border-radius:8px;font-size:15px;cursor:pointer;flex-shrink:0;}
+.pr-modal-body{overflow-y:auto;padding:10px 18px 18px;}
+.pr-row{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #eef1f8;}
+.pr-row:last-child{border-bottom:none;}
+.pr-row-icon{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;background:#fff7ed;}
+.pr-row-main{flex:1;min-width:0;}
+.pr-row-title{font-size:13px;font-weight:700;color:var(--navy);}
+.pr-row-sub{font-size:11.5px;color:#64748b;margin-top:1px;}
+.pr-row-val{font-size:13.5px;font-weight:800;color:#e67700;white-space:nowrap;}
+.pr-empty{text-align:center;color:#64748b;font-size:12.5px;padding:26px 10px;}
+.pr-orphan-btn{margin-top:6px;border:1px solid #fecaca;background:#fff;color:#dc2626;font-size:11px;font-weight:700;padding:4px 10px;border-radius:6px;cursor:pointer;}
+.pr-orphan-btn:hover{background:#fef2f2;}
+.pr-modal-foot{padding:12px 18px;border-top:1px solid #e2e8f5;display:flex;align-items:center;justify-content:space-between;background:#fafbff;}
+.pr-modal-total{font-size:13px;font-weight:800;color:var(--navy);}
+.pr-modal-link{font-size:12px;font-weight:700;color:var(--accent);text-decoration:none;background:#eff6ff;padding:7px 13px;border-radius:7px;}
+</style>
+</head>
+<body>
+
+<!-- ✅ GUARD + NAV ĐỘNG — đồng bộ cấu trúc với các trang module khác -->
+<script>
+(function() {
+  const CURRENT_KEY = "LOGIN_USER";
+  const THIS_PAGE   = "index.html";
+
+  /* 1. Guard */
+  const raw = localStorage.getItem(CURRENT_KEY);
+  const app2 = new URLSearchParams(location.search).get("app") || "";
+  const sep2 = app2 ? "?app=" + app2 : "";
+  if (!raw) { location.href = "login.html" + sep2; return; }
+  const session = JSON.parse(raw);
+  // Dashboard TRƯỚC ĐÂY là trang chung ai đăng nhập cũng xem được — nay chặn thật theo phân quyền,
+  // vì Dashboard đã hiển thị số liệu nhạy cảm (doanh thu, tiền chưa thu...). admin/viceadmin luôn được vào.
+  if (session.role !== "admin" && session.role !== "viceadmin" && !(session.pages || []).includes(THIS_PAGE)) {
+    location.href = ((session.pages && session.pages[0]) || "login.html") + sep2;
+    return;
+  }
+  window.__session = session; // để script nối dữ liệu module bên dưới dùng lại
+
+  /* 2. Cấu trúc menu — ĐÃ CHUYỂN sang nguồn dùng chung window.NAV_GROUPS (nav-menu.js)
+        Không khai báo cứng ở đây nữa — thêm/sửa module chỉ cần sửa nav-menu.js,
+        Dashboard và tất cả trang khác tự động đồng bộ theo. */
+
+  document.addEventListener("DOMContentLoaded", function() {
+    const sideNav = document.getElementById("sideNav");
+    const sidebar = document.getElementById("sidebar");
+    const curPage = THIS_PAGE;
+
+    // MODULE_MAP không cần nữa — mỗi item trong window.NAV_GROUPS đã tự mang field `module`
+
+    let _appModules = null;
+
+    function canSee(item) {
+      if (item.adminOnly && session.role !== "admin" && session.role !== "viceadmin") return false;
+      if (session.role !== "admin" && session.role !== "viceadmin") {
+        if (!(session.pages || []).includes(item.page)) return false;
+      }
+      // Trang bị công ty tắt module (dù user còn sót quyền cũ trong pages[]) → vẫn ẩn
+      if (item.module && _appModules && _appModules[item.module] === false) return false;
+      return true;
+    }
+
+    function buildNav() {
+      sideNav.innerHTML = "";
+      (window.NAV_GROUPS || []).forEach(mod => {
+        const visibleChildren = mod.items.filter(canSee);
+        if (!visibleChildren.length) return;
+
+        const hasActive = visibleChildren.some(c => c.page === curPage);
+
+        const block = document.createElement("div");
+        block.className = "mod-block" + (hasActive ? " open has-active" : "");
+
+        const head = document.createElement("button");
+        head.type = "button";
+        head.className = "mod-head";
+        head.innerHTML = `<span class="ic">${mod.icon}</span><span class="lbl">${mod.label}</span><span class="chev">▶</span>`;
+        head.onclick = () => block.classList.toggle("open");
+
+        const kids = document.createElement("div");
+        kids.className = "mod-children";
+        visibleChildren.forEach(c => {
+          const a = document.createElement("a");
+          a.href = c.page;
+          a.textContent = c.label;
+          if (c.page === curPage) a.classList.add("active");
+          kids.appendChild(a);
+        });
+
+        block.appendChild(head);
+        block.appendChild(kids);
+        sideNav.appendChild(block);
+      });
+    }
+
+    // Đọc cache ngay lập tức để tránh flash tab không có trong gói (giống users.html)
+    try {
+      const _ck = "APP_MODULES_" + (window.APP_ID || sessionStorage.getItem("APP_ID") || "");
+      const _cc = JSON.parse(sessionStorage.getItem(_ck) || "null");
+      if (_cc) _appModules = _cc;
+      else if (window.APP_MODULES) _appModules = window.APP_MODULES;
+    } catch (e) { if (window.APP_MODULES) _appModules = window.APP_MODULES; }
+
+    buildNav();
+
+    /* Mobile: mở/đóng sidebar bằng nút ☰ + tap ra ngoài để đóng */
+    const toggleBtn = document.getElementById("sidebarToggleBtn");
+    const backdrop   = document.getElementById("sidebarBackdrop");
+    function openSidebarMobile()  { sidebar.classList.add("open");  backdrop.classList.add("show"); }
+    function closeSidebarMobile() { sidebar.classList.remove("open"); backdrop.classList.remove("show"); }
+    if (toggleBtn) toggleBtn.onclick = openSidebarMobile;
+    if (backdrop)  backdrop.onclick  = closeSidebarMobile;
+
+    // Khi app-config.js tải xong danh sách module thật của công ty → build lại nav cho đúng
+    window.addEventListener("appModulesLoaded", function(e) {
+      _appModules = e.detail.modules;
+      buildNav();
+    });
+
+    /* Tên user + logout */
+    document.getElementById("userInfo").textContent = session.username || "—";
+    document.getElementById("userRole").textContent = session.role || "";
+    document.getElementById("btnLogout").onclick = function() {
+      localStorage.removeItem(CURRENT_KEY);
+      location.href = "login.html" + (location.search || "");
+    };
+
+    /* Ngày giờ hiện tại */
+    function renderClock() {
+      const now = new Date();
+      const days = ["Chủ nhật","Thứ hai","Thứ ba","Thứ tư","Thứ năm","Thứ sáu","Thứ bảy"];
+      document.getElementById("heroDate").textContent =
+        `${days[now.getDay()]}, ${now.toLocaleDateString('vi-VN')}`;
+      document.getElementById("heroClock").textContent =
+        now.toLocaleTimeString('vi-VN', {hour:'2-digit',minute:'2-digit'});
+    }
+    renderClock();
+    setInterval(renderClock, 30000);
+
+    /* Chào theo giờ */
+    const h = new Date().getHours();
+    const greet = h < 11 ? "Chào buổi sáng" : h < 14 ? "Chào buổi trưa" : h < 18 ? "Chào buổi chiều" : "Chào buổi tối";
+    document.getElementById("heroGreet").textContent = greet;
+  });
+})();
+</script>
+
+
+<!-- SIDEBAR — 4 module -->
+<!-- Nút mở sidebar trên mobile (ẩn trên desktop, hiện khi màn hình <=760px) -->
+<button class="sidebar-toggle-btn" id="sidebarToggleBtn" aria-label="Mở menu">☰</button>
+<div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+<aside class="sidebar" id="sidebar">
+  <a href="index.html" class="side-brand">
+    <div class="side-brand-mark">LO</div>
+    <div class="side-brand-text">
+      <div class="side-brand-title">A·AU Nhà hàng</div>
+      <div class="side-brand-sub">Hệ thống quản lý nhà hàng</div>
+    </div>
+  </a>
+  <nav class="side-nav" id="sideNav"></nav>
+  <div class="side-foot">
+    <div class="side-user">
+      <div class="side-user-av">👤</div>
+      <div class="side-user-info">
+        <div class="side-user-name" id="userInfo">—</div>
+        <div class="side-user-role" id="userRole"></div>
+      </div>
+    </div>
+    <button class="btn-logout" id="btnLogout">↩ Đăng xuất</button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="wrap hero-top">
+      <div>
+        <div class="hero-greet" id="heroGreet">Xin chào</div>
+        <div class="hero-title">Tổng quan hệ thống</div>
+        <div class="hero-date" id="heroDate"></div>
+      </div>
+      <div class="hero-clock" id="heroClock">--:--</div>
+    </div>
+  </div>
+
+  <div class="wrap">
+
+    <!-- 70% KPI  /  30% TRUY CẬP NHANH (tĩnh) -->
+    <div class="split">
+
+      <!-- 70% : KPI nhà hàng -->
+      <div class="kpi-col">
+        <div class="kpi-grid">
+          <div class="kpi-card" id="kpiCard1" style="--card-color:#0d9f6e">
+            <div class="kpi-top">
+              <span class="kpi-label" id="kpiLabel1">Doanh thu hôm nay</span>
+              <span class="kpi-icon" id="kpiIcon1" style="background:#ecfdf5;color:#0d9f6e">💰</span>
+            </div>
+            <div class="kpi-val mono" id="kpiTripsToday">—</div>
+            <div class="kpi-sub" id="kpiTripsTodaySub">Nhà hàng · POS</div>
+          </div>
+          <div class="kpi-card" id="kpiCard2" style="--card-color:#2563eb">
+            <div class="kpi-top">
+              <span class="kpi-label" id="kpiLabel2">Số đơn hôm nay</span>
+              <span class="kpi-icon" id="kpiIcon2" style="background:#eff6ff;color:#2563eb">🧾</span>
+            </div>
+            <div class="kpi-val mono" id="kpiPendingPR">—</div>
+            <div class="kpi-sub" id="kpiPendingPRSub">Nhà hàng · POS</div>
+          </div>
+          <div class="kpi-card" id="kpiCard3" style="--card-color:#e67700">
+            <div class="kpi-top">
+              <span class="kpi-label" id="kpiLabel3">Doanh thu chưa thu</span>
+              <span class="kpi-icon" id="kpiIcon3" style="background:#fff7ed;color:#e67700">⏳</span>
+            </div>
+            <div class="kpi-val mono" id="kpiWareToday">—</div>
+            <div class="kpi-sub" id="kpiWareTodaySub">Đơn/bàn chưa thanh toán</div>
+          </div>
+          <div class="kpi-card" id="kpiCard4" style="--card-color:#0891b2">
+            <div class="kpi-top">
+              <span class="kpi-label" id="kpiLabel4">Tổng số bàn</span>
+              <span class="kpi-icon" id="kpiIcon4" style="background:#ecfeff;color:#0891b2">🪑</span>
+            </div>
+            <div class="kpi-val mono" id="kpiDepotStock">—</div>
+            <div class="kpi-sub" id="kpiDepotStockSub">Đã cấu hình</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 30% : Truy cập nhanh — nội dung sinh động bằng JS -->
+      <div class="flow-panel">
+        <div class="flow-head">
+          <div class="flow-title" id="flowTitle">Quy trình
+            <span id="stepperRef">Đang tải dữ liệu…</span>
+          </div>
+        </div>
+
+        <div class="stepper" id="stepper"></div>
+      </div>
+
+    </div>
+
+    <!-- ROW 2: Nhật ký hoạt động (thật) + Dải thương hiệu (trang trí) -->
+    <div class="split2">
+      <div class="activity-panel">
+        <div class="panel-head">
+          <div class="panel-title" id="activityMainTitle">Nhật ký hoạt động gần đây
+            <span id="activitySub">Cập nhật real-time từ module Mua hàng</span>
+          </div>
+        </div>
+        <div class="activity-list" id="activityList">
+          <div class="activity-empty">Đang tải dữ liệu…</div>
+        </div>
+      </div>
+
+      <div class="brand-panel" id="brandPanel">
+        <div>
+          <div class="brand-eyebrow">A·AU Nhà hàng</div>
+          <div class="brand-tagline">Vận hành liền mạch</div>
+        </div>
+      </div>
+    </div>
+
+    <footer>Hệ thống quản lý vận hành · Dashboard</footer>
+  </div>
+</div>
+
+<!-- ══ Modal chi tiết "Doanh thu chưa thu" — Nhà hàng/Bida ══ -->
+<div class="pr-modal-backdrop" id="prModalBackdrop" onclick="if(event.target===this) closePendingRevenueModal()">
+  <div class="pr-modal">
+    <div class="pr-modal-head">
+      <div>
+        <div class="pr-modal-title">⏳ Đơn/bàn chưa thanh toán</div>
+        <div class="pr-modal-sub" id="prModalSub">—</div>
+      </div>
+      <button class="pr-modal-close" onclick="closePendingRevenueModal()">✕</button>
+    </div>
+    <div class="pr-modal-body" id="prModalBody"></div>
+    <div class="pr-modal-foot">
+      <div class="pr-modal-total" id="prModalTotal">Tổng: 0đ</div>
+      <a class="pr-modal-link" id="prModalPosLink" href="pos.html">Mở màn hình POS →</a>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Nối dữ liệu thật: KPI luôn cập nhật cho mọi module; nội dung 2 panel chính (Truy cập nhanh + panel lớn) đổi theo module chính của user ══ -->
+<script type="module">
+(async () => {
+  // Chờ Firebase SDK + app-config.js sẵn sàng (giống các trang module khác)
+  let w = 0; while (!window.__fbReady && w < 4000) { await new Promise(r=>setTimeout(r,30)); w += 30; }
+  await new Promise(r => document.readyState==="loading" ? document.addEventListener("DOMContentLoaded", r) : r());
+  if (!window.__fbReady) { console.warn("Firebase chưa sẵn sàng — bỏ qua đồng bộ dữ liệu."); return; }
+
+  const appId = (typeof APP_ID !== "undefined" && APP_ID) ? APP_ID
+              : (window.APP_ID || sessionStorage.getItem("APP_ID") || "");
+  const appQS = location.search || ""; // giữ nguyên ?app=... khi bấm sang trang khác
+
+  const { initializeApp } = window.__fbApp;
+  const { getFirestore, collection, doc, onSnapshot, deleteDoc } = window.__fbFS;
+
+  const _fbapp = initializeApp({
+    apiKey: "AIzaSyAPmHlNgx-w5KfK4LF490pvdYA_mGgcX_k",
+    authDomain: "transportation-6d6f5.firebaseapp.com",
+    databaseURL: "https://transportation-6d6f5-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "transportation-6d6f5",
+    storageBucket: "transportation-6d6f5.firebasestorage.app",
+    messagingSenderId: "1097685849973",
+    appId: "1:1097685849973:web:79ad636e3dfd0b12f7653c"
+  }, "dashboard-modules");
+  const db = getFirestore(_fbapp);
+
+  /* ── Dashboard nhà hàng: chỉ còn đúng 1 module nghiệp vụ (restaurant/pos/kitchen/report) ── */
+  const primaryModule = "restaurant";
+
+  const flowTitle        = document.getElementById("flowTitle");
+  const stepperRef       = document.getElementById("stepperRef");
+  const stepperEl        = document.getElementById("stepper");
+  const activityMainTitle = document.getElementById("activityMainTitle");
+  const activitySub      = document.getElementById("activitySub");
+  const activityList     = document.getElementById("activityList");
+
+  function fmtVN(n) { return Number(n || 0).toLocaleString('vi-VN'); }
+  function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+  // Ngày theo giờ ĐỊA PHƯƠNG (không dùng toISOString — hàm đó trả về UTC, lệch giờ VN gây sai lệch "hôm nay")
+  function dstr(d) { const p=n=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate()); }
+  function timeAgo(ts) {
+    if (!ts) return "";
+    const diff = Date.now() - ts;
+    if (diff < 60000) return "vừa xong";
+    if (diff < 3600000) return Math.floor(diff/60000) + " phút trước";
+    if (diff < 86400000) return Math.floor(diff/3600000) + " giờ trước";
+    if (diff < 172800000) return "hôm qua";
+    return new Date(ts).toLocaleDateString('vi-VN');
+  }
+
+  // ── Sinh HTML cho các bước stepper (dùng cho Mua hàng — quy trình nhiều nấc) ──
+  function renderSteps(labels, stageIdx, bad) {
+    stepperEl.innerHTML = labels.map((label, i) => {
+      let cls = "step", badge = String(i+1);
+      if (stageIdx >= labels.length)      { cls += " done"; badge = "✓"; }
+      else if (bad && i === stageIdx)     { cls += " bad";  badge = "✕"; }
+      else if (i < stageIdx)              { cls += " done"; badge = "✓"; }
+      else if (i === stageIdx)            { cls += " current"; }
+      return `
+        <div class="${cls}">
+          <div class="step-line"></div>
+          <div class="step-badge">${badge}</div>
+          <div class="step-body">
+            <div class="step-name">${label}</div>
+          </div>
+        </div>`;
+    }).join("");
+  }
+  function renderEmptySteps(labels, emptyText) {
+    stepperRef.textContent = emptyText;
+    renderSteps(labels, -1, false);
+  }
+  function renderActivityList(events) {
+    events.sort((a,b) => b.t - a.t);
+    const top = events.slice(0, 8);
+    if (!top.length) { activityList.innerHTML = `<div class="activity-empty">Chưa có hoạt động nào được ghi nhận</div>`; return; }
+    activityList.innerHTML = top.map(e => `
+      <div class="activity-item">
+        <div class="activity-ic">${e.ic}</div>
+        <div class="activity-body">
+          <div class="activity-text">${e.html}</div>
+          <div class="activity-time">${timeAgo(e.t)}</div>
+        </div>
+      </div>`).join("");
+  }
+  // ── Sinh HTML cho grid card số liệu có thể bấm ──
+  function renderLinkCards(container, cards) {
+    container.innerHTML = `<div class="linkcard-grid">` + cards.map(c => `
+      <a class="linkcard" href="${c.href}${appQS}">
+        <div class="lc-label">${c.icon} ${c.label}</div>
+        <div class="lc-val" style="color:${c.color||'var(--navy)'}">${c.val}</div>
+        ${c.sub ? `<div class="lc-sub">${c.sub}</div>` : ""}
+      </a>`).join("") + `</div>`;
+  }
+
+  /* ══════════ NHÀ HÀNG / BIDA (restaurant.html, pos.html...): Bàn đang phục vụ/chơi + Doanh thu hôm nay ══════════ */
+  const colRtTables  = collection(db, `rt_tables_${appId}`);
+  const colPosSales  = collection(db, `pos_sales_history_${appId}`);
+  const colPosOrders = collection(db, `pos_orders_${appId}`);
+  const colBilliardSessions = collection(db, `pos_billiard_sessions_${appId}`);
+  const docRtSettings = doc(db, `rt_settings_${appId}`, "general");
+  let rtTablesDocs = [], posSalesDocs = [], posOrdersDocs = [], billiardSessionsDocs = [], rtBizType = "restaurant";
+
+  function computePendingRevenue() {
+    // Ước tính doanh thu chưa thu: tổng tiền món trong các đơn đang mở (chưa thanh toán) + tiền giờ chơi tạm tính của các phiên đang chạy
+    // (chưa cộng thuế/phụ thu — chỉ là số tham khảo nhanh trên dashboard, số chính xác cuối cùng xem ở report.html lúc thanh toán)
+    const foodPending = posOrdersDocs.reduce((s,o) => s + (o.items||[]).reduce((ss,l)=>ss+((l.price||0)*(l.qty||0)),0), 0);
+    const playPending = billiardSessionsDocs.filter(s=>s.status==="playing").reduce((s,sess) => {
+      const durMin = Math.max(0, (Date.now()-sess.startTime)/60000);
+      return s + Math.round((durMin/60)*(Number(sess.hourRate)||0));
+    }, 0);
+    return foodPending + playPending;
+  }
+
+  function applyRestaurantTopKPI() {
+    const set = (cardId, labelId, iconId, subId, color, bg, icon, label, sub) => {
+      document.getElementById(cardId).style.setProperty("--card-color", color);
+      document.getElementById(labelId).textContent = label;
+      const ic = document.getElementById(iconId); ic.textContent = icon; ic.style.background = bg; ic.style.color = color;
+      document.getElementById(subId).textContent = sub;
+    };
+    const isTimed = rtBizType === "billiards" || rtBizType === "karaoke";
+    const bizLabel = { restaurant:"Nhà hàng", cafe:"Cafe", billiards:"Bida", karaoke:"Karaoke", bar:"Bar" }[rtBizType] || "Nhà hàng";
+    set("kpiCard1","kpiLabel1","kpiIcon1","kpiTripsTodaySub", "#0d9f6e","#ecfdf5","💰","Doanh thu hôm nay", bizLabel+" · POS");
+    set("kpiCard2","kpiLabel2","kpiIcon2","kpiPendingPRSub",  "#2563eb","#eff6ff","🧾","Số đơn hôm nay", bizLabel+" · POS");
+    set("kpiCard3","kpiLabel3","kpiIcon3","kpiWareTodaySub",  "#e67700","#fff7ed","⏳","Doanh thu chưa thu", "Đơn/bàn chưa thanh toán");
+    set("kpiCard4","kpiLabel4","kpiIcon4","kpiDepotStockSub", "#0891b2","#ecfeff","🪑","Tổng số bàn","Đã cấu hình");
+    const card3 = document.getElementById("kpiCard3");
+    card3.classList.add("clickable");
+    card3.onclick = openPendingRevenueModal;
+    document.getElementById("prModalPosLink").href = "pos.html" + appQS;
+  }
+
+  function renderRestaurantPanels() {
+    const todayStr = dstr(new Date());
+    const salesToday = posSalesDocs.filter(r => dstr(new Date(r.paidAt)) === todayStr);
+    const revToday = salesToday.reduce((s,r) => s + (r.total||0), 0);
+    // Panel "Doanh thu & Vận hành" bên dưới hiển thị TỔNG THÁNG NÀY — tránh trùng với 2 KPI card
+    // trên cùng (Doanh thu/Số đơn HÔM NAY) vốn đã theo ngày.
+    const now = new Date();
+    const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;
+    const salesMonth = posSalesDocs.filter(r => dstr(new Date(r.paidAt)).startsWith(ym));
+    const revMonth = salesMonth.reduce((s,r) => s + (r.total||0), 0);
+    const isTimed = rtBizType === "billiards" || rtBizType === "karaoke";
+    const playingCount = rtTablesDocs.filter(t => t.status === "playing").length;
+    const busyCount = rtTablesDocs.filter(t => t.status === "dangphucvu" || t.status === "playing").length;
+    const pendingRevenue = computePendingRevenue();
+
+    document.getElementById("kpiTripsToday").textContent = fmtVN(revToday) + "đ";
+    document.getElementById("kpiPendingPR").textContent = salesToday.length;
+    document.getElementById("kpiWareToday").textContent = fmtVN(pendingRevenue) + "đ";
+    document.getElementById("kpiDepotStock").textContent = rtTablesDocs.length;
+
+    stepperRef.textContent = "Bấm vào card để xem chi tiết";
+    renderLinkCards(stepperEl, [
+      isTimed
+        ? { icon:"🎱", label:"Bàn đang chơi", val: playingCount, color:"var(--accent)", sub:`/ ${rtTablesDocs.length} bàn`, href:"pos.html" }
+        : { icon:"🪑", label:"Bàn đang phục vụ", val: busyCount, color:"var(--accent)", sub:`/ ${rtTablesDocs.length} bàn`, href:"pos.html" },
+    ]);
+
+    activityList.innerHTML = `
+      <div class="linkcard-grid">
+        <a class="linkcard" href="report.html${appQS}">
+          <div class="lc-label">💰 Tổng doanh thu (tháng này)</div>
+          <div class="lc-val" style="color:#0d9f6e">${fmtVN(revMonth)}đ</div>
+        </a>
+        <a class="linkcard" href="report.html${appQS}">
+          <div class="lc-label">🧾 Tổng số đơn (tháng này)</div>
+          <div class="lc-val" style="color:var(--navy)">${salesMonth.length}</div>
+        </a>
+      </div>
+      <div class="rev-trend-head">📈 Doanh thu 7 ngày gần đây</div>
+      ${buildRevTrendHTML()}
+    `;
+  }
+
+  function buildRevTrendHTML() {
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      days.push({ label: d.toLocaleDateString("vi-VN",{weekday:"short"}), key: dstr(d) });
+    }
+    const totals = days.map(d => posSalesDocs.filter(r => dstr(new Date(r.paidAt)) === d.key).reduce((s,r)=>s+(r.total||0),0));
+    const max = Math.max(1, ...totals);
+    return days.map((d,i) => `
+      <div class="rev-bar-row">
+        <div class="rev-bar-day">${esc(d.label)}</div>
+        <div class="rev-bar-track"><div class="rev-bar-fill" style="width:${Math.round(totals[i]/max*100)}%"></div></div>
+        <div class="rev-bar-val">${fmtVN(totals[i])}đ</div>
+      </div>`).join("");
+  }
+
+  /* ══ Modal chi tiết "Doanh thu chưa thu" — liệt kê từng bàn/đơn đang mở + phiên chơi giờ đang chạy ══ */
+  window.openPendingRevenueModal = function() {
+    const rows = [];
+
+    posOrdersDocs.forEach(o => {
+      const foodAmt = (o.items||[]).reduce((s,l)=>s+((l.price||0)*(l.qty||0)),0);
+      const qtyCount = (o.items||[]).reduce((s,l)=>s+(l.qty||0),0);
+      if (o.type === "table") {
+        const t = rtTablesDocs.find(x => x.id === o.tableId);
+        rows.push(t ? {
+          icon: "🪑", bg:"#eff6ff",
+          title: `${t.code}${t.name?" - "+t.name:""}`,
+          sub: `${qtyCount} món · chưa thanh toán`,
+          amount: foodAmt
+        } : {
+          icon: "⚠️", bg:"#fee2e2", orphan:true, orphanId:o.id,
+          title: "Đơn mồ côi (bàn đã bị xoá)",
+          sub: `${qtyCount} món · không còn bàn nào tham chiếu tới đơn này`,
+          amount: foodAmt
+        });
+      } else {
+        const typeLbl = o.deliveryType === "giao" ? "🛵 Giao hàng" : "🥡 Mang về";
+        rows.push({
+          icon: o.deliveryType==="giao"?"🛵":"🥡", bg:"#fff7ed",
+          title: `${typeLbl} — ${o.customerName || "Khách lẻ"}`,
+          sub: `${qtyCount} món${o.customerPhone?" · "+o.customerPhone:""}`,
+          amount: foodAmt
+        });
+      }
+    });
+
+    billiardSessionsDocs.filter(s => s.status === "playing").forEach(sess => {
+      const durMin = Math.max(0, (Date.now()-sess.startTime)/60000);
+      const amt = Math.round((durMin/60)*(Number(sess.hourRate)||0));
+      rows.push({
+        icon:"🎱", bg:"#ecfdf5",
+        title: `Bàn ${sess.tableCode || ""} — đang chơi`,
+        sub: `${Math.round(durMin)} phút · tạm tính tiền giờ`,
+        amount: amt
+      });
+    });
+
+    rows.sort((a,b) => b.amount - a.amount);
+    const total = rows.reduce((s,r)=>s+r.amount, 0);
+
+    document.getElementById("prModalSub").textContent = `${rows.length} bàn/đơn đang chưa thanh toán`;
+    document.getElementById("prModalTotal").textContent = `Tổng: ${fmtVN(total)}đ`;
+    document.getElementById("prModalBody").innerHTML = rows.length ? rows.map(r => `
+      <div class="pr-row">
+        <div class="pr-row-icon" style="background:${r.bg}">${r.icon}</div>
+        <div class="pr-row-main">
+          <div class="pr-row-title" style="${r.orphan?'color:#dc2626':''}">${esc(r.title)}</div>
+          <div class="pr-row-sub">${esc(r.sub)}</div>
+          ${r.orphan ? `<button class="pr-orphan-btn" onclick="deleteOrphanOrder('${r.orphanId}')">🗑 Xoá đơn mồ côi này</button>` : ""}
+        </div>
+        <div class="pr-row-val">${fmtVN(r.amount)}đ</div>
+      </div>`).join("") : `<div class="pr-empty">🎉 Không có bàn/đơn nào đang chưa thanh toán.</div>`;
+
+    document.getElementById("prModalBackdrop").classList.add("show");
+  };
+  window.deleteOrphanOrder = async function(orderId) {
+    if (!confirm("Xoá đơn mồ côi này khỏi hệ thống?\n\nChỉ nên xoá khi bạn đã xác nhận khách hàng đã thanh toán bằng cách khác (tiền mặt/ghi sổ tay), vì đơn này sẽ KHÔNG được ghi vào Lịch sử bán hàng khi xoá theo cách này.")) return;
+    try {
+      await deleteDoc(doc(db, `pos_orders_${appId}`, orderId));
+      openPendingRevenueModal();
+    } catch(e) { alert("Lỗi xoá đơn: " + e.message); }
+  };
+  window.closePendingRevenueModal = function() {
+    document.getElementById("prModalBackdrop").classList.remove("show");
+  };
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closePendingRevenueModal(); });
+
+  function applyRestaurantUI(forceRender) {
+    flowTitle.childNodes[0].textContent = "Truy cập nhanh ";
+    activityMainTitle.childNodes[0].textContent = "Doanh thu & Vận hành";
+    activitySub.textContent = "Tổng tháng này & xu hướng 7 ngày gần đây — bấm để xem chi tiết";
+    applyRestaurantTopKPI();
+    if (forceRender) { renderRestaurantPanels(); }
+    else { stepperRef.textContent = "Đang tải dữ liệu…"; activityList.innerHTML = `<div class="activity-empty">Đang tải dữ liệu…</div>`; }
+  }
+
+  onSnapshot(docRtSettings, snap => {
+    rtBizType = (snap.exists() ? snap.data().businessType : "") || "restaurant";
+    if (primaryModule === "restaurant") { applyRestaurantTopKPI(); renderRestaurantPanels(); }
+  });
+  onSnapshot(colRtTables, snap => {
+    rtTablesDocs = snap.docs.map(d => d.data());
+    if (primaryModule === "restaurant") renderRestaurantPanels();
+  }, err => { console.error("Lỗi tải dữ liệu Bàn (Restaurant):", err); });
+  onSnapshot(colPosSales, snap => {
+    posSalesDocs = snap.docs.map(d => d.data());
+    if (primaryModule === "restaurant") renderRestaurantPanels();
+  }, err => { console.error("Lỗi tải dữ liệu Doanh thu (POS):", err); });
+  onSnapshot(colPosOrders, snap => {
+    posOrdersDocs = snap.docs.map(d => d.data());
+    if (primaryModule === "restaurant") renderRestaurantPanels();
+  }, err => { console.error("Lỗi tải dữ liệu Đơn đang mở (POS):", err); });
+  onSnapshot(colBilliardSessions, snap => {
+    billiardSessionsDocs = snap.docs.map(d => d.data());
+    if (primaryModule === "restaurant") renderRestaurantPanels();
+  }, err => { console.error("Lỗi tải dữ liệu Phiên chơi giờ:", err); });
+  // Số tiền giờ chơi tạm tính tăng dần theo thời gian dù không có ghi Firestore mới — làm mới định kỳ
+  setInterval(() => {
+    if (primaryModule === "restaurant" && billiardSessionsDocs.some(s=>s.status==="playing")) renderRestaurantPanels();
+  }, 30000);
+
+  /* ── Điều phối chung: gọi hàm applyXxxUI() tương ứng với primaryModule hiện tại ──
+     forceRender=false: dùng lúc mới vào trang (dữ liệu có thể chưa tới, hiện "Đang tải dữ liệu…").
+     forceRender=true: dùng khi primaryModule vừa được xác định lại chính xác hơn (xem bên dưới) —
+     ép render ngay bằng dữ liệu đã cache sẵn từ các onSnapshot (vốn luôn chạy bất kể module chính là gì),
+     không cần đợi Firestore bắn thêm sự kiện mới. */
+  function applyDashboardForPrimaryModule(forceRender) {
+    applyRestaurantUI(forceRender);
+  }
+
+  applyDashboardForPrimaryModule(false);
+})();
+</script>
+
+</body>
+</html>

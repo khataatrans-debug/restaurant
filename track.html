@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🔔 Theo dõi đơn hàng</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<style>
+:root {
+  --navy:   #0d2248;
+  --blue:   #1a3a8f;
+  --accent: #1d6ef5;
+  --green:  #0d9f6e;
+  --red:    #e03131;
+  --amber:  #e67700;
+  --purple: #7c3aed;
+  --border: #e2e8f5;
+  --muted:  #64748b;
+  --bg:     #eef1f8;
+  --white:  #ffffff;
+  --text:   #0f172a;
+  --alt:    #f7f9ff;
+  --shadow: 0 1px 3px rgba(13,34,72,.08), 0 1px 2px rgba(13,34,72,.04);
+  --r:      6px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;justify-content:center;padding:20px 14px 40px;}
+.wrap{width:100%;max-width:420px;}
+
+.brand{text-align:center;color:var(--navy);font-weight:700;font-size:14px;letter-spacing:.02em;margin-bottom:14px;opacity:.75;}
+
+.card{background:var(--white);border-radius:14px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:14px;}
+
+.code-head{background:var(--navy);color:#fff;padding:18px 20px;text-align:center;}
+.code-head .lbl{font-size:11px;opacity:.65;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px;}
+.code-head .code{font-size:26px;font-weight:800;letter-spacing:.03em;}
+.code-head .cust{font-size:12.5px;opacity:.8;margin-top:6px;}
+
+.status-banner{padding:22px 18px;text-align:center;transition:background .3s;}
+.status-banner .icon{font-size:38px;line-height:1;margin-bottom:8px;}
+.status-banner .msg{font-size:16px;font-weight:700;}
+.status-banner .sub{font-size:12px;margin-top:4px;opacity:.85;font-weight:500;}
+
+.st-wait{background:#f1f4fb;color:var(--muted);}
+.st-cook{background:#fff4e5;color:var(--amber);}
+.st-ready{background:#e7f8f1;color:var(--green);animation:pulseBg 1.6s ease-in-out infinite;}
+.st-done{background:#eef2ff;color:var(--blue);}
+.st-err{background:#fdecec;color:var(--red);}
+
+@keyframes pulseBg{0%,100%{background:#e7f8f1;}50%{background:#c9f0dc;}}
+
+.items{padding:6px 0;}
+.items .hd{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:12px 18px 6px;}
+.item-row{display:flex;align-items:center;gap:10px;padding:9px 18px;border-top:1px solid var(--border);}
+.item-row .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.dot-new{background:var(--amber);}
+.dot-done{background:var(--green);}
+.dot-cancelled{background:var(--red);}
+.item-row .nm{flex:1;font-size:13px;font-weight:500;}
+.item-row .nm .fc{display:block;font-size:10.5px;color:var(--muted);font-weight:400;}
+.item-row .qty{font-size:12px;color:var(--muted);font-weight:600;}
+.item-row .st{font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;}
+.st-new{color:var(--amber);background:#fff4e5;}
+.st-done-pill{color:var(--green);background:#e7f8f1;}
+.st-cancelled-pill{color:var(--red);background:#fdecec;text-decoration:line-through;}
+
+.empty-note{padding:16px 18px;font-size:12.5px;color:var(--muted);text-align:center;}
+
+.footer-note{text-align:center;font-size:11.5px;color:var(--muted);line-height:1.6;}
+.footer-note b{color:var(--navy);}
+
+.center-box{background:var(--white);border-radius:14px;box-shadow:var(--shadow);padding:40px 24px;text-align:center;color:var(--muted);font-size:13.5px;line-height:1.7;}
+.center-box .big{font-size:32px;margin-bottom:10px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">🧾 THEO DÕI ĐƠN HÀNG</div>
+  <div id="app"></div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+  import { getFirestore, doc, onSnapshot, collection, query, where }
+    from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+
+  const params = new URLSearchParams(location.search);
+  const APP_ID = params.get("app") || "";
+  const ORDER_ID = params.get("id") || params.get("order") || "";
+  const app = document.getElementById("app");
+
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+  if (!ORDER_ID) {
+    app.innerHTML = `<div class="center-box"><div class="big">📱</div>
+      Vui lòng quét mã QR trên hóa đơn hoặc dùng đúng đường dẫn kèm mã đơn để theo dõi.</div>`;
+    throw new Error("missing order id");
+  }
+
+  const _fbapp = initializeApp({
+    apiKey: "AIzaSyAPmHlNgx-w5KfK4LF490pvdYA_mGgcX_k",
+    authDomain: "transportation-6d6f5.firebaseapp.com",
+    databaseURL: "https://transportation-6d6f5-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "transportation-6d6f5",
+    storageBucket: "transportation-6d6f5.firebasestorage.app",
+    messagingSenderId: "1097685849973",
+    appId: "1:1097685849973:web:79ad636e3dfd0b12f7653c"
+  });
+  const db = getFirestore(_fbapp);
+
+  let ORDER = null;
+  let ORDER_LOADED = false;
+  let TICKETS = [];
+  let TICKETS_LOADED = false;
+
+  onSnapshot(doc(db, `pos_orders_${APP_ID}`, ORDER_ID), snap => {
+    ORDER = snap.exists() ? snap.data() : null;
+    ORDER_LOADED = true;
+    render();
+  }, err => { app.innerHTML = errorBox("Không thể kết nối tới hệ thống. Vui lòng thử lại."); });
+
+  onSnapshot(query(collection(db, `pos_kitchen_tickets_${APP_ID}`), where("orderId","==",ORDER_ID)), snap => {
+    TICKETS = snap.docs.map(d => d.data());
+    TICKETS_LOADED = true;
+    render();
+  }, err => {});
+
+  function errorBox(msg){
+    return `<div class="center-box"><div class="big">⚠️</div>${esc(msg)}</div>`;
+  }
+
+  function timeAgo(ts){
+    if (!ts) return "";
+    const mins = Math.max(0, Math.round((Date.now()-ts)/60000));
+    if (mins < 1) return "vừa xong";
+    if (mins < 60) return `${mins} phút trước`;
+    const h = Math.floor(mins/60);
+    return `${h} giờ ${mins%60} phút trước`;
+  }
+
+  function render(){
+    if (!ORDER_LOADED) { app.innerHTML = `<div class="center-box">⏳ Đang tải thông tin đơn hàng...</div>`; return; }
+    if (!ORDER) { app.innerHTML = errorBox("Không tìm thấy đơn hàng với mã này. Vui lòng kiểm tra lại QR / mã đơn."); return; }
+
+    const allItems = [];
+    TICKETS.forEach(tk => (tk.items||[]).forEach(it => allItems.push(it)));
+
+    const total = allItems.length;
+    const doneN = allItems.filter(it => it.status === "done").length;
+    const cancelledN = allItems.filter(it => it.status === "cancelled").length;
+    const pendingN = total - doneN - cancelledN;
+
+    let stClass, icon, msg, sub;
+    if (ORDER.status === "paid") {
+      stClass = "st-done"; icon = "✅"; msg = "Đơn đã hoàn tất — cảm ơn quý khách!"; sub = "";
+    } else if (!TICKETS_LOADED || TICKETS.length === 0) {
+      stClass = "st-wait"; icon = "📝"; msg = "Đơn đang được tiếp nhận..."; sub = "Nhà hàng sẽ sớm bắt đầu chế biến";
+    } else if (pendingN === 0 && (doneN > 0)) {
+      stClass = "st-ready"; icon = "🔔"; msg = "Món đã sẵn sàng!"; sub = "Mời quý khách đến quầy nhận món";
+    } else {
+      stClass = "st-cook"; icon = "🔥"; msg = "Đang chế biến..."; sub = `${doneN}/${total} món đã xong`;
+    }
+
+    const itemsHtml = allItems.length
+      ? allItems.map(it => {
+          const dotCls = it.status === "done" ? "dot-done" : it.status === "cancelled" ? "dot-cancelled" : "dot-new";
+          const pillCls = it.status === "done" ? "st-done-pill" : it.status === "cancelled" ? "st-cancelled-pill" : "st-new";
+          const pillTxt = it.status === "done" ? "Xong" : it.status === "cancelled" ? "Đã hủy" : "Đang làm";
+          return `<div class="item-row">
+            <span class="dot ${dotCls}"></span>
+            <span class="nm">${esc(it.name)}${it.fromCombo?`<span class="fc">từ combo: ${esc(it.fromCombo)}</span>`:""}</span>
+            <span class="qty">x${it.qty||1}</span>
+            <span class="st ${pillCls}">${pillTxt}</span>
+          </div>`;
+        }).join("")
+      : `<div class="empty-note">Chưa có món nào được gửi bếp.</div>`;
+
+    const custLine = [ORDER.customerName || "Khách lẻ", ORDER.customerPhone].filter(Boolean).join(" · ");
+    const isTable = !!(ORDER.tableCode || ORDER.tableName);
+    const placeLine = isTable
+      ? `🪑 Bàn ${esc(ORDER.tableCode||"")}${ORDER.tableName?" - "+esc(ORDER.tableName):""}${ORDER.zoneName?" · Khu "+esc(ORDER.zoneName):""}`
+      : `${ORDER.deliveryType==="giao"?"🛵 Giao hàng":"🥡 Khách mang về"}${custLine?" · "+esc(custLine):""}`;
+    const displayCode = ORDER.billCode || ORDER.id || ORDER_ID;
+
+    app.innerHTML = `
+      <div class="card">
+        <div class="code-head">
+          <div class="lbl">Mã hóa đơn</div>
+          <div class="code">${esc(displayCode)}</div>
+          <div class="cust">${esc(placeLine)}${ORDER.createdAt?" · Đặt "+timeAgo(ORDER.createdAt):""}</div>
+        </div>
+        <div class="status-banner ${stClass}">
+          <div class="icon">${icon}</div>
+          <div class="msg">${msg}</div>
+          ${sub?`<div class="sub">${esc(sub)}</div>`:""}
+        </div>
+      </div>
+      <div class="card">
+        <div class="items">
+          <div class="hd">Chi tiết món</div>
+          ${itemsHtml}
+        </div>
+      </div>
+      <div class="footer-note">Trang tự cập nhật theo thời gian thực — không cần bấm làm mới.<br>Cần hỗ trợ? Vui lòng liên hệ nhân viên tại quầy.</div>
+    `;
+  }
+</script>
+</body>
+</html>

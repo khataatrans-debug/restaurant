@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>👨‍💼 Quản lý User</title>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<style>
+:root{--navy:#0d2248;--accent:#1d6ef5;--green:#0d9f6e;--border:#e2e8f5;--muted:#64748b;--bg:#eef1f8;--white:#ffffff;--text:#0f172a;--alt:#f7f9ff;--shadow:0 1px 3px rgba(13,34,72,.08);--r:6px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);font-size:13px;min-height:100vh;}
+.nav{background:var(--navy);display:flex;align-items:center;padding:0 18px;height:46px;gap:2px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(13,34,72,.3);}
+.nav a{color:rgba(255,255,255,.6);text-decoration:none;font-size:12.5px;font-weight:500;padding:5px 12px;border-radius:5px;transition:.15s;white-space:nowrap;}
+.nav a:hover{background:rgba(255,255,255,.1);color:#fff;}
+.nav a.active{background:rgba(29,110,245,.5);color:#fff;font-weight:600;}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.nav-user{color:rgba(255,255,255,.75);font-size:12px;}
+.btn-logout{background:rgba(255,255,255,.1);color:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.15);border-radius:5px;padding:4px 11px;font-size:12px;font-family:inherit;cursor:pointer;}
+.page-wrap{padding:20px;}
+.page-header{margin-bottom:16px;}
+.page-header h2{color:var(--navy);font-size:17px;font-weight:700;}
+.form-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:var(--white);padding:12px;border-radius:var(--r);box-shadow:var(--shadow);margin-bottom:14px;border:1px solid var(--border);}
+.form-row input,.form-row select{padding:6px 10px;font-size:13px;font-family:inherit;border:1px solid var(--border);border-radius:5px;height:32px;background:var(--white);color:var(--text);}
+button{font-family:inherit;cursor:pointer;border:none;border-radius:5px;font-weight:600;transition:.15s;}
+.btn-primary{background:var(--accent);color:#fff;padding:6px 14px;font-size:13px;}
+.btn-danger{background:#ef4444;color:#fff;}
+.btn-warning{background:#f59e0b;color:#fff;}
+.btn-gray{background:#6b7280;color:#fff;}
+.btn-sm{padding:3px 9px;font-size:11.5px;}
+.tbl-wrap{background:var(--white);border-radius:var(--r);border:1px solid var(--border);overflow:auto;box-shadow:var(--shadow);}
+table{border-collapse:collapse;width:100%;font-size:12.5px;}
+thead th{background:var(--navy);color:rgba(255,255,255,.88);padding:8px 10px;font-weight:600;font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;position:sticky;top:0;z-index:5;}
+td{border-bottom:1px solid var(--border);padding:7px 10px;text-align:center;}
+tr:last-child td{border-bottom:none;}
+tr:nth-child(even) td{background:var(--alt);}
+tr:hover td{background:#e8eeff!important;}
+.pw-cell{display:flex;align-items:center;justify-content:center;gap:4px;}
+.pw-text{font-family:monospace;font-size:13px;min-width:70px;}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center;}
+.modal-bg.show{display:flex;}
+.modal{background:var(--white);padding:24px;border-radius:10px;width:340px;box-shadow:0 8px 32px rgba(13,34,72,.2);}
+.modal h4{margin:0 0 14px;color:var(--navy);font-size:15px;}
+.modal label{font-size:12px;font-weight:600;display:block;margin-bottom:3px;color:var(--muted);}
+.modal input{width:100%;padding:8px 10px;margin-bottom:12px;border:1px solid var(--border);border-radius:5px;font-size:13px;font-family:inherit;}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:4px;}
+.toast{position:fixed;bottom:24px;right:24px;background:#22c55e;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.15);opacity:0;transition:opacity .3s;pointer-events:none;z-index:999;}
+.toast.show{opacity:1;}
+.toast.error{background:#ef4444;}
+</style>
+</head>
+<body>
+<script src="app-config.js?v=4"></script>
+<script src="nav-menu.js?v=1"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
+<nav class="nav" id="mainNav">
+  <a href="index.html" id="navHomeBtn">🏠 Trang chủ</a>
+  <div class="nav-right">
+    <span class="nav-user" id="userInfo"></span>
+    <button class="btn-logout" id="btnLogout">↩ Đăng xuất</button>
+  </div>
+</nav>
+
+<div class="page-wrap">
+  <div class="page-header"><h2>👨‍💼 QUẢN LÝ USER & PHÂN QUYỀN</h2></div>
+  <div class="form-row">
+    <input id="uName" placeholder="Username" style="width:130px">
+    <input id="uPass" type="text" placeholder="Password" style="width:130px">
+    <select id="uRole" style="width:130px">
+      <option value="user">User</option>
+      <option value="manager">Quản lý</option>
+      <option value="viceadmin">Administrator</option>
+      <option value="admin">Admin</option>
+    </select>
+    <button class="btn-primary" onclick="addUser()">➕ Thêm user</button>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr id="headRow">
+        <th>#</th><th>Username</th><th>Role</th><th>Mật khẩu</th>
+        <th id="changePassTh">Đổi pass</th><th>Xóa</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h4>✏️ Sửa tài khoản</h4>
+    <div id="modalUser" style="font-size:13px;margin-bottom:12px;color:#374151;font-weight:600"></div>
+    <label>Role</label>
+    <select id="newRole" style="width:100%;padding:7px 10px;margin-bottom:12px;border:1px solid var(--border);border-radius:5px;font-size:13px;font-family:inherit">
+      <option value="user">User</option>
+      <option value="manager">Quản lý</option>
+      <option value="viceadmin">Administrator</option>
+      <option value="admin">Admin</option>
+    </select>
+    <label>Mật khẩu mới <span style="color:#94a3b8;font-weight:400">(để trống nếu không đổi)</span></label>
+    <input id="newPass" type="text" placeholder="Nhập mật khẩu mới (tùy chọn)">
+    <label>Nhập lại mật khẩu</label>
+    <input id="confirmPass" type="text" placeholder="Nhập lại mật khẩu mới">
+    <div class="modal-actions">
+      <button class="btn-gray" style="padding:6px 14px;font-size:13px" onclick="closeModal()">Hủy</button>
+      <button class="btn-primary" onclick="confirmChangePass()">💾 Lưu</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const CURRENT_KEY = "LOGIN_USER";
+// APP_ID từ app-config.js?v=4 → window.APP_ID
+const USERS_KEY   = `app_users_${window.APP_ID}`;
+const USERS_REF   = `app_users_${window.APP_ID}`;
+const PAGES = ["index.html","restaurant.html","pos.html","kitchen.html","report.html","users.html"];
+// Nhãn hiển thị cho từng trang (dùng để build cột động trong bảng phân quyền)
+const PAGE_LABELS = {"index.html":"🏠 Dashboard","restaurant.html":"🍽️ Nhà hàng","pos.html":"🧾 Bán hàng","kitchen.html":"👨‍🍳 Bếp","report.html":"📊 B.cáo NH","users.html":"Users"};
+// Map trang → tên module trong APP_MODULES (đồng bộ với admin.html) — dùng để ẩn/hiện cả cột theo gói công ty
+const PAGE_MODULE_MAP = {"users.html":"users","restaurant.html":"restaurant","pos.html":"restaurant","kitchen.html":"restaurant","report.html":"restaurant"};
+let _appModules = null;
+// Trả về danh sách trang mà công ty hiện tại thực sự có (module không bị tắt trong admin.html)
+function getVisiblePages(){
+  if(!_appModules) return PAGES;
+  return PAGES.filter(p=>{
+    const mod = PAGE_MODULE_MAP[p];
+    if(!mod) return true;
+    return _appModules[mod] !== false;
+  });
+}
+// Các trang chỉ admin/viceadmin được vào — user thường không được tick các cột này
+const ADMIN_ONLY_PAGES = ["users.html"];
+const ALL_NAV = [
+  {page:"index.html",       label:"🏠 Dashboard"},
+  {page:"restaurant.html",  label: "🍽️ Nhà hàng" },
+  {page:"pos.html",         label: "🧾 Bán hàng" },
+  {page:"kitchen.html",     label: "👨‍🍳 Bếp" },
+  {page:"report.html",      label: "📊 Báo cáo" },
+  {page:"users.html",       label:"👑 Phân quyền",        adminOnly:true},
+  ];
+
+/* ── GUARD ── */
+const _session = JSON.parse(localStorage.getItem(CURRENT_KEY)||"{}");
+if (!_session.username) { navigate("login.html"); }
+else if (_session.role !== "admin" && _session.role !== "viceadmin") {
+  // Lọc bỏ các trang admin-only khỏi pages[] trước khi chọn trang fallback,
+  // tránh trường hợp pages[0] chính là "users.html" (hoặc trang admin-only khác)
+  // gây redirect về chính trang đang bị chặn → vòng lặp vô hạn (nháy liên tục)
+  const _safePages = (_session.pages||[]).filter(p => !ADMIN_ONLY_PAGES.includes(p));
+  navigate(_safePages[0] || "login.html");
+}
+
+/* ── FIREBASE ── */
+firebase.initializeApp({
+  apiKey:            "AIzaSyAPmHlNgx-w5KfK4LF490pvdYA_mGgcX_k",
+  authDomain:        "transportation-6d6f5.firebaseapp.com",
+  databaseURL:       "https://transportation-6d6f5-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "transportation-6d6f5",
+  storageBucket:     "transportation-6d6f5.firebasestorage.app",
+  messagingSenderId: "1097685849973",
+  appId:             "1:1097685849973:web:79ad636e3dfd0b12f7653c"
+});
+const db = firebase.database();
+let _users = [], changePassIdx = null, pwState = {};
+
+/* ── NAV ── */
+(function(){
+  const nav=document.getElementById("mainNav"), nr=nav.querySelector(".nav-right");
+  ALL_NAV.forEach(item => { return; /* Dãy tab cũ đã dọn — nav-menu.js quản lý (xem NAV_GROUPS) */
+    if(_session.role==="admin"){/* hiện tất cả */}
+    else if(_session.role==="viceadmin"){/* hiện tất cả */}
+    else{if(item.adminOnly) return; if(!(_session.pages||[]).includes(item.page)) return;}
+    const a=document.createElement("a"); a.href=item.page; a.textContent=item.label;
+    if(location.pathname.endsWith(item.page)) a.classList.add("active");
+    if(PAGE_MODULE_MAP[item.page]) a.setAttribute("data-module",PAGE_MODULE_MAP[item.page]);
+    nav.insertBefore(a,nr);
+  });
+  // Filter module theo gói công ty (ẩn tab nav + ẩn luôn cột tương ứng trong bảng phân quyền)
+  function applyModuleNav(m){
+    nav.querySelectorAll("a[data-module]").forEach(function(a){a.style.display="";if(m&&m[a.getAttribute("data-module")]===false)a.style.display="none";});
+    _appModules = m;
+    renderHeaders();
+    if(_users && _users.length) render();
+  }
+  // Đọc cache ngay lập tức để tránh flash tab không có trong gói
+  try{
+    const _cacheKey="APP_MODULES_"+(window.APP_ID||sessionStorage.getItem("APP_ID")||"");
+    const _cached=JSON.parse(sessionStorage.getItem(_cacheKey)||"null");
+    if(_cached) applyModuleNav(_cached);
+    else if(window.APP_MODULES) applyModuleNav(window.APP_MODULES);
+    else renderHeaders();
+  }catch(e){ if(window.APP_MODULES) applyModuleNav(window.APP_MODULES); else renderHeaders(); }
+  window.addEventListener("appModulesLoaded",function(e){applyModuleNav(e.detail.modules);});
+  document.getElementById("userInfo").textContent=`👤 ${_session.username||""}`;
+  document.getElementById("btnLogout").onclick=()=>{localStorage.removeItem(CURRENT_KEY);navigate("login.html");};
+})();
+
+/* ── TOAST ── */
+function showToast(msg,err=false){
+  const t=document.getElementById("toast");
+  t.textContent=msg; t.className="toast show"+(err?" error":"");
+  clearTimeout(t._t); t._t=setTimeout(()=>{t.className="toast";},2500);
+}
+
+/* ── SAVE ── */
+function saveUsers(u){
+  const arr=Array.isArray(u)?u:Object.values(u||{});
+  _users=arr;
+  localStorage.setItem(USERS_KEY,JSON.stringify(arr));
+  // Log để debug
+  console.log("[saveUsers] Saving passwords:", arr.map(x=>({u:x.username,pw:x.password})));
+  const byUsername={};
+  arr.forEach(x=>{if(x.username) byUsername[x.username]=x;});
+  return Promise.all([
+    db.ref(USERS_REF).set(arr),
+    db.ref(`users_${window.APP_ID}`).set(byUsername)
+  ])
+    .then(()=>{console.log("[saveUsers] ✅ Saved OK");showToast("✅ Đã lưu");})
+    .catch(e=>{console.error("[saveUsers] ❌ Error:",e);showToast("Lỗi: "+e.message,true);});
+}
+
+/* ── FIREBASE LISTENER ── */
+db.ref(USERS_REF).on("value",snap=>{
+  const val=snap.exists()?snap.val():[];
+  _users=Array.isArray(val)?val:Object.values(val||{});
+  localStorage.setItem(USERS_KEY,JSON.stringify(_users));
+
+  // vì index.html giờ là trang Dashboard thật, phải giữ nguyên trong pages[].
+
+  // Tự dọn dữ liệu cũ: user thường/lái xe không được phép có trang admin-only
+  // trong pages[] (nguồn gốc gây vòng lặp redirect vô hạn). Nếu phát hiện → lọc và lưu lại.
+  let _dirty2=false;
+  _users.forEach(u=>{
+    if(u.role!=="admin" && u.role!=="viceadmin" && Array.isArray(u.pages)){
+      const cleaned=u.pages.filter(p=>!ADMIN_ONLY_PAGES.includes(p));
+      if(cleaned.length!==u.pages.length){ u.pages=cleaned; _dirty2=true; }
+    }
+  });
+  if(_dirty2){ console.warn("[users.html] Đã tự dọn pages[] admin-only khỏi tài khoản user thường"); saveUsers(_users); return; }
+
+  // Dashboard (index.html) là trang chủ khi đăng nhập, không chứa dữ liệu riêng của module nào
+  // → mặc định cấp cho MỌI user (trừ admin/viceadmin vốn đã có sẵn toàn quyền).
+  // Migration tự cấp 1 lần cho user hiện có, tự dừng khi mọi user đã có "index.html".
+  let _dirty3=false;
+  _users.forEach(u=>{
+    if(u.role!=="admin" && u.role!=="viceadmin"){
+      if(!Array.isArray(u.pages)) u.pages=[];
+      if(!u.pages.includes("index.html")){ u.pages.push("index.html"); _dirty3=true; }
+    }
+  });
+  if(_dirty3){ console.warn("[users.html] Đã tự cấp quyền Dashboard (index.html) mặc định cho user hiện có"); saveUsers(_users); return; }
+
+  render();
+});
+
+/* ── RENDER HEADERS (cột module động theo gói công ty) ── */
+function renderHeaders(){
+  const headRow=document.getElementById("headRow");
+  const changePassTh=document.getElementById("changePassTh");
+  if(!headRow||!changePassTh) return;
+  headRow.querySelectorAll(".pageHeadTh").forEach(el=>el.remove());
+  getVisiblePages().forEach(p=>{
+    const th=document.createElement("th");
+    th.className="pageHeadTh";
+    th.textContent=PAGE_LABELS[p]||p;
+    headRow.insertBefore(th, changePassTh);
+  });
+}
+
+/* ── RENDER ── */
+function render(){
+  const tbody=document.getElementById("tbody");
+  tbody.innerHTML="";
+  let rowNum=0;
+  _users.forEach((u, realIdx)=>{
+    // Phó admin không thấy dòng admin
+    if(_session.role==="viceadmin" && u.role==="admin") return;
+    rowNum++;
+    const isSelf=_session.username===u.username;
+    const isAdmin=u.role==="admin";
+    const isVice=u.role==="viceadmin";
+    const ROLE_META={
+      admin:{label:"Admin",bg:"#dbeafe",color:"#1d4ed8"},
+      viceadmin:{label:"Administrator",bg:"#fef3c7",color:"#92400e"},
+      manager:{label:"Quản lý",bg:"#ede9fe",color:"#6d28d9"}
+    };
+    const roleMeta=ROLE_META[u.role]||{label:"User",bg:"#f1f5f9",color:"#475569"};
+    const roleBg=roleMeta.bg, roleColor=roleMeta.color, roleLabel=roleMeta.label;
+    tbody.insertAdjacentHTML("beforeend",`
+      <tr>
+        <td>${rowNum}</td>
+        <td style="font-weight:600">${u.username}${isSelf?" 👈":""}</td>
+        <td><span style="background:${roleBg};color:${roleColor};padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600">${roleLabel}</span></td>
+        <td><div class="pw-cell">
+          <span class="pw-text" id="pw_${realIdx}">••••••</span>
+          <button class="btn-gray btn-sm" id="pwbtn_${realIdx}" onclick="togglePw(${realIdx})">👁️</button>
+        </div></td>
+        ${getVisiblePages().map(p=>{
+          const isAdminOnlyPage = ADMIN_ONLY_PAGES.includes(p);
+          const isPlainUser = !isAdmin && !isVice; // user thường
+          const isChecked = (u.pages||[]).includes(p);
+          const lockThisCell = isAdminOnlyPage && isPlainUser && !isChecked; // chỉ chặn TICK MỚI, vẫn cho bỏ tick nếu đang sai
+          const disabled = isAdmin || isVice || lockThisCell;
+          const title = lockThisCell ? `title="Chỉ Admin/Phó admin được vào ${p}"` : "";
+          return `<td><input type="checkbox" style="width:15px;height:15px;accent-color:var(--accent);cursor:${disabled?"not-allowed":"pointer"};${lockThisCell?"opacity:.35":""}" ${isChecked?"checked":""} ${disabled?"disabled":""} ${title} onchange="togglePage(${realIdx},'${p}',this.checked)"></td>`;
+        }).join("")}
+        <td><button class="btn-warning btn-sm" onclick="openChangePass(${realIdx})">🔑 Đổi</button></td>
+        <td>${isSelf?`<button class="btn-gray btn-sm" disabled style="opacity:.5">🗑️</button>`:`<button class="btn-danger btn-sm" onclick="delUser(${realIdx})">🗑️ Xóa</button>`}</td>
+      </tr>`);
+  });
+}
+
+/* ── ADD USER — lưu password plain text ── */
+function addUser(){
+  const u=document.getElementById("uName").value.trim();
+  const p=document.getElementById("uPass").value.trim();
+  const r=document.getElementById("uRole").value;
+  if(!u||!p){showToast("Nhập đủ username và password!",true);return;}
+  if(u.length<3){showToast("Username phải từ 3 ký tự!",true);return;}
+  if(p.length<4){showToast("Password phải từ 4 ký tự!",true);return;}
+  if(_users.some(x=>x.username.toLowerCase()===u.toLowerCase())){showToast("Username đã tồn tại!",true);return;}
+  const users=[..._users];
+  const obj={username:u, password:p, role:r,
+    pages:r==="admin"||r==="viceadmin"?[...PAGES]:["index.html"]};
+  users.push(obj);
+  saveUsers(users);
+  document.getElementById("uName").value="";
+  document.getElementById("uPass").value="";
+}
+
+/* ── TOGGLE PAGE ── */
+function togglePage(i,page,checked){
+  if(_session.role==="viceadmin" && _users[i].role==="admin"){return;}
+  const users=[..._users];
+  users[i].pages=users[i].pages||[];
+  if(checked&&!users[i].pages.includes(page)) users[i].pages.push(page);
+  if(!checked) users[i].pages=users[i].pages.filter(p=>p!==page);
+  saveUsers(users);
+}
+
+/* ── DELETE ── */
+function delUser(i){
+  if(_session.username===_users[i].username){showToast("Không thể tự xóa!",true);return;}
+  if(_session.role==="viceadmin" && _users[i].role==="admin"){showToast("Không có quyền xóa Admin!",true);return;}
+  if(!confirm(`Xóa user "${_users[i].username}"?`)) return;
+  const users=[..._users]; users.splice(i,1); saveUsers(users);
+}
+
+/* ── TOGGLE PW ── */
+function togglePw(i){
+  const span=document.getElementById("pw_"+i), btn=document.getElementById("pwbtn_"+i);
+  if(!span) return;
+  if(pwState[i]){span.textContent="••••••";btn.textContent="👁️";pwState[i]=false;}
+  else{
+    const pw = _users[i].password||"";
+    // Nếu là hash SHA-256 (64 ký tự hex) → hiện thông báo cần đổi
+    const isHash = /^[0-9a-f]{64}$/.test(pw);
+    span.textContent = isHash ? "⚠️ Cần đổi lại" : (pw||"(trống)");
+    span.style.color = isHash ? "#f59e0b" : "";
+    btn.textContent="🙈";pwState[i]=true;
+  }
+}
+
+/* ── CHANGE PASS ── */
+
+function openChangePass(i){
+  if(_session.role==="viceadmin" && _users[i].role==="admin"){showToast("Không có quyền sửa Admin!",true);return;}
+  changePassIdx=i;
+  document.getElementById("modalUser").textContent=`👤 ${_users[i].username}`;
+  document.getElementById("newRole").value=_users[i].role||"user";
+  document.getElementById("newPass").value="";
+  document.getElementById("confirmPass").value="";
+  document.getElementById("modalBg").classList.add("show");
+}
+function closeModal(){changePassIdx=null;document.getElementById("modalBg").classList.remove("show");}
+function confirmChangePass(){
+  const np=document.getElementById("newPass").value.trim();
+  const cp=document.getElementById("confirmPass").value.trim();
+  const newRole=document.getElementById("newRole").value;
+  // Validate pass chỉ khi có nhập
+  if(np){
+    if(np.length<4){showToast("Mật khẩu phải từ 4 ký tự!",true);return;}
+    if(np!==cp){showToast("Mật khẩu nhập lại không khớp!",true);return;}
+  }
+  if(!np && !newRole){showToast("Không có thay đổi gì!",true);return;}
+  const users=[..._users];
+  if(np) users[changePassIdx].password=np;
+  users[changePassIdx].role=newRole;
+  delete users[changePassIdx].primaryModule; // field đã bỏ — dọn luôn dữ liệu cũ nếu tài khoản từng có
+  saveUsers(users);
+  closeModal();
+}
+document.getElementById("modalBg").addEventListener("click",function(e){if(e.target===this)closeModal();});
+</script>
+</body>
+</html>

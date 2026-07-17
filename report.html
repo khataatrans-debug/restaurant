@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>📊 Lịch sử & Báo cáo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://firestore.googleapis.com">
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<style>
+:root{
+  --navy:#0d2248; --accent:#1d6ef5; --green:#0d9f6e; --red:#e03131; --amber:#e67700; --purple:#7c3aed;
+  --border:#e2e8f5; --muted:#64748b; --bg:#eef1f8; --white:#ffffff; --text:#0f172a; --alt:#f7f9ff;
+  --shadow:0 1px 3px rgba(13,34,72,.08), 0 1px 2px rgba(13,34,72,.04); --r:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);font-size:13px;min-height:100vh;}
+
+.nav{background:var(--navy);display:flex;align-items:center;padding:0 18px;height:46px;gap:2px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(13,34,72,.3);}
+.nav a{color:rgba(255,255,255,.6);text-decoration:none;font-size:12.5px;font-weight:500;padding:5px 12px;border-radius:5px;white-space:nowrap;}
+.nav a:hover{background:rgba(255,255,255,.1);color:#fff;}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.nav-user{color:rgba(255,255,255,.75);font-size:12px;font-weight:500;}
+.btn-logout{background:rgba(255,255,255,.1);color:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.15);border-radius:5px;padding:4px 11px;font-size:12px;font-family:inherit;cursor:pointer;}
+
+.toolbar{background:var(--white);border-bottom:1px solid var(--border);padding:10px 18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.toolbar-title{font-size:13px;font-weight:700;color:var(--navy);display:flex;align-items:center;gap:8px;}
+.toolbar-title::before{content:'';width:3px;height:15px;background:var(--accent);border-radius:2px;display:inline-block;}
+.toolbar input, .toolbar select{height:30px;font-size:12px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-family:inherit;}
+.btn{display:inline-flex;align-items:center;gap:4px;padding:6px 14px;border:none;border-radius:5px;font-size:12px;font-family:inherit;font-weight:600;cursor:pointer;}
+.btn-accent{background:var(--accent);color:#fff;}
+.btn-reset{background:var(--white);color:var(--muted);border:1px solid var(--border);}
+.btn-reset:hover{background:var(--alt);color:var(--navy);}
+.btn[disabled]{opacity:.5;cursor:not-allowed;}
+
+.tabs{display:flex;gap:0;background:var(--white);border-bottom:1px solid var(--border);padding:0 18px;}
+.tab{padding:10px 16px;font-size:12.5px;font-weight:700;font-family:inherit;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent;}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+.wrap{padding:16px 18px;max-width:1200px;margin:0 auto;}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px;}
+.kpi{background:var(--white);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);padding:14px 16px;}
+.kpi .k-label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em;}
+.kpi .k-value{font-size:22px;font-weight:800;color:var(--navy);margin-top:4px;}
+.kpi.red .k-value{color:var(--red);}
+.kpi.green .k-value{color:var(--green);}
+
+.card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);margin-bottom:16px;overflow:hidden;}
+.card-head{padding:10px 14px;border-bottom:1px solid var(--border);font-size:12.5px;font-weight:700;color:var(--navy);}
+.card-body{padding:12px 14px;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+th{text-align:left;color:var(--muted);font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;padding:6px 8px;border-bottom:1px solid var(--border);}
+td{padding:7px 8px;border-bottom:1px solid var(--border);}
+tr:last-child td{border-bottom:none;}
+.bar-row{display:flex;align-items:center;gap:8px;padding:5px 0;}
+.bar-label{width:150px;font-size:11.5px;color:var(--text);flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bar-track{flex:1;height:14px;background:var(--alt);border-radius:4px;overflow:hidden;}
+.bar-fill{height:100%;background:var(--accent);}
+.bar-val{width:90px;text-align:right;font-size:11.5px;font-weight:700;color:var(--navy);flex-shrink:0;}
+.empty-state{text-align:center;color:var(--muted);padding:30px 10px;font-size:12.5px;}
+.note{font-size:11px;color:var(--muted);padding:10px 14px;background:#fafbff;border-top:1px dashed var(--border);}
+.hist-tools{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap;}
+.hist-tools input{flex:1 1 220px;height:30px;font-size:12px;border:1px solid var(--border);border-radius:5px;padding:0 10px;font-family:inherit;}
+.hist-count{font-size:11px;color:var(--muted);white-space:nowrap;}
+.hist-summary{display:flex;gap:22px;padding:10px 14px;background:#fafbff;border-bottom:1px solid var(--border);flex-wrap:wrap;}
+.hs-item{display:flex;flex-direction:column;gap:2px;}
+.hs-label{font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em;}
+.hs-val{font-size:15px;font-weight:800;color:var(--navy);}
+.hs-val.hs-money{color:var(--green);}
+tr.hist-row{cursor:pointer;}
+tr.hist-row:hover{background:var(--alt);}
+tr.hist-detail td{background:#fafbff;padding:0;}
+tr.hist-detail .dwrap{padding:10px 14px;}
+tr.hist-detail table{background:var(--white);border:1px solid var(--border);border-radius:5px;overflow:hidden;}
+.chev{display:inline-block;transition:transform .15s;color:var(--muted);}
+tr.hist-row.open .chev{transform:rotate(90deg);}
+
+@media (max-width:480px){
+  .toolbar{padding:10px 12px;}
+  .toolbar-title{width:100%;margin-bottom:2px;}
+  .toolbar input[type="date"]{flex:1 1 auto;min-width:0;}
+  .toolbar > span{display:none;}
+  .btn-accent, .btn-reset{flex:1 1 auto;justify-content:center;}
+  #rangeHint{width:100%;order:99;}
+}
+</style>
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+  import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy, where, limit, getDocs, writeBatch, getDoc }
+    from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+  import { getDatabase, ref, onValue, get }
+    from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
+  window.__fbApp  = { initializeApp };
+  window.__fbFS   = { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy, where, limit, getDocs, writeBatch, getDoc };
+  window.__fbRTDB = { getDatabase, ref, onValue, get };
+  window.__fbReady = true;
+  if (window.__fbReadyCb) window.__fbReadyCb();
+</script>
+<script src="app-config.js?v=4"></script>
+<script src="nav-menu.js?v=1"></script>
+</head>
+<body>
+
+<script>
+(function() {
+  const CURRENT_KEY = "LOGIN_USER";
+  const THIS_PAGE = "report.html";
+  const raw = localStorage.getItem(CURRENT_KEY);
+  const app2 = new URLSearchParams(location.search).get("app") || ""; const sep2 = app2 ? "?app=" + app2 : "";
+  if (!raw) { location.href = "login.html" + sep2; return; }
+  const session = JSON.parse(raw);
+  if (session.role !== "admin" && session.role !== "viceadmin" && !(session.pages || []).includes(THIS_PAGE)) {
+    location.href = ((session.pages && session.pages[0]) || "login.html") + sep2;
+    return;
+  }
+  document.addEventListener("DOMContentLoaded", function() {
+    document.getElementById("userInfo").textContent = `👤 ${session.username}`;
+    document.getElementById("btnLogout").onclick = function() {
+      localStorage.removeItem(CURRENT_KEY);
+      location.href = "login.html" + (location.search || "");
+    };
+  });
+})();
+</script>
+
+<nav class="nav" id="mainNav">
+  <a href="index.html">🏠 Trang chủ</a>
+  <div class="nav-right">
+    <span class="nav-user" id="userInfo"></span>
+    <button class="btn-logout" id="btnLogout">↩ Đăng xuất</button>
+  </div>
+</nav>
+
+<div class="toolbar">
+  <div class="toolbar-title">📊 Lịch sử &amp; Báo cáo</div>
+  <input type="date" id="dateFrom">
+  <span style="color:var(--muted)">→</span>
+  <input type="date" id="dateTo">
+  <button class="btn btn-accent" id="btnRun" onclick="runReport()">🔍 Xem báo cáo</button>
+  <button class="btn btn-reset" id="btnReset" onclick="resetFilter()">↺ Bỏ lọc</button>
+  <span id="rangeHint" style="font-size:11px;color:var(--muted)"></span>
+</div>
+
+<div class="tabs">
+  <button class="tab active" data-tab="revenue" onclick="switchTab('revenue')">💰 Doanh thu</button>
+  <button class="tab" data-tab="kitchen" onclick="switchTab('kitchen')">👨‍🍳 Vận hành bếp</button>
+  <button class="tab" data-tab="cost" onclick="switchTab('cost')">📉 Chi phí &amp; Lãi gộp</button>
+  <button class="tab" data-tab="history" onclick="switchTab('history')">🧾 Lịch sử bán hàng</button>
+</div>
+
+<div class="wrap">
+  <div id="viewRevenue"></div>
+  <div id="viewKitchen" style="display:none"></div>
+  <div id="viewCost" style="display:none"></div>
+  <div id="viewHistory" style="display:none"></div>
+</div>
+
+<script type="module">
+let w=0; while(!window.__fbReady && w<4000){await new Promise(r=>setTimeout(r,30));w+=30;}
+await new Promise(r=>document.readyState==="loading"?document.addEventListener("DOMContentLoaded",r):r());
+{
+  const { initializeApp } = window.__fbApp;
+  const { getFirestore, collection, query, where, orderBy, limit, getDocs } = window.__fbFS;
+  const APP_ID = window.APP_ID || new URLSearchParams(location.search).get("app") || "";
+
+  const _fbapp = initializeApp({
+    apiKey: "AIzaSyAPmHlNgx-w5KfK4LF490pvdYA_mGgcX_k",
+    authDomain: "transportation-6d6f5.firebaseapp.com",
+    databaseURL: "https://transportation-6d6f5-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "transportation-6d6f5",
+    storageBucket: "transportation-6d6f5.firebasestorage.app",
+    messagingSenderId: "1097685849973",
+    appId: "1:1097685849973:web:79ad636e3dfd0b12f7653c"
+  });
+  const db = getFirestore(_fbapp);
+
+  function fmt(n){ return Number(n||0).toLocaleString("vi-VN"); }
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+  function dstr(d){ const p=n=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate()); }
+
+  // Mặc định: 7 ngày gần nhất — tránh vô tình quét toàn bộ lịch sử trong 1 lần bấm
+  const today = new Date();
+  const weekAgo = new Date(); weekAgo.setDate(today.getDate()-6);
+  document.getElementById("dateFrom").value = dstr(weekAgo);
+  document.getElementById("dateTo").value = dstr(today);
+
+  window.resetFilter = function() {
+    document.getElementById("dateFrom").value = dstr(weekAgo);
+    document.getElementById("dateTo").value = dstr(today);
+    runReport();
+  };
+
+  window.switchTab = function(tab) {
+    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab===tab));
+    document.getElementById("viewRevenue").style.display = tab==="revenue" ? "" : "none";
+    document.getElementById("viewKitchen").style.display = tab==="kitchen" ? "" : "none";
+    document.getElementById("viewCost").style.display = tab==="cost" ? "" : "none";
+    document.getElementById("viewHistory").style.display = tab==="history" ? "" : "none";
+  };
+
+  function rangeMs() {
+    const from = document.getElementById("dateFrom").value;
+    const to = document.getElementById("dateTo").value;
+    if (!from || !to) { alert("Chọn đủ khoảng ngày."); return null; }
+    const fromMs = new Date(from+"T00:00:00").getTime();
+    const toMs = new Date(to+"T23:59:59").getTime();
+    if (fromMs > toMs) { alert("Ngày bắt đầu phải trước ngày kết thúc."); return null; }
+    const days = Math.round((toMs-fromMs)/86400000);
+    if (days > 92) { alert("Chỉ nên xem tối đa ~3 tháng/lần để tránh tải quá nặng. Hãy thu hẹp khoảng ngày."); return null; }
+    return { fromMs, toMs, days };
+  }
+
+  function topBars(mapObj, valueFmt) {
+    const entries = Object.entries(mapObj).sort((a,b)=>b[1]-a[1]).slice(0,10);
+    if (!entries.length) return `<div class="empty-state">Không có dữ liệu trong khoảng đã chọn.</div>`;
+    const max = entries[0][1] || 1;
+    return entries.map(([k,v]) => `
+      <div class="bar-row">
+        <div class="bar-label" title="${esc(k)}">${esc(k)}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${Math.max(3,v/max*100)}%"></div></div>
+        <div class="bar-val">${valueFmt(v)}</div>
+      </div>`).join("");
+  }
+
+  /* ══════════ TAB DOANH THU — nguồn: pos_sales_history_${APP_ID} ══════════ */
+  window.runReport = async function() {
+    const r = rangeMs(); if (!r) return;
+    const btn = document.getElementById("btnRun");
+    btn.disabled = true; btn.textContent = "⏳ Đang tải...";
+    document.getElementById("rangeHint").textContent = `Đang truy vấn ${r.days+1} ngày...`;
+    try {
+      await Promise.all([ runRevenueReport(r), runKitchenReport(r), runCostReport(r), runHistoryReport(r) ]);
+      document.getElementById("rangeHint").textContent = `Đã tải xong — ${r.days+1} ngày.`;
+    } catch(e) {
+      console.error("[Report] Lỗi truy vấn:", e);
+      document.getElementById("rangeHint").textContent = "";
+      alert("Lỗi tải báo cáo: " + e.message + "\n(Nếu là lỗi thiếu index, mở Console F12 — Firestore sẽ cho sẵn link tạo index).");
+    } finally {
+      btn.disabled = false; btn.textContent = "🔍 Xem báo cáo";
+    }
+  };
+
+  async function runRevenueReport(r) {
+    const view = document.getElementById("viewRevenue");
+    view.innerHTML = `<div class="empty-state">⏳ Đang tải doanh thu...</div>`;
+    const q = query(collection(db, `pos_sales_history_${APP_ID}`),
+      where("paidAt", ">=", r.fromMs), where("paidAt", "<=", r.toMs), orderBy("paidAt", "desc"), limit(3000));
+    const snap = await getDocs(q);
+    const sales = snap.docs.map(d => d.data());
+
+    const totalRevenue = sales.reduce((s,x)=>s+(x.total||0), 0);
+    const totalOrders = sales.length;
+    const avgOrder = totalOrders ? Math.round(totalRevenue/totalOrders) : 0;
+
+    const byDay = {}, byWaiter = {}, byItem = {};
+    sales.forEach(s => {
+      const day = new Date(s.paidAt).toLocaleDateString("vi-VN");
+      byDay[day] = (byDay[day]||0) + (s.total||0);
+      const w = s.waiterName || "(chưa gán)";
+      byWaiter[w] = (byWaiter[w]||0) + (s.total||0);
+      (s.items||[]).forEach(it => { byItem[it.name] = (byItem[it.name]||0) + (it.qty||0); });
+    });
+
+    view.innerHTML = `
+      <div class="kpi-row">
+        <div class="kpi"><div class="k-label">Tổng doanh thu</div><div class="k-value">${fmt(totalRevenue)}đ</div></div>
+        <div class="kpi"><div class="k-label">Số đơn</div><div class="k-value">${fmt(totalOrders)}</div></div>
+      </div>
+      <div class="card">
+        <div class="card-head">📈 Doanh thu theo ngày</div>
+        <div class="card-body">${topBars(byDay, v=>fmt(v)+"đ")}</div>
+      </div>
+      <div class="card">
+        <div class="card-head">🍽️ Top 10 món bán chạy (theo số lượng)</div>
+        <div class="card-body">${topBars(byItem, v=>fmt(v)+" phần")}</div>
+      </div>
+      <div class="card">
+        <div class="card-head">👤 Doanh thu theo nhân viên phục vụ</div>
+        <div class="card-body">${topBars(byWaiter, v=>fmt(v)+"đ")}</div>
+      </div>
+    `;
+  }
+
+  /* ══════════ TAB VẬN HÀNH BẾP — nguồn: pos_kitchen_tickets_history_${APP_ID} ══════════ */
+  async function runKitchenReport(r) {
+    const view = document.getElementById("viewKitchen");
+    view.innerHTML = `<div class="empty-state">⏳ Đang tải dữ liệu bếp...</div>`;
+    const q = query(collection(db, `pos_kitchen_tickets_history_${APP_ID}`),
+      where("createdAt", ">=", r.fromMs), where("createdAt", "<=", r.toMs), orderBy("createdAt", "desc"), limit(3000));
+    const snap = await getDocs(q);
+    const tickets = snap.docs.map(d => d.data());
+
+    let totalItems = 0, doneItems = 0, cancelledItems = 0, sumCookMs = 0, cookCount = 0;
+    const cancelByItem = {}, cookMsByItem = {};
+    tickets.forEach(tk => {
+      (tk.items||[]).forEach(it => {
+        totalItems++;
+        if (it.status === "cancelled") { cancelledItems++; cancelByItem[it.name] = (cancelByItem[it.name]||0)+1; }
+        else if (it.status === "done") {
+          doneItems++;
+          if (tk.allDoneAt && tk.createdAt) {
+            const ms = tk.allDoneAt - tk.createdAt;
+            if (ms > 0) { sumCookMs += ms; cookCount++; cookMsByItem[it.name] = (cookMsByItem[it.name]||0) + ms; }
+          }
+        }
+      });
+    });
+    const cancelRate = totalItems ? Math.round(cancelledItems/totalItems*1000)/10 : 0;
+    const avgCookMin = cookCount ? Math.round(sumCookMs/cookCount/60000*10)/10 : 0;
+
+    view.innerHTML = `
+      <div class="kpi-row">
+        <div class="kpi"><div class="k-label">Tổng số món qua bếp</div><div class="k-value">${fmt(totalItems)}</div></div>
+        <div class="kpi green"><div class="k-label">Đã hoàn thành</div><div class="k-value">${fmt(doneItems)}</div></div>
+        <div class="kpi red"><div class="k-label">Tỷ lệ huỷ</div><div class="k-value">${cancelRate}%</div></div>
+        <div class="kpi"><div class="k-label">Thời gian nấu TB</div><div class="k-value">${avgCookMin} phút</div></div>
+      </div>
+      <div class="card">
+        <div class="card-head">🚫 Top món bị huỷ nhiều nhất</div>
+        <div class="card-body">${topBars(cancelByItem, v=>fmt(v)+" lần")}</div>
+      </div>
+      <div class="card">
+        <div class="card-head">⏱️ Tổng thời gian nấu theo món (gợi ý món hay bị chậm)</div>
+        <div class="card-body">${topBars(cookMsByItem, v=>fmt(Math.round(v/60000))+" phút")}</div>
+        <div class="note">Số liệu chỉ chính xác kể từ khi bật tính năng lưu lịch sử phiếu bếp — dữ liệu phát sinh trước đó không có mốc thời gian hoàn thành.</div>
+      </div>
+    `;
+  }
+
+  /* ══════════ TAB CHI PHÍ & LÃI GỘP — nguồn: pos_sales_history_${APP_ID} + giá vốn từ rt_menu_${APP_ID} ══════════ */
+  async function runCostReport(r) {
+    const view = document.getElementById("viewCost");
+    view.innerHTML = `<div class="empty-state">⏳ Đang tính lãi gộp...</div>`;
+
+    const [menuSnap, salesSnap] = await Promise.all([
+      getDocs(collection(db, `rt_menu_${APP_ID}`)),
+      getDocs(query(collection(db, `pos_sales_history_${APP_ID}`),
+        where("paidAt", ">=", r.fromMs), where("paidAt", "<=", r.toMs), orderBy("paidAt", "desc"), limit(3000)))
+    ]);
+
+    // Map tên món (chuẩn hoá chữ thường, bỏ khoảng trắng thừa) -> giá vốn đã khai báo trong Danh mục món
+    const costMap = {};
+    menuSnap.docs.forEach(d => {
+      const m = d.data();
+      const key = String(m.name||"").trim().toLowerCase();
+      if (key) costMap[key] = Number(m.cost) || 0;
+    });
+
+    const sales = salesSnap.docs.map(d => d.data());
+    const totalRevenue = sales.reduce((s,x)=>s+(x.total||0), 0);
+
+    let totalCOGS = 0;
+    const profitByItem = {};
+    const missingCostSet = new Set();
+
+    sales.forEach(s => {
+      (s.items||[]).forEach(it => {
+        const key = String(it.name||"").trim().toLowerCase();
+        const qty = it.qty || 0;
+        const hasKey = Object.prototype.hasOwnProperty.call(costMap, key);
+        const cost = hasKey ? costMap[key] : 0;
+        if (!hasKey || cost <= 0) { missingCostSet.add(it.name); return; }
+        const itemCost = qty * cost;
+        totalCOGS += itemCost;
+        // Ước tính doanh thu món dựa trên đơn giá thực tế nếu có, không thì bỏ qua phần lãi-theo-món (chỉ cộng vào COGS tổng)
+        const unitPrice = it.price != null ? it.price : null;
+        if (unitPrice != null) {
+          profitByItem[it.name] = (profitByItem[it.name]||0) + (unitPrice - cost) * qty;
+        }
+      });
+    });
+
+    const grossProfit = totalRevenue - totalCOGS;
+    const grossMargin = totalRevenue ? Math.round(grossProfit/totalRevenue*1000)/10 : 0;
+    const missingList = Array.from(missingCostSet);
+
+    view.innerHTML = `
+      <div class="kpi-row">
+        <div class="kpi"><div class="k-label">Tổng doanh thu</div><div class="k-value">${fmt(totalRevenue)}đ</div></div>
+        <div class="kpi red"><div class="k-label">Tổng giá vốn (COGS)</div><div class="k-value">${fmt(totalCOGS)}đ</div></div>
+        <div class="kpi green"><div class="k-label">Lãi gộp</div><div class="k-value">${fmt(grossProfit)}đ</div></div>
+        <div class="kpi"><div class="k-label">Biên lãi gộp</div><div class="k-value">${grossMargin}%</div></div>
+      </div>
+      ${Object.keys(profitByItem).length ? `
+      <div class="card">
+        <div class="card-head">📊 Lãi gộp theo món (top 10, chỉ tính món có ghi đơn giá bán trong hoá đơn)</div>
+        <div class="card-body">${topBars(profitByItem, v=>fmt(v)+"đ")}</div>
+      </div>` : ""}
+      ${missingList.length ? `
+      <div class="card">
+        <div class="card-head">⚠️ Món chưa có giá vốn (${missingList.length} món) — chưa được tính vào COGS</div>
+        <div class="card-body">
+          <div class="empty-state" style="text-align:left">
+            ${missingList.map(esc).join(", ")}
+          </div>
+        </div>
+        <div class="note">Vào Restaurant Setup → Danh mục món → sửa món, điền "Giá vốn (₫)" cho các món trên để lãi gộp được tính đủ và chính xác.</div>
+      </div>` : ""}
+      <div class="note">Giá vốn lấy theo giá trị hiện tại đang khai báo trong Danh mục món (chưa lưu lịch sử biến động giá vốn theo thời gian), nên số liệu chỉ mang tính ước tính cho các giai đoạn giá vốn từng thay đổi.</div>
+    `;
+  }
+
+  /* ══════════ TAB LỊCH SỬ BÁN HÀNG — nguồn: pos_sales_history_${APP_ID} ══════════ */
+  let historySales = [];   // giữ dữ liệu lần tải gần nhất để lọc/xuất mà không phải query lại
+
+  async function runHistoryReport(r) {
+    const view = document.getElementById("viewHistory");
+    view.innerHTML = `<div class="empty-state">⏳ Đang tải lịch sử bán hàng...</div>`;
+    const q = query(collection(db, `pos_sales_history_${APP_ID}`),
+      where("paidAt", ">=", r.fromMs), where("paidAt", "<=", r.toMs), orderBy("paidAt", "desc"), limit(3000));
+    const snap = await getDocs(q);
+    historySales = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    view.innerHTML = `
+      <div class="card">
+        <div class="card-head">🧾 Lịch sử bán hàng (${fmt(historySales.length)} hoá đơn) — bấm vào 1 dòng để xem chi tiết món</div>
+        <div class="hist-tools">
+          <input id="histSearch" type="text" placeholder="Tìm theo mã hoá đơn / bàn / nhân viên...">
+          <span class="hist-count" id="histCount"></span>
+          <button class="btn btn-reset" id="btnExportHist" onclick="exportHistoryCSV()">⬇ Xuất Excel (CSV)</button>
+        </div>
+        <div class="hist-summary" id="histSummary"></div>
+        <div class="card-body" style="padding:0" id="histTableWrap"></div>
+      </div>
+      <div class="note">Danh sách được tải theo đúng khoảng ngày đang lọc ở trên (tối đa 3000 hoá đơn/lần). Xuất Excel sẽ xuất đúng danh sách đang hiển thị (đã áp dụng ô tìm kiếm nếu có).</div>
+    `;
+
+    renderHistoryTable(historySales);
+    document.getElementById("histSearch").addEventListener("input", (e) => {
+      const kw = e.target.value.trim().toLowerCase();
+      const filtered = !kw ? historySales : historySales.filter(s => {
+        const code = String(s.id || "").toLowerCase();
+        const table = String(s.tableLabel || "").toLowerCase();
+        const waiter = String(s.waiterName || "").toLowerCase();
+        return code.includes(kw) || table.includes(kw) || waiter.includes(kw);
+      });
+      renderHistoryTable(filtered);
+    });
+  }
+
+  function renderHistoryTable(list) {
+    document.getElementById("histCount").textContent = `Hiển thị ${fmt(list.length)}/${fmt(historySales.length)}`;
+    const sumTotal = list.reduce((a,s)=>a+(s.total||0),0);
+    const sumQty = list.reduce((a,s)=>a+(s.items||[]).reduce((x,it)=>x+(it.qty||0),0), 0);
+    document.getElementById("histSummary").innerHTML = `
+      <div class="hs-item"><span class="hs-label">Tổng hoá đơn</span><span class="hs-val">${fmt(list.length)}</span></div>
+      <div class="hs-item"><span class="hs-label">Tổng số món</span><span class="hs-val">${fmt(sumQty)}</span></div>
+      <div class="hs-item"><span class="hs-label">Tổng doanh thu</span><span class="hs-val hs-money">${fmt(sumTotal)}đ</span></div>
+    `;
+    const wrap = document.getElementById("histTableWrap");
+    if (!list.length) { wrap.innerHTML = `<div class="empty-state">Không có hoá đơn nào khớp.</div>`; return; }
+
+    wrap.innerHTML = `
+      <table>
+        <thead><tr>
+          <th style="width:24px"></th>
+          <th>Thời gian</th><th>Mã hoá đơn</th><th>Bàn</th><th>Nhân viên</th>
+          <th style="text-align:right">Số món</th><th style="text-align:right">Tổng tiền</th>
+        </tr></thead>
+        <tbody id="histBody"></tbody>
+      </table>`;
+    const body = document.getElementById("histBody");
+    list.forEach((s, idx) => {
+      const rid = `hrow-${idx}`;
+      const time = s.paidAt ? new Date(s.paidAt).toLocaleString("vi-VN") : "—";
+      const code = s.id || "—";
+      const table = s.tableLabel || "—";
+      const waiter = s.waiterName || "(chưa gán)";
+      const qtyCount = (s.items||[]).reduce((a,it)=>a+(it.qty||0),0);
+
+      const tr = document.createElement("tr");
+      tr.className = "hist-row"; tr.dataset.target = rid;
+      tr.innerHTML = `
+        <td><span class="chev">▶</span></td>
+        <td>${esc(time)}</td><td>${esc(code)}</td><td>${esc(table)}</td><td>${esc(waiter)}</td>
+        <td style="text-align:right">${fmt(qtyCount)}</td>
+        <td style="text-align:right;font-weight:700;color:var(--navy)">${fmt(s.total)}đ</td>`;
+      tr.onclick = () => toggleHistoryDetail(rid, s, tr);
+      body.appendChild(tr);
+    });
+  }
+
+  function toggleHistoryDetail(rid, sale, rowEl) {
+    const existing = document.getElementById(rid);
+    if (existing) { existing.remove(); rowEl.classList.remove("open"); return; }
+    document.querySelectorAll("tr.hist-detail").forEach(e=>e.remove());
+    document.querySelectorAll("tr.hist-row.open").forEach(e=>e.classList.remove("open"));
+    rowEl.classList.add("open");
+
+    const items = sale.items || [];
+    const rowsHtml = items.length ? items.map(it => `
+      <tr>
+        <td>${esc(it.name)}</td>
+        <td style="text-align:right">${fmt(it.qty||0)}</td>
+        <td style="text-align:right">${it.price!=null ? fmt(it.price)+"đ" : "—"}</td>
+        <td style="text-align:right">${it.price!=null ? fmt((it.price||0)*(it.qty||0))+"đ" : "—"}</td>
+      </tr>`).join("") : `<tr><td colspan="4" class="empty-state">Hoá đơn không có chi tiết món.</td></tr>`;
+
+    const detail = document.createElement("tr");
+    detail.className = "hist-detail"; detail.id = rid;
+    detail.innerHTML = `<td colspan="7"><div class="dwrap">
+      <table>
+        <thead><tr><th>Món</th><th style="text-align:right">SL</th><th style="text-align:right">Đơn giá</th><th style="text-align:right">Thành tiền</th></tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div></td>`;
+    rowEl.insertAdjacentElement("afterend", detail);
+  }
+
+  window.exportHistoryCSV = function() {
+    const kw = (document.getElementById("histSearch").value || "").trim().toLowerCase();
+    const list = !kw ? historySales : historySales.filter(s => {
+      const code = String(s.id || "").toLowerCase();
+      const table = String(s.tableLabel || "").toLowerCase();
+      const waiter = String(s.waiterName || "").toLowerCase();
+      return code.includes(kw) || table.includes(kw) || waiter.includes(kw);
+    });
+    if (!list.length) { alert("Không có dữ liệu để xuất."); return; }
+
+    const headers = ["Thời gian","Mã hoá đơn","Bàn","Nhân viên","Số món","Tổng tiền"];
+    const csvEsc = v => `"${String(v==null?"":v).replace(/"/g,'""')}"`;
+    const rows = list.map(s => {
+      const time = s.paidAt ? new Date(s.paidAt).toLocaleString("vi-VN") : "";
+      const code = s.id || "";
+      const table = s.tableLabel || "";
+      const waiter = s.waiterName || "";
+      const qtyCount = (s.items||[]).reduce((a,it)=>a+(it.qty||0),0);
+      return [time, code, table, waiter, qtyCount, s.total||0].map(csvEsc).join(",");
+    });
+    const csv = "\uFEFF" + [headers.map(csvEsc).join(","), ...rows].join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const from = document.getElementById("dateFrom").value, to = document.getElementById("dateTo").value;
+    a.href = url; a.download = `lich-su-ban-hang_${from}_${to}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  runReport();
+}
+</script>
+</body>
+</html>
