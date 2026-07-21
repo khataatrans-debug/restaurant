@@ -7,6 +7,9 @@
       "hosting": {
         "phanmenquanly": [
           "phanmenquanly"
+        ],
+        "phan-mem-nha-hang": [
+          "phan-mem-nha-hang"
         ]
       }
     }

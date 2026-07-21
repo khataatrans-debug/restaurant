@@ -115,12 +115,12 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
     <div class="brand-logo">
       <div class="brand-icon" id="brandIcon"><img src="icon-admin-192.png" alt="A·AU logo"></div>
       <div>
-        <div class="brand-name" id="brandName">A·AU</div>
-        <div class="brand-name-sub" id="brandSub">Hệ thống quản lý nhà hàng</div>
+        <div class="brand-name" id="brandName">Kovenso</div>
+        <div class="brand-name-sub" id="brandSub">Phần mềm quản lý nhà hàng</div>
       </div>
     </div>
     <div class="brand-title">Quản lý<br>nhà hàng <span>thông minh</span></div>
-    <div class="brand-desc">Theo dõi chuyến xe, chi phí, hiệu suất và bảo dưỡng — tất cả trong một nền tảng.</div>
+    <div class="brand-desc">Quản lý bàn, gọi món, bếp và báo cáo doanh thu — tất cả trong một nền tảng.</div>
     <div class="brand-tags">
       <span class="tag">⚡ Real-time</span>
       <span class="tag">🔒 Bảo mật</span>
@@ -192,6 +192,7 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 
 <script src="app-config.js?v=4"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script>
 const APP_ID      = new URLSearchParams(location.search).get("app") || "";
@@ -218,6 +219,29 @@ firebase.initializeApp({
   appId:"1:1097685849973:web:79ad636e3dfd0b12f7653c"
 });
 const db = firebase.database();
+// Đăng nhập ẩn danh — bắt buộc từ khi Rules yêu cầu request.auth != null.
+// Đợi xong bước này rồi mới subscribe dữ liệu users, tránh gọi DB khi chưa có auth.
+let _authReadyResolve;
+let _authReadyDone = false;
+const authReady = new Promise(res => { _authReadyResolve = res; });
+firebase.auth().onAuthStateChanged(user => {
+  if (user) { _authReadyDone = true; _authReadyResolve(user); }
+  else {
+    firebase.auth().signInAnonymously().catch(err => {
+      console.error("[login] Lỗi đăng nhập ẩn danh:", err);
+      // Không throw — vẫn để timeout dự phòng bên dưới giải phóng authReady
+    });
+  }
+});
+// Timeout dự phòng: nếu signInAnonymously() bị treo (hay gặp trên Safari/iPhone,
+// đặc biệt khi chạy PWA standalone do IndexedDB xử lý khác), authReady vẫn phải
+// resolve sau 8s để không khóa nút Đăng nhập vĩnh viễn.
+setTimeout(() => {
+  if (!_authReadyDone) {
+    console.warn("[login] Đăng nhập ẩn danh quá thời gian chờ, tiếp tục không có auth");
+    _authReadyResolve(null);
+  }
+}, 8000);
 let _users = [];
 
 // ── SHA-256 hash password ──
@@ -261,6 +285,7 @@ async function writeAuditLog(action, detail, username){
 }
 
 /* ── LOAD USERS ── */
+authReady.then(() => {
 db.ref(USERS_REF).on("value", snap => {
   const val = snap.exists() ? snap.val() : [];
   _users = Array.isArray(val) ? val : Object.values(val||{});
@@ -281,6 +306,7 @@ db.ref(USERS_REF).on("value", snap => {
   st.textContent = _users.length ? "⚠️ Dùng data cục bộ" : "❌ Không kết nối được";
   st.className = "err";
 });
+});
 
 /* ── LOAD LOGO CÔNG TY TỪ MASTER ── */
 /* Logo & tên A·AU cố định — không bị ghi đè bởi dữ liệu công ty trong Firebase */
@@ -293,6 +319,7 @@ function showPanel(id){
 
 /* ── LOGIN ── */
 async function login(){
+  await authReady;
   const u = document.getElementById("username").value.trim();
   const p = document.getElementById("password").value.trim();
   const msg = document.getElementById("msg");

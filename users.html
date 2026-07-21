@@ -52,6 +52,7 @@ tr:hover td{background:#e8eeff!important;}
 <script src="app-config.js?v=4"></script>
 <script src="nav-menu.js?v=1"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
 <nav class="nav" id="mainNav">
@@ -162,7 +163,20 @@ firebase.initializeApp({
   appId:             "1:1097685849973:web:79ad636e3dfd0b12f7653c"
 });
 const db = firebase.database();
+// Đăng nhập ẩn danh — bắt buộc từ khi Rules yêu cầu request.auth != null.
+let _authReadyResolve;
+const authReady = new Promise(res => { _authReadyResolve = res; });
+firebase.auth().onAuthStateChanged(user => {
+  if (user) { _authReadyResolve(user); }
+  else { firebase.auth().signInAnonymously().catch(err => console.error("[users] Lỗi đăng nhập ẩn danh:", err)); }
+});
 let _users = [], changePassIdx = null, pwState = {};
+
+// ── HASH PASSWORD (SHA-256, cùng format với admin.html/login.html) ──
+async function hashPass(str){
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
 
 /* ── NAV ── */
 (function(){
@@ -212,15 +226,16 @@ function saveUsers(u){
   console.log("[saveUsers] Saving passwords:", arr.map(x=>({u:x.username,pw:x.password})));
   const byUsername={};
   arr.forEach(x=>{if(x.username) byUsername[x.username]=x;});
-  return Promise.all([
+  return authReady.then(()=>Promise.all([
     db.ref(USERS_REF).set(arr),
     db.ref(`users_${window.APP_ID}`).set(byUsername)
-  ])
+  ]))
     .then(()=>{console.log("[saveUsers] ✅ Saved OK");showToast("✅ Đã lưu");})
     .catch(e=>{console.error("[saveUsers] ❌ Error:",e);showToast("Lỗi: "+e.message,true);});
 }
 
 /* ── FIREBASE LISTENER ── */
+authReady.then(() => {
 db.ref(USERS_REF).on("value",snap=>{
   const val=snap.exists()?snap.val():[];
   _users=Array.isArray(val)?val:Object.values(val||{});
@@ -239,19 +254,11 @@ db.ref(USERS_REF).on("value",snap=>{
   });
   if(_dirty2){ console.warn("[users.html] Đã tự dọn pages[] admin-only khỏi tài khoản user thường"); saveUsers(_users); return; }
 
-  // Dashboard (index.html) là trang chủ khi đăng nhập, không chứa dữ liệu riêng của module nào
-  // → mặc định cấp cho MỌI user (trừ admin/viceadmin vốn đã có sẵn toàn quyền).
-  // Migration tự cấp 1 lần cho user hiện có, tự dừng khi mọi user đã có "index.html".
-  let _dirty3=false;
-  _users.forEach(u=>{
-    if(u.role!=="admin" && u.role!=="viceadmin"){
-      if(!Array.isArray(u.pages)) u.pages=[];
-      if(!u.pages.includes("index.html")){ u.pages.push("index.html"); _dirty3=true; }
-    }
-  });
-  if(_dirty3){ console.warn("[users.html] Đã tự cấp quyền Dashboard (index.html) mặc định cho user hiện có"); saveUsers(_users); return; }
+  // Dashboard (index.html) KHÔNG còn được tự động ép cấp cho mọi user nữa.
+  // Admin phải tự tick trong bảng phân quyền cho từng user cần xem Dashboard.
 
   render();
+});
 });
 
 /* ── RENDER HEADERS (cột module động theo gói công ty) ── */
@@ -311,8 +318,8 @@ function render(){
   });
 }
 
-/* ── ADD USER — lưu password plain text ── */
-function addUser(){
+/* ── ADD USER — mật khẩu được hash SHA-256 trước khi lưu ── */
+async function addUser(){
   const u=document.getElementById("uName").value.trim();
   const p=document.getElementById("uPass").value.trim();
   const r=document.getElementById("uRole").value;
@@ -321,8 +328,8 @@ function addUser(){
   if(p.length<4){showToast("Password phải từ 4 ký tự!",true);return;}
   if(_users.some(x=>x.username.toLowerCase()===u.toLowerCase())){showToast("Username đã tồn tại!",true);return;}
   const users=[..._users];
-  const obj={username:u, password:p, role:r,
-    pages:r==="admin"||r==="viceadmin"?[...PAGES]:["index.html"]};
+  const obj={username:u, password: await hashPass(p), role:r,
+    pages:r==="admin"||r==="viceadmin"?[...PAGES]:[]};
   users.push(obj);
   saveUsers(users);
   document.getElementById("uName").value="";
@@ -374,7 +381,7 @@ function openChangePass(i){
   document.getElementById("modalBg").classList.add("show");
 }
 function closeModal(){changePassIdx=null;document.getElementById("modalBg").classList.remove("show");}
-function confirmChangePass(){
+async function confirmChangePass(){
   const np=document.getElementById("newPass").value.trim();
   const cp=document.getElementById("confirmPass").value.trim();
   const newRole=document.getElementById("newRole").value;
@@ -385,7 +392,7 @@ function confirmChangePass(){
   }
   if(!np && !newRole){showToast("Không có thay đổi gì!",true);return;}
   const users=[..._users];
-  if(np) users[changePassIdx].password=np;
+  if(np) users[changePassIdx].password = await hashPass(np);
   users[changePassIdx].role=newRole;
   delete users[changePassIdx].primaryModule; // field đã bỏ — dọn luôn dữ liệu cũ nếu tài khoản từng có
   saveUsers(users);

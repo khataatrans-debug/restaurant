@@ -2,8 +2,51 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>🧾 POS – Bán hàng/</title>
+
+<!-- ►►► PWA / "Thêm vào Màn hình chính" — icon + hiển thị dạng app, ẩn thanh URL khi mở từ icon
+     Lưu ý: hệ thống multi-tenant dùng ?app=APP_ID trên cùng 1 file pos.html, nên KHÔNG dùng
+     manifest.json tĩnh (sẽ mất ?app= khi mở lại từ icon). Thay vào đó tạo manifest ĐỘNG bằng
+     Blob URL, giữ nguyên đúng query string hiện tại vào start_url. -->
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=3">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png?v=3">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=3">
+<meta name="theme-color" content="#020e23">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="POS">
+<script>
+(function(){
+  try {
+    var manifest = {
+      name: "POS - Bán hàng",
+      short_name: "POS",
+      start_url: "./pos.html" + location.search,   // giữ nguyên ?app=... của đúng công ty đang mở
+      scope: "./",
+      display: "standalone",
+      orientation: "any",
+      background_color: "#020e23",
+      theme_color: "#020e23",
+      icons: [
+        { src: "icons/icon-192.png?v=3", sizes: "192x192", type: "image/png", purpose: "any" },
+        { src: "icons/icon-512.png?v=3", sizes: "512x512", type: "image/png", purpose: "any" }
+      ]
+    };
+    var blob = new Blob([JSON.stringify(manifest)], { type: "application/json" });
+    var link = document.createElement("link");
+    link.rel = "manifest";
+    link.href = URL.createObjectURL(blob);
+    document.head.appendChild(link);
+  } catch(e) { /* trình duyệt cũ không hỗ trợ — bỏ qua, không ảnh hưởng chức năng chính */ }
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js").catch(function(){});
+  }
+})();
+</script>
+<!-- ◄◄◄ -->
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://firestore.googleapis.com">
@@ -212,9 +255,12 @@ body{font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif;background:var(--b
     from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
   import { getDatabase, ref, onValue, get }
     from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
   window.__fbApp  = { initializeApp };
   window.__fbFS   = { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy, where, limit, getDocs, writeBatch, getDoc, runTransaction };
   window.__fbRTDB = { getDatabase, ref, onValue, get };
+  window.__fbAuth = { getAuth, signInAnonymously, onAuthStateChanged };
   window.__fbReady = true;
   if (window.__fbReadyCb) window.__fbReadyCb();
 </script>
@@ -236,6 +282,14 @@ body{font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif;background:var(--b
     location.href=((session.pages&&session.pages[0])||"login.html")+sep2;
     return;
   }
+
+  // ►►► PHÂN QUYỀN THU NGÂN — tách "chọn nhân viên phục vụ" (ai order) khỏi "quyền xác nhận thanh toán" (ai được thu tiền).
+  //     Mặc định: admin, viceadmin và role "cashier" (thu ngân) mới được thấy/bấm nút Thanh toán.
+  //     Nếu hệ thống quản lý người dùng của bạn chưa có role "cashier", hãy thêm role này cho nhân viên thu ngân
+  //     trong trang quản lý nhân sự — nhân viên phục vụ thường (waiter/staff) sẽ không thấy nút Thanh toán nữa.
+  const CASHIER_ROLES = ["admin", "viceadmin", "cashier"];
+  window.SESSION = session;
+  window.CAN_CHECKOUT = CASHIER_ROLES.includes(session.role);
 
   document.addEventListener("DOMContentLoaded", function() {
     const nav = document.getElementById("mainNav");
@@ -278,6 +332,53 @@ body{font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif;background:var(--b
     <select id="waiterSelect" onchange="onWaiterChange(this.value)">
       <option value="">-- Chọn nhân viên phục vụ --</option>
     </select>
+    <span id="waiterLabel" class="pill" style="display:none;background:#f1f5f9;color:#334155;font-weight:600">👤 Đang phục vụ: —</span>
+    <button class="pill" id="handoverBtn" onclick="openHandoverModal()" style="display:none;cursor:pointer;border:1px solid var(--blue,#2563eb);background:#eff6ff;color:#1d4ed8;font-weight:700" title="Bàn giao các bàn/đơn đang phục vụ sang nhân viên khác khi đổi ca">🔄 Bàn giao ca</button>
+    <button class="pill" id="payReqBell" onclick="openPaymentQueue()" style="display:none;cursor:pointer;border:1px solid var(--amber);background:#fff7e6;color:var(--amber);font-weight:700" title="Yêu cầu thanh toán đang chờ xử lý">🔔 Yêu cầu thanh toán: 0</button>
+  </div>
+</div>
+
+<!-- BÀN GIAO CA — chuyển hàng loạt các bàn/đơn đang mở từ nhân viên A sang nhân viên B -->
+<div class="modal-overlay" id="handoverModal" style="display:none">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-head"><h3>🔄 Bàn giao ca</h3><button onclick="closeHandoverModal()">✕</button></div>
+    <div class="modal-body">
+      <div class="field" style="margin-bottom:8px"><span class="lbl">Từ nhân viên (đang tan ca)</span>
+        <select id="hoFromWaiter" onchange="renderHandoverOrderList()">
+          <option value="">-- Chọn nhân viên --</option>
+        </select>
+      </div>
+      <div class="field" style="margin-bottom:10px"><span class="lbl">Sang nhân viên (nhận ca)</span>
+        <select id="hoToWaiter">
+          <option value="">-- Chọn nhân viên --</option>
+        </select>
+      </div>
+      <div id="hoOrderListWrap" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span class="lbl" style="margin:0">Bàn/đơn đang phục vụ cần bàn giao</span>
+          <label style="font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px">
+            <input type="checkbox" id="hoSelectAll" checked onchange="toggleHandoverSelectAll(this.checked)"> Chọn tất cả
+          </label>
+        </div>
+        <div id="hoOrderList" style="max-height:260px;overflow:auto;border:1px solid #e5e7eb;border-radius:8px;padding:6px"></div>
+      </div>
+      <div id="hoEmptyMsg" style="display:none;font-size:13px;color:var(--muted);padding:10px 0;text-align:center">Nhân viên này hiện không có bàn/đơn nào đang mở.</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-cancel btn-sm" onclick="closeHandoverModal()">Hủy</button>
+      <button class="btn btn-save btn-sm" onclick="confirmHandover()">✅ Xác nhận bàn giao</button>
+    </div>
+  </div>
+</div>
+
+<!-- HÀNG ĐỢI YÊU CẦU THANH TOÁN (chỉ Thu ngân/Quản lý thấy) -->
+<div class="modal-overlay" id="payQueueModal" style="display:none">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-head"><h3>🔔 Yêu cầu thanh toán đang chờ</h3><button onclick="closePaymentQueue()">✕</button></div>
+    <div class="modal-body" id="payQueueBody" style="max-height:60vh;overflow:auto"></div>
+    <div class="modal-foot">
+      <button class="btn btn-cancel btn-sm" onclick="closePaymentQueue()">Đóng</button>
+    </div>
   </div>
 </div>
 
@@ -301,6 +402,23 @@ body{font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif;background:var(--b
     <div class="modal-foot">
       <button class="btn btn-cancel btn-sm" onclick="closeTakeawayModal()">Hủy</button>
       <button class="btn btn-save btn-sm" onclick="confirmCreateTakeaway()">➕ Tạo đơn &amp; gọi món</button>
+    </div>
+  </div>
+</div>
+
+<!-- NHẬP SỐ KG THỰC TẾ (món bán theo cân) -->
+<div class="modal-overlay" id="weightModal" style="display:none">
+  <div class="modal-box" style="max-width:340px">
+    <div class="modal-head"><h3 id="weightModalTitle">⚖️ Nhập số kg thực tế</h3><button onclick="closeWeightModal()">✕</button></div>
+    <div class="modal-body">
+      <div class="field"><span class="lbl" id="weightModalItemName">Món</span>
+        <input id="weightModalInput" type="number" step="0.01" min="0" inputmode="decimal" placeholder="VD: 1.25" style="font-size:16px;text-align:center">
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">Nhập số kg cân được thực tế của món này (VD: 1.25 kg)</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-cancel btn-sm" onclick="closeWeightModal()">Hủy</button>
+      <button class="btn btn-save btn-sm" onclick="confirmWeightModal()">✔️ Xác nhận</button>
     </div>
   </div>
 </div>
@@ -346,6 +464,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
 {
   const { initializeApp } = window.__fbApp;
   const { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, writeBatch, runTransaction } = window.__fbFS;
+  const { getAuth, signInAnonymously, onAuthStateChanged } = window.__fbAuth;
   const APP_ID = window.APP_ID || new URLSearchParams(location.search).get("app") || "";
 
   const _fbapp = initializeApp({
@@ -358,6 +477,19 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
     appId: "1:1097685849973:web:79ad636e3dfd0b12f7653c"
   });
   const db = getFirestore(_fbapp);
+  // Đăng nhập ẩn danh — bắt buộc từ khi Rules yêu cầu request.auth != null.
+  // Có timeout dự phòng 5s: nếu signInAnonymously() lỗi/mạng chập chờn, vẫn cho
+  // trang chạy tiếp (Rules hiện tại còn "if true" nên không đăng nhập vẫn đọc/ghi được) —
+  // tránh trang bị treo vĩnh viễn nếu đăng nhập thất bại.
+  const _auth = getAuth(_fbapp);
+  const authReady = new Promise(resolve => {
+    onAuthStateChanged(_auth, user => {
+      if (user) resolve(user);
+      else signInAnonymously(_auth).catch(err => console.error("[pos] Lỗi đăng nhập ẩn danh:", err));
+    });
+    setTimeout(() => { console.warn("[pos] Đăng nhập ẩn danh quá thời gian chờ, tiếp tục không có auth"); resolve(null); }, 5000);
+  });
+  await authReady;
 
   /* ══════════ HELPERS ══════════ */
   function fmt(n){ return Number(n||0).toLocaleString("vi-VN"); }
@@ -426,6 +558,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
     LOADED.orders = true;
     renderTableView();
     if (currentOrderId) renderCartPane();
+    renderPaymentRequestBell();
   }, onSnapshotErr("đơn hàng"));
 
   /* ══════════ PHIẾU BẾP (module bếp gửi trạng thái realtime) ══════════ */
@@ -552,14 +685,127 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
     const cur = sel.value;
     sel.innerHTML = `<option value="">-- Chọn nhân viên phục vụ --</option>` +
       (STORE.waiters||[]).filter(w=>w.status==="active").map(w=>`<option value="${esc(w.id)}">${esc(w.name)}</option>`).join("");
+
+    // ►►► GÁN NHÂN VIÊN THEO TÀI KHOẢN ĐĂNG NHẬP — không để chọn tùy ý từ danh sách, tránh gắn nhầm/gắn hộ người khác
+    //     (một trong hai lỗ hổng kiểm soát đã trao đổi). Khớp theo trường "username" trên hồ sơ nhân viên nếu có;
+    //     nếu hồ sơ nhân viên chưa có trường này, tạm khớp theo tên trùng với username đăng nhập.
+    //     ► Khuyến nghị: thêm trường "username" vào từng nhân viên ở trang Nhân sự để khớp chính xác 100%.
+    const uname = ((window.SESSION && window.SESSION.username) || "").trim().toLowerCase();
+    const myWaiter = (STORE.waiters||[]).find(w => (w.username||"").trim().toLowerCase() === uname)
+                   || (STORE.waiters||[]).find(w => (w.name||"").trim().toLowerCase() === uname);
+    if (myWaiter && !currentWaiterId) currentWaiterId = myWaiter.id;
+
     if (cur) sel.value = cur;
+    else if (currentWaiterId) sel.value = currentWaiterId;
+
+    // Chỉ admin/viceadmin được đổi nhân viên phục vụ thay người khác (VD: hỗ trợ ca, sửa gán nhầm, tạo đơn hộ).
+    // Nhân viên thường bị khóa cứng theo đúng tài khoản đang đăng nhập — ẨN cả ô chọn lẫn nhãn hiển thị,
+    // vì tên tài khoản đang đăng nhập đã hiện sẵn ở góc phải trên cùng rồi, lặp lại là dư thừa.
+    const canReassign = window.SESSION && ["admin","viceadmin"].includes(window.SESSION.role);
+    const label = document.getElementById("waiterLabel");
+    if (canReassign) {
+      sel.style.display = "";
+      label.style.display = "none";
+      sel.disabled = false;
+    } else if (myWaiter) {
+      sel.style.display = "none";
+      label.style.display = "none";
+    } else {
+      // Chưa có username khớp trong hồ sơ Phục vụ — vẫn hiện ô chọn để không chặn thao tác, nhưng nên bổ sung username.
+      sel.style.display = "";
+      label.style.display = "none";
+    }
+
+    // ►►► Nút "Bàn giao ca" chỉ admin/viceadmin thấy — người phục vụ thường không tự bàn giao bàn của người khác.
+    const hoBtn = document.getElementById("handoverBtn");
+    if (hoBtn) hoBtn.style.display = canReassign ? "" : "none";
   }
+
+  /* ══════════ BÀN GIAO CA ══════════
+     Đổi hàng loạt waiterId của các bàn/đơn đang mở (chưa thanh toán) từ 1 nhân viên sang nhân viên khác.
+     Chỉ admin/viceadmin thấy nút này (đồng bộ với quyền "canReassign" ở renderWaiterSelect). */
+  function openHandoverOrderLabel(o) {
+    if (o.type === "takeaway") {
+      const typeLbl = o.deliveryType === "giao" ? "🛵 Giao hàng" : "🥡 Mang về";
+      return `${typeLbl} - ${o.customerName || "Khách lẻ"}`;
+    }
+    const t = (STORE.tables||[]).find(x=>x.id===o.id);
+    return `🪑 ${t ? (t.code + (t.name?" - "+t.name:"")) : o.id}`;
+  }
+  function openOrdersOfWaiter(waiterId) {
+    return Object.values(ORDERS).filter(o => (o.items||[]).length && o.status !== "paid" && (o.waiterId||"") === waiterId);
+  }
+  window.openHandoverModal = function() {
+    const fromSel = document.getElementById("hoFromWaiter");
+    const toSel = document.getElementById("hoToWaiter");
+    const opts = `<option value="">-- Chọn nhân viên --</option>` +
+      (STORE.waiters||[]).filter(w=>w.status==="active").map(w=>`<option value="${esc(w.id)}">${esc(w.name)}</option>`).join("");
+    fromSel.innerHTML = opts;
+    toSel.innerHTML = opts;
+    document.getElementById("hoOrderListWrap").style.display = "none";
+    document.getElementById("hoEmptyMsg").style.display = "none";
+    document.getElementById("handoverModal").style.display = "flex";
+  };
+  window.closeHandoverModal = function() {
+    document.getElementById("handoverModal").style.display = "none";
+  };
+  window.renderHandoverOrderList = function() {
+    const fromId = document.getElementById("hoFromWaiter").value;
+    const wrap = document.getElementById("hoOrderListWrap");
+    const emptyMsg = document.getElementById("hoEmptyMsg");
+    const list = document.getElementById("hoOrderList");
+    if (!fromId) { wrap.style.display = "none"; emptyMsg.style.display = "none"; return; }
+    const orders = openOrdersOfWaiter(fromId);
+    if (!orders.length) { wrap.style.display = "none"; emptyMsg.style.display = "block"; return; }
+    emptyMsg.style.display = "none";
+    wrap.style.display = "block";
+    document.getElementById("hoSelectAll").checked = true;
+    list.innerHTML = orders.map(o => `
+      <label style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid #f1f5f9;font-size:13px;cursor:pointer">
+        <input type="checkbox" class="ho-order-check" value="${esc(o.id)}" checked>
+        <span>${esc(openHandoverOrderLabel(o))}</span>
+        <span style="margin-left:auto;color:var(--muted)">${(o.items||[]).length} món</span>
+      </label>`).join("");
+  };
+  window.toggleHandoverSelectAll = function(checked) {
+    document.querySelectorAll(".ho-order-check").forEach(cb => cb.checked = checked);
+  };
+  window.confirmHandover = async function() {
+    const fromId = document.getElementById("hoFromWaiter").value;
+    const toId = document.getElementById("hoToWaiter").value;
+    if (!fromId || !toId) { alert("Vui lòng chọn cả nhân viên bàn giao và nhân viên nhận ca."); return; }
+    if (fromId === toId) { alert("Nhân viên bàn giao và nhân viên nhận ca phải khác nhau."); return; }
+    const selectedIds = Array.from(document.querySelectorAll(".ho-order-check:checked")).map(cb => cb.value);
+    if (!selectedIds.length) { alert("Vui lòng chọn ít nhất 1 bàn/đơn cần bàn giao."); return; }
+    try {
+      const batch = writeBatch(db);
+      selectedIds.forEach(id => {
+        const o = ORDERS[id];
+        if (o) batch.set(doc(db, `pos_orders_${APP_ID}`, id), { ...o, waiterId: toId });
+      });
+      await batch.commit();
+      // Nếu người vừa nhận ca đang là người đang đăng nhập trên máy này, cập nhật luôn dropdown hiện tại cho tiện.
+      const myWaiter = (STORE.waiters||[]).find(w => (w.username||"").trim().toLowerCase() === ((window.SESSION&&window.SESSION.username)||"").trim().toLowerCase());
+      if (myWaiter && myWaiter.id === toId) currentWaiterId = toId;
+      closeHandoverModal();
+      alert(`✅ Đã bàn giao ${selectedIds.length} bàn/đơn.`);
+    } catch(e) { alert("Lỗi bàn giao ca: " + e.message); }
+  };
 
   /* ══════════ VIEW: SƠ ĐỒ BÀN + ĐƠN MANG VỀ ══════════ */
   function orderTotalOf(orderId) {
     const o = ORDERS[orderId];
     if (!o) return 0;
     return (o.items||[]).reduce((s,l)=>s + (l.price*l.qty), 0);
+  }
+  // ►►► Badge trạng thái thanh toán ngay trên sơ đồ bàn/đơn mang về — để nhân viên KHÔNG PHẢI mở đơn mới biết
+  //     "đang chờ Thu ngân duyệt" hay "hóa đơn đã sẵn sàng, cần quay lại đưa cho khách", kể cả khi họ đang
+  //     phục vụ bàn khác và rời khỏi màn hình đơn đó.
+  function paymentFlagFor(o) {
+    if (!o) return "";
+    if (o.paymentApproved) return `<div class="tc-ready-flag" style="background:#eef2ff;color:#3730a3">🧾 Hóa đơn sẵn sàng — đưa cho khách</div>`;
+    if (o.paymentRequested) return `<div class="tc-wait-flag" style="background:#fff7e6;color:#92400e">⏳ Chờ Thu ngân duyệt thanh toán</div>`;
+    return "";
   }
   function tableEffectiveStatus(t) {
     if (t.status === "playing") return "playing";
@@ -583,6 +829,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
         <div class="tc-status">${typeLbl}</div>
         ${total>0?`<div class="tc-total">${fmt(total)}đ</div>`:""}
         ${kFlag}
+        ${paymentFlagFor(o)}
       </div>`;
     }).join("");
     return `<div class="zone-block">
@@ -645,6 +892,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
           <div class="tc-status">${lbl}</div>
           ${total>0?`<div class="tc-total">${fmt(total)}đ</div>`:""}
           ${kFlag}
+          ${paymentFlagFor(o2)}
         </div>`;
       }).join("");
       return `<div class="zone-block">
@@ -720,15 +968,72 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
     return ORDERS[currentOrderId];
   }
 
+  function isWeightItem(item) { return !!(item && item.weighted); }
+  // Hiển thị số lượng: món bán theo cân → "1.25 kg", món thường → số nguyên như cũ
+  function fmtQtyVal(qty, weighted) {
+    return weighted ? (Number(qty)||0).toFixed(2) + " kg" : String(qty);
+  }
+
   window.addMenuItem = function(itemId) {
     const item = (STORE.menu||[]).find(m=>m.id===itemId);
     if (!item) return;
+    if (isWeightItem(item)) { openWeightModal({ mode:"add", itemId }); return; }
     const ep = itemEffectivePrice(item);
     const o = ensureOrder();
     const line = (o.items||[]).find(l => l.itemId===itemId && !l.isCombo);
     if (line) line.qty += 1;
     else (o.items = o.items||[]).push({ itemId, name:item.name, price:ep.price, originalPrice:item.original!==undefined?ep.original:item.price, hh:ep.discounted, group:item.group, qty:1, isCombo:false });
     persistOrder(o);
+  };
+
+  /* ══════════ MODAL NHẬP SỐ KG THỰC TẾ (món bán theo cân) ══════════ */
+  window.openWeightModal = function(ctx) {
+    // ctx = { mode:"add", itemId } khi thêm món cân mới từ menu
+    // ctx = { mode:"edit", lineIndex } khi sửa lại số kg của 1 dòng đã có trong giỏ
+    window.__weightCtx = ctx;
+    let name = "Món";
+    let prefill = "";
+    if (ctx.mode === "add") {
+      const item = (STORE.menu||[]).find(m=>m.id===ctx.itemId);
+      name = item ? item.name : "Món";
+    } else {
+      const o = ORDERS[currentOrderId];
+      const l = o && o.items[ctx.lineIndex];
+      name = l ? l.name : "Món";
+      prefill = l ? String(l.qty) : "";
+    }
+    document.getElementById("weightModalItemName").textContent = name;
+    document.getElementById("weightModalInput").value = prefill;
+    document.getElementById("weightModal").style.display = "flex";
+    setTimeout(()=>{ const el=document.getElementById("weightModalInput"); if(el){el.focus(); el.select();} }, 30);
+  };
+  window.closeWeightModal = function() {
+    document.getElementById("weightModal").style.display = "none";
+    window.__weightCtx = null;
+  };
+  window.confirmWeightModal = function() {
+    const ctx = window.__weightCtx; if (!ctx) return;
+    const raw = document.getElementById("weightModalInput").value;
+    const kg = Number(raw);
+    if (!raw || isNaN(kg) || kg <= 0) { alert("Vui lòng nhập số kg hợp lệ (lớn hơn 0)."); return; }
+    if (ctx.mode === "add") {
+      const item = (STORE.menu||[]).find(m=>m.id===ctx.itemId);
+      if (!item) { closeWeightModal(); return; }
+      const ep = itemEffectivePrice(item);
+      const o = ensureOrder();
+      const line = (o.items||[]).find(l => l.itemId===ctx.itemId && !l.isCombo);
+      if (line) line.qty = Math.round((line.qty + kg) * 1000) / 1000;
+      else (o.items = o.items||[]).push({ itemId:ctx.itemId, name:item.name, price:ep.price, originalPrice:item.original!==undefined?ep.original:item.price, hh:ep.discounted, group:item.group, qty:kg, isCombo:false, weighted:true, unit:item.unit||"kg" });
+      persistOrder(o);
+    } else {
+      const o = ORDERS[currentOrderId]; if (!o) { closeWeightModal(); return; }
+      const l = o.items[ctx.lineIndex]; if (!l) { closeWeightModal(); return; }
+      const sentQty = l.sentQty || 0;
+      if (kg < sentQty) { alert(`Đã gửi bếp ${sentQty}kg. Không thể sửa số kg thấp hơn phần đã gửi — dùng nút 🚫 để báo hủy với bếp trước.`); return; }
+      l.qty = Math.round(kg * 1000) / 1000;
+      persistOrder(o);
+    }
+    closeWeightModal();
   };
   window.addComboItem = function(comboId) {
     const combo = (STORE.combos||[]).find(c=>c.id===comboId);
@@ -783,6 +1088,11 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
   };
 
   async function persistOrder(o) {
+    if (o.paymentApproved) {
+      alert("Hóa đơn đã được Thu ngân duyệt và đang chờ khách thanh toán — không thể sửa món lúc này. Nếu cần sửa, nhờ Thu ngân/Quản lý hủy duyệt trước.");
+      renderCartPane();
+      return;
+    }
     o.waiterId = currentWaiterId || o.waiterId || "";
     o.updatedAt = Date.now();
     if (!o.billCode && (o.items||[]).length) {
@@ -795,11 +1105,17 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
     }
     try {
       await setDoc(doc(db, `pos_orders_${APP_ID}`, currentOrderId), o);
-      // đồng bộ trạng thái bàn sang "Đang phục vụ" khi có món trong đơn (chỉ áp dụng cho bàn tại chỗ)
+      // đồng bộ trạng thái bàn: có món → "Đang phục vụ", hết món (đã xóa hết, chưa thanh toán) → về lại "Trống"
+      // (chỉ áp dụng cho bàn tại chỗ; không đụng vào bàn đang "playing" bida hoặc "dadat"/"dangdon" set thủ công)
       if (currentOrderType === "table") {
         const t = (STORE.tables||[]).find(x=>x.id===currentOrderId);
-        if (t && (o.items||[]).length && t.status !== "dangphucvu") {
-          await setDoc(doc(db, `rt_tables_${APP_ID}`, currentOrderId), { ...t, status:"dangphucvu" });
+        if (t) {
+          const hasItems = (o.items||[]).length > 0;
+          if (hasItems && t.status !== "dangphucvu" && t.status !== "playing") {
+            await setDoc(doc(db, `rt_tables_${APP_ID}`, currentOrderId), { ...t, status:"dangphucvu" });
+          } else if (!hasItems && t.status === "dangphucvu") {
+            await setDoc(doc(db, `rt_tables_${APP_ID}`, currentOrderId), { ...t, status:"trong" });
+          }
         }
       }
     } catch(e) { alert("Lỗi lưu đơn: " + e.message); }
@@ -836,7 +1152,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
       <div class="order-head">
         ${headHTML}
         ${trackBtn}
-        <button class="btn btn-cancel btn-sm" onclick="backToTables()">⬅ Quay lại</button>
+        <button class="btn btn-sm" style="background:#eef2ff;color:var(--navy);border:1px solid #c7d4f0;font-weight:700" onclick="backToTables()">⬅ Quay lại</button>
       </div>
       <div class="order-wrap">
         <div class="menu-card" id="menuPane"></div>
@@ -878,8 +1194,8 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
         const ep = itemEffectivePrice(m);
         return `<div class="item-card" onclick="addMenuItem('${esc(m.id)}')">
           ${menuImgHTML(m.image)}
-          <div class="ic-name">${esc(m.name)}</div>
-          <div class="ic-price ${ep.discounted?'hh':''}">${ep.discounted?`<s>${fmt(ep.original)}</s>`:''}${fmt(ep.price)}đ</div>
+          <div class="ic-name">${esc(m.name)}${m.weighted?' <span class="cl-badge" style="background:#fff7e6;color:#92400e">⚖️kg</span>':''}</div>
+          <div class="ic-price ${ep.discounted?'hh':''}">${ep.discounted?`<s>${fmt(ep.original)}</s>`:''}${fmt(ep.price)}đ${m.weighted?'/kg':''}</div>
         </div>`;
       }).join("") : `<div class="empty-state">Không tìm thấy món phù hợp</div>`;
     }
@@ -901,6 +1217,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
     const pane = document.getElementById("cartPane");
     if (!pane) return;
     const o = ORDERS[currentOrderId] || { items:[] };
+    if (o.paymentApproved) { pane.innerHTML = renderApprovedBillHTML(o); return; }
     const lines = o.items || [];
     let totalUnsent = 0;
     const linesHTML = lines.length ? lines.map((l,i) => {
@@ -917,11 +1234,16 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
           <button class="cl-rm" title="${sentQty>0?'Báo bếp hủy món':'Xóa món'}" onclick="${sentQty>0?`cancelSentLine(${i})`:`removeLine(${i})`}">${sentQty>0?'🚫':'🗑️'}</button>
         </div>
         <div class="cl-top">
+          ${l.weighted ? `
+          <div class="cl-qtybox">
+            <span>${fmtQtyVal(l.qty, true)}</span>
+            <button onclick="openWeightModal({mode:'edit',lineIndex:${i}})" title="Sửa số kg">✏️</button>
+          </div>` : `
           <div class="cl-qtybox">
             <button onclick="changeLineQty(${i},-1)">−</button>
             <span>${l.qty}</span>
             <button onclick="changeLineQty(${i},1)">+</button>
-          </div>
+          </div>`}
           <div class="cl-linetotal">${fmt(l.price*l.qty)}đ</div>
         </div>
       </div>`;
@@ -978,8 +1300,81 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
       </div>
       <div class="cart-actions">
         <button class="btn btn-kitchen btn-sm" onclick="sendToKitchen()" ${totalUnsent?'':'disabled'}>👨‍🍳 Gửi bếp${totalUnsent?` (${totalUnsent} món mới)`:''}</button>
-        <button class="btn btn-pay" onclick="checkout()" ${(lines.length||bill)?'':'disabled'}>💳 Thanh toán</button>
+        ${renderPayActionHTML(o, lines, bill)}
       </div>
+    `;
+  }
+
+  // ►►► Trước khi duyệt: Thu ngân/Quản lý kiểm tra giỏ hàng rồi DUYỆT (chưa phải hoàn tất);
+  //     nhân viên khác chỉ được GỬI YÊU CẦU — tách bạch "người order" và "người thu tiền".
+  function renderPayActionHTML(o, lines, bill) {
+    const hasContent = !!(lines.length || bill);
+    if (window.CAN_CHECKOUT) {
+      return `<button class="btn btn-pay" onclick="approvePayment()" ${hasContent?'':'disabled'}>✅ Duyệt hóa đơn &amp; gửi cho khách</button>`;
+    }
+    if (o.paymentRequested) {
+      const t = new Date(o.paymentRequestedAt||Date.now()).toLocaleTimeString("vi-VN",{hour:'2-digit',minute:'2-digit'});
+      return `
+        <div style="display:flex;flex-direction:column;gap:4px;flex:1">
+          <div class="pill" style="background:#fff7e6;color:var(--amber);border:1px solid var(--amber);text-align:center">⏳ Đã gửi yêu cầu lúc ${t} — chờ Thu ngân duyệt</div>
+          <button class="btn btn-cancel btn-sm" onclick="cancelPaymentRequest()">↩️ Hủy yêu cầu</button>
+        </div>`;
+    }
+    return `<button class="btn btn-pay" onclick="requestPayment()" ${hasContent?'':'disabled'}>📨 Gửi yêu cầu thanh toán</button>`;
+  }
+
+  // ►►► Sau khi Thu ngân duyệt: giỏ hàng khóa lại, MỌI màn hình đang mở đơn này (kể cả máy nhân viên)
+  //     tự động chuyển sang hiển thị hóa đơn + QR này qua realtime — để nhân viên đưa cho khách xem/quét.
+  //     Việc "Hoàn tất" (xác nhận đã thật sự nhận đủ tiền) là một bước RIÊNG, chỉ Thu ngân/Quản lý mới thấy nút.
+  function renderApprovedBillHTML(o) {
+    const b = o.billSnapshot || {};
+    const t = (STORE.tables||[]).find(x=>x.id===currentOrderId);
+    const subLabel = currentOrderType === "table"
+      ? `🪑 <b>${esc(t?t.code:"")} - ${esc(t?t.name||"":"")}</b>`
+      : `${o.deliveryType==="giao"?"🛵 Giao hàng":"🥡 Mang về"}: <b>${esc(o.customerName||"Khách lẻ")}</b>${o.customerPhone?" · "+esc(o.customerPhone):""}`;
+    const linesHTML = (o.items||[]).map(l =>
+      `<div class="cart-line"><div class="cl-top"><div class="cl-name">${esc(l.name)}${l.isCombo?'<span class="cl-badge">COMBO</span>':''}</div></div>
+       <div class="cl-top"><span>${fmtQtyVal(l.qty,l.weighted)} × ${fmt(l.price)}đ${l.weighted?'/kg':''}</span><div class="cl-linetotal">${fmt(l.price*l.qty)}đ</div></div></div>`
+    ).join("");
+    const billiardLine = b.playAmount ? `<div class="ct-row"><span>🎱 Tiền giờ chơi (${Math.floor((b.durationMin||0)/60)}h${String(Math.floor((b.durationMin||0)%60)).padStart(2,'0')}p)</span><span>${fmt(b.playAmount)}đ</span></div>` : "";
+    const qrBlock = b.qrUrl
+      ? `<div style="text-align:center;margin-top:10px">
+           <img src="${b.qrUrl}" alt="QR chuyển khoản" style="width:180px;height:180px;border:1px solid var(--border);border-radius:8px">
+           <div style="font-size:11px;color:var(--muted);margin-top:4px">Quét mã để chuyển khoản đúng số tiền — hoặc thanh toán tiền mặt tại quầy</div>
+         </div>`
+      : `<div style="font-size:11px;color:var(--muted);margin-top:8px;text-align:center">Khách vui lòng thanh toán tiền mặt tại quầy</div>`;
+    const approvedTime = new Date(o.paymentApprovedAt||Date.now()).toLocaleTimeString("vi-VN",{hour:'2-digit',minute:'2-digit'});
+    const cashierActionsHTML = window.CAN_CHECKOUT ? `
+      <div class="pm-block" style="margin-top:10px">
+        <div class="pm-title">💳 Khách đã thanh toán bằng</div>
+        <div class="pm-options">
+          <label><input type="radio" name="finalPmMethod" value="cash" checked> 💵 Tiền mặt</label>
+          <label><input type="radio" name="finalPmMethod" value="transfer"> 🏦 Chuyển khoản</label>
+        </div>
+      </div>
+      <div class="cart-actions">
+        <button class="btn btn-cancel btn-sm" onclick="unapprovePayment()">↩️ Hủy duyệt</button>
+        <button class="btn btn-save" onclick="finishPaymentClick()">✅ Đã thu tiền — Hoàn tất đơn</button>
+      </div>` : "";
+    return `
+      <div class="cart-head">🧾 Hóa đơn thanh toán</div>
+      <div class="ready-banner" style="background:#eef2ff;border-color:#c7d2fe">
+        <div class="rr-txt">✅ Thu ngân đã duyệt lúc ${approvedTime}. ${window.CAN_CHECKOUT ? '' : 'Vui lòng đưa hóa đơn này cho khách.'}</div>
+      </div>
+      <div class="v-sub" style="margin:6px 0">${subLabel}</div>
+      <div class="cart-lines">${linesHTML}</div>
+      <div class="cart-totals">
+        <div class="ct-row"><span>Tạm tính món</span><span>${fmt(b.subtotal||0)}đ</span></div>
+        <div class="ct-row"><span>${esc(b.taxName||"Thuế")} (${b.taxRate||0}%)</span><span>${fmt(b.taxAmount||0)}đ</span></div>
+        ${billiardLine}
+        <div class="ct-row grand"><span>Tổng cộng</span><span>${fmt(b.grandTotal||0)}đ</span></div>
+      </div>
+      ${qrBlock}
+      ${window.CAN_CHECKOUT ? `
+      <div class="cart-actions">
+        <button class="btn btn-kitchen btn-sm" style="width:100%" onclick="printApprovedBill()">🖨️ In hóa đơn cho khách</button>
+      </div>` : ""}
+      ${cashierActionsHTML}
     `;
   }
 
@@ -1009,7 +1404,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
           if (m) rows.push({ name:m.name, group:m.group, qty:(ci.qty||1)*unsentQty, fromCombo:l.name });
         });
       } else {
-        rows.push({ name:l.name, group:l.group, qty:unsentQty });
+        rows.push({ name:l.name, group:l.group, qty:unsentQty, weighted:!!l.weighted });
       }
     });
     return rows;
@@ -1019,6 +1414,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
   }
   window.sendToKitchen = function() {
     const o = ORDERS[currentOrderId]; if (!o || !(o.items||[]).length) return;
+    if (o.paymentApproved) { alert("Hóa đơn đã duyệt, không thể gửi thêm món."); return; }
     const rows = expandForKitchen(o.items);
     if (!rows.length) { alert("Không có món mới để gửi bếp."); return; }
     const byPrinter = {};
@@ -1029,7 +1425,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
     });
     const t = (STORE.tables||[]).find(x=>x.id===currentOrderId);
     const subLabel = currentOrderType === "table"
-      ? `Bàn: <b>${esc(t?t.code:"")} - ${esc(t?t.name||"":"")}</b>`
+      ? `🪑 <b>${esc(t?t.code:"")} - ${esc(t?t.name||"":"")}</b>`
       : `${o.deliveryType==="giao"?"🛵 Giao hàng":"🥡 Mang về"}: <b>${esc(o.customerName||"Khách lẻ")}</b>${o.customerPhone?" · "+esc(o.customerPhone):""}`;
     const tableLabel = currentOrderType === "table"
       ? `${t?t.code:""}${t&&t.name?" - "+t.name:""}`
@@ -1039,17 +1435,17 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
     Object.keys(byPrinter).forEach((printerName, pIdx) => {
       html += `<div class="v-group">🖨️ ${esc(printerName)}</div><table><thead><tr><th>Món</th><th>SL</th></tr></thead><tbody>`;
       byPrinter[printerName].forEach(r => {
-        html += `<tr><td>${esc(r.name)}${r.fromCombo?` <span style="color:var(--muted);font-size:10px">(từ ${esc(r.fromCombo)})</span>`:""}</td><td style="text-align:center;font-weight:700">${r.qty}</td></tr>`;
+        html += `<tr><td>${esc(r.name)}${r.fromCombo?` <span style="color:var(--muted);font-size:10px">(từ ${esc(r.fromCombo)})</span>`:""}</td><td style="text-align:center;font-weight:700">${fmtQtyVal(r.qty, r.weighted)}</td></tr>`;
       });
       html += `</tbody></table>`;
       // Tạo phiếu bếp điện tử realtime cho module Bếp (song song với phiếu in giấy)
       const ticketId = "KT" + now.toString(36) + pIdx + Math.random().toString(36).slice(2,6);
       const ticketItems = byPrinter[printerName].map((r,idx) => ({
-        id:"i"+idx, name:r.name, qty:r.qty, fromCombo:r.fromCombo||null, status:"new"
+        id:"i"+idx, name:r.name, qty:r.qty, weighted:!!r.weighted, fromCombo:r.fromCombo||null, status:"new"
       }));
       setDoc(doc(db, `pos_kitchen_tickets_${APP_ID}`, ticketId), {
         id: ticketId, orderId: currentOrderId, orderType: currentOrderType,
-        tableLabel, stationName: printerName,
+        tableLabel, customerPhone: o.customerPhone||"", stationName: printerName,
         items: ticketItems, createdAt: now, allDone: false
       });
     });
@@ -1063,101 +1459,201 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
   };
 
   /* ══════════ THANH TOÁN ══════════ */
+
+  // ►►► YÊU CẦU THANH TOÁN — nhân viên phục vụ (không có quyền CAN_CHECKOUT) bấm gửi yêu cầu thay vì tự chốt tiền.
+  window.requestPayment = async function() {
+    const o = ORDERS[currentOrderId];
+    if (!o) return;
+    o.paymentRequested = true;
+    o.paymentRequestedAt = Date.now();
+    o.paymentRequestedBy = (window.SESSION && window.SESSION.username) || "";
+    try { await setDoc(doc(db, `pos_orders_${APP_ID}`, currentOrderId), o); }
+    catch(e) { alert("Lỗi gửi yêu cầu thanh toán: " + e.message); }
+  };
+  window.cancelPaymentRequest = async function() {
+    const o = ORDERS[currentOrderId];
+    if (!o) return;
+    delete o.paymentRequested; delete o.paymentRequestedAt; delete o.paymentRequestedBy;
+    try { await setDoc(doc(db, `pos_orders_${APP_ID}`, currentOrderId), o); }
+    catch(e) { alert("Lỗi hủy yêu cầu: " + e.message); }
+  };
+
+  // ►►► CHUÔNG BÁO CHO THU NGÂN — chỉ hiện với role có quyền thanh toán; kêu bíp khi có yêu cầu mới.
+  let __prevPendingPayCount = 0;
+  function pendingPaymentRequests() {
+    return Object.values(ORDERS).filter(o => o.paymentRequested)
+      .sort((a,b) => (a.paymentRequestedAt||0) - (b.paymentRequestedAt||0));
+  }
+  function beep() {
+    try {
+      const ctx = new (window.AudioContext||window.webkitAudioContext)();
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = "sine"; osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      osc.start(); osc.stop(ctx.currentTime + 0.18);
+    } catch(e) {}
+  }
+  function renderPaymentRequestBell() {
+    const bell = document.getElementById("payReqBell");
+    if (!bell) return;
+    if (!window.CAN_CHECKOUT) { bell.style.display = "none"; return; }
+    const list = pendingPaymentRequests();
+    bell.style.display = "";
+    bell.textContent = `🔔 Yêu cầu thanh toán: ${list.length}`;
+    if (list.length > __prevPendingPayCount) beep();
+    __prevPendingPayCount = list.length;
+    if (document.getElementById("payQueueModal").style.display === "flex") renderPaymentQueueBody();
+  }
+  function orderLabelFor(o) {
+    if (o.type === "table") {
+      const t = (STORE.tables||[]).find(x=>x.id===o.id);
+      return `🪑 ${esc(t?t.code:"")}${t&&t.name?" - "+esc(t.name):""}`;
+    }
+    return `${o.deliveryType==="giao"?"🛵 Giao hàng":"🥡 Mang về"}: ${esc(o.customerName||"Khách lẻ")}`;
+  }
+  function renderPaymentQueueBody() {
+    const body = document.getElementById("payQueueBody");
+    const list = pendingPaymentRequests();
+    body.innerHTML = list.length ? list.map(o => {
+      const mins = Math.max(0, Math.round((Date.now() - (o.paymentRequestedAt||Date.now()))/60000));
+      const statusHTML = o.paymentApproved
+        ? `<span style="color:var(--green)">✅ Đã duyệt · chờ thu tiền</span>`
+        : `<span style="color:var(--amber)">⏳ Chờ duyệt</span>`;
+      return `
+      <div class="ready-row" style="cursor:pointer" onclick="openPaymentRequest('${esc(o.id)}','${esc(o.type)}')">
+        <div class="rr-txt"><b>${orderLabelFor(o)}</b><br>
+          <span style="color:var(--muted);font-size:11px">Yêu cầu bởi ${esc(o.paymentRequestedBy||"?")} · ${mins} phút trước · ${statusHTML}</span>
+        </div>
+        <button class="btn btn-save btn-sm">Xử lý</button>
+      </div>`;
+    }).join("") : `<div class="empty-state">Không có yêu cầu thanh toán nào đang chờ</div>`;
+  }
+  window.openPaymentQueue = function() {
+    renderPaymentQueueBody();
+    document.getElementById("payQueueModal").style.display = "flex";
+  };
+  window.closePaymentQueue = function() {
+    document.getElementById("payQueueModal").style.display = "none";
+  };
+  window.openPaymentRequest = function(orderId, type) {
+    closePaymentQueue();
+    openOrder(orderId, type);
+  };
+
   function buildVietQrUrl(amount, addInfo) {
     if (!BANK_CFG.bankBin || !BANK_CFG.bankAccount) return null;
     const name = encodeURIComponent(BANK_CFG.bankAccountName || "");
     const info = encodeURIComponent(("Thanh toan " + (addInfo||"")).trim());
     return `https://img.vietqr.io/image/${BANK_CFG.bankBin}-${BANK_CFG.bankAccount}-compact2.png?amount=${Math.round(amount)}&addInfo=${info}&accountName=${name}`;
   }
-  window.setPaymentMethod = function(method) {
-    window.__selectedPaymentMethod = method;
-    const box = document.getElementById("pmQrBox");
-    if (!box) return;
-    if (method === "transfer") {
-      const url = buildVietQrUrl(window.__pendingGrandTotal, window.__pendingQrInfo);
-      box.style.display = "";
-      box.innerHTML = url
-        ? `<img src="${url}" alt="QR chuyển khoản" style="width:220px;height:220px;display:block;margin:10px auto;border:1px solid #ccc;border-radius:8px">
-           <div style="text-align:center;font-size:11px;color:var(--muted)">Quét mã để chuyển khoản đúng số tiền (đã điền sẵn)</div>`
-        : `<div class="no-print" style="text-align:center;font-size:12px;color:#b91c1c;padding:8px 0">⚠️ Chưa cấu hình tài khoản ngân hàng — vào Restaurant Setup để thêm trước khi dùng QR chuyển khoản.</div>`;
-    } else {
-      box.style.display = "none"; box.innerHTML = "";
-    }
-  };
 
-  window.checkout = function() {
-    const o = ORDERS[currentOrderId] || { items:[] };
+
+  window.approvePayment = async function() {
+    // Chốt chặn: chỉ Thu ngân/Quản lý được duyệt hóa đơn.
+    if (!window.CAN_CHECKOUT) { alert("Bạn không có quyền duyệt thanh toán. Vui lòng nhờ Thu ngân/Quản lý xử lý."); return; }
+    const o = ORDERS[currentOrderId]; if (!o) return;
     const bill = getBilliardChargeForCurrentOrder();
     if (!(o.items||[]).length && !bill) return;
     const t = (STORE.tables||[]).find(x=>x.id===currentOrderId);
     const { subtotal, tax, taxRate, taxAmount, total } = cartTotals(o);
     const grandTotal = total + (bill ? bill.playAmount : 0);
-    const subLabel2 = currentOrderType === "table"
-      ? `Bàn: <b>${esc(t?t.code:"")} - ${esc(t?t.name||"":"")}</b>`
+    const qrInfo = currentOrderType === "table" ? (t ? t.code : "") : (o.customerName || "Thanh toan");
+    // ►►► Chốt (đóng băng) toàn bộ số liệu NGAY lúc duyệt — kể cả tiền giờ chơi (nếu có) — để hóa đơn/QR
+    //     đưa cho khách xem không bao giờ lệch với số tiền thực sự thu ở bước Hoàn tất phía sau.
+    o.paymentApproved = true;
+    o.paymentApprovedAt = Date.now();
+    o.paymentApprovedBy = (window.SESSION && window.SESSION.username) || "";
+    o.billSnapshot = {
+      subtotal, taxRate, taxAmount, taxName: tax ? tax.name : "Thuế",
+      playAmount: bill ? bill.playAmount : 0,
+      durationMin: bill ? Math.round(bill.durationMin) : 0,
+      grandTotal, qrInfo,
+      qrUrl: buildVietQrUrl(grandTotal, qrInfo),
+      billiardSession: bill ? { ...bill.session } : null,
+      billiardEndTime: bill ? bill.endTime : null
+    };
+    try { await setDoc(doc(db, `pos_orders_${APP_ID}`, currentOrderId), o); }
+    catch(e) { alert("Lỗi duyệt hóa đơn: " + e.message); }
+  };
+
+  window.unapprovePayment = async function() {
+    if (!window.CAN_CHECKOUT) { alert("Bạn không có quyền thao tác này."); return; }
+    const o = ORDERS[currentOrderId]; if (!o) return;
+    if (!confirm("Hủy duyệt hóa đơn này để mở lại chỉnh sửa món? Khách sẽ không còn thấy hóa đơn/QR cho tới khi duyệt lại.")) return;
+    delete o.paymentApproved; delete o.paymentApprovedAt; delete o.paymentApprovedBy; delete o.billSnapshot;
+    try { await setDoc(doc(db, `pos_orders_${APP_ID}`, currentOrderId), o); }
+    catch(e) { alert("Lỗi hủy duyệt: " + e.message); }
+  };
+
+  // ►►► In bản hóa đơn ĐÃ DUYỆT (đóng băng) ra giấy — dùng chung modal In sẵn có, chỉ để in, không có nút chốt tiền ở đây.
+  window.printApprovedBill = function() {
+    const o = ORDERS[currentOrderId]; if (!o || !o.billSnapshot) return;
+    const b = o.billSnapshot;
+    const t = (STORE.tables||[]).find(x=>x.id===currentOrderId);
+    const subLabel = currentOrderType === "table"
+      ? `🪑 <b>${esc(t?t.code:"")} - ${esc(t?t.name||"":"")}</b>`
       : `${o.deliveryType==="giao"?"🛵 Giao hàng":"🥡 Mang về"}: <b>${esc(o.customerName||"Khách lẻ")}</b>${o.customerPhone?" · "+esc(o.customerPhone):""}`;
-    let html = `<h2>HÓA ĐƠN THANH TOÁN</h2><div class="v-sub">${subLabel2} · ${new Date().toLocaleString("vi-VN")}</div>`;
+    let html = `<h2>HÓA ĐƠN THANH TOÁN</h2><div class="v-sub">${subLabel} · ${new Date(o.paymentApprovedAt||Date.now()).toLocaleString("vi-VN")}</div>`;
     html += `<table><thead><tr><th>Món</th><th>SL</th><th>Đơn giá</th><th>T.Tiền</th></tr></thead><tbody>`;
     (o.items||[]).forEach(l => {
-      html += `<tr><td class="tl">${esc(l.name)}${l.isCombo?' (combo)':''}</td><td style="text-align:center">${l.qty}</td><td style="text-align:right">${fmt(l.price)}</td><td style="text-align:right;font-weight:700">${fmt(l.price*l.qty)}</td></tr>`;
+      html += `<tr><td class="tl">${esc(l.name)}${l.isCombo?' (combo)':''}</td><td style="text-align:center">${fmtQtyVal(l.qty, l.weighted)}</td><td style="text-align:right">${fmt(l.price)}${l.weighted?'/kg':''}</td><td style="text-align:right;font-weight:700">${fmt(l.price*l.qty)}</td></tr>`;
     });
-    if (bill) {
-      const h = Math.floor(bill.durationMin/60), m = Math.floor(bill.durationMin%60);
-      html += `<tr><td class="tl">🎱 Tiền giờ chơi (${h}h${String(m).padStart(2,'0')}p × ${fmt(bill.session.hourRate)}đ/giờ)</td><td style="text-align:center">1</td><td style="text-align:right">${fmt(bill.playAmount)}</td><td style="text-align:right;font-weight:700">${fmt(bill.playAmount)}</td></tr>`;
+    if (b.playAmount) {
+      const h = Math.floor((b.durationMin||0)/60), m = Math.floor((b.durationMin||0)%60);
+      html += `<tr><td class="tl">🎱 Tiền giờ chơi (${h}h${String(m).padStart(2,'0')}p)</td><td style="text-align:center">1</td><td style="text-align:right">${fmt(b.playAmount)}</td><td style="text-align:right;font-weight:700">${fmt(b.playAmount)}</td></tr>`;
     }
     html += `</tbody></table>`;
     html += `<div style="margin-top:10px;text-align:right">
-      <div>Tạm tính món: <b>${fmt(subtotal)}đ</b></div>
-      <div>${tax?esc(tax.name):"Thuế"} (${taxRate}%): <b>${fmt(taxAmount)}đ</b></div>
-      ${bill?`<div>🎱 Tiền giờ chơi: <b>${fmt(bill.playAmount)}đ</b></div>`:""}
-      <div style="font-size:16px;font-weight:800;color:var(--navy);margin-top:4px">Tổng thanh toán: ${fmt(grandTotal)}đ</div>
+      <div>Tạm tính món: <b>${fmt(b.subtotal)}đ</b></div>
+      <div>${esc(b.taxName)} (${b.taxRate}%): <b>${fmt(b.taxAmount)}đ</b></div>
+      ${b.playAmount?`<div>🎱 Tiền giờ chơi: <b>${fmt(b.playAmount)}đ</b></div>`:""}
+      <div style="font-size:16px;font-weight:800;color:var(--navy);margin-top:4px">Tổng thanh toán: ${fmt(b.grandTotal)}đ</div>
     </div>`;
+    if (b.qrUrl) html += `<div style="text-align:center;margin-top:10px"><img src="${b.qrUrl}" style="width:200px;height:200px;border:1px solid #ccc;border-radius:8px"></div>`;
     html += `<div class="v-sign"><div>Thu ngân<br><br><br>___________</div><div>Khách hàng<br><br><br>___________</div></div>`;
-
-    window.__selectedPaymentMethod = "cash";
-    window.__pendingGrandTotal = grandTotal;
-    window.__pendingQrInfo = currentOrderType === "table" ? (t ? t.code : "") : (o.customerName || "Thanh toan");
-    html += `
-      <div class="pm-block">
-        <div class="pm-title">💳 Phương thức thanh toán</div>
-        <div class="pm-options no-print">
-          <label><input type="radio" name="pmMethod" value="cash" checked onchange="setPaymentMethod('cash')"> 💵 Tiền mặt</label>
-          <label><input type="radio" name="pmMethod" value="transfer" onchange="setPaymentMethod('transfer')"> 🏦 Chuyển khoản</label>
-        </div>
-        <div id="pmQrBox" style="display:none"></div>
-      </div>`;
-
     document.getElementById("printModalTitle").textContent = "🖨️ Hóa đơn thanh toán";
     document.getElementById("printArea").innerHTML = html;
     document.getElementById("printModal").style.display = "flex";
-    window.__pendingConfirmPay = true;
   };
   window.closePrintModal = function() {
     document.getElementById("printModal").style.display = "none";
-    if (window.__pendingConfirmPay) {
-      window.__pendingConfirmPay = false;
-      if (confirm("Xác nhận đã thanh toán và đóng đơn này?")) confirmPayment();
-    }
+  };
+  window.finishPaymentClick = function() {
+    const checked = document.querySelector('input[name="finalPmMethod"]:checked');
+    window.__selectedPaymentMethod = checked ? checked.value : "cash";
+    if (confirm("Xác nhận đã thu đủ tiền và đóng đơn này?")) confirmPayment();
   };
   async function confirmPayment() {
+    if (!window.CAN_CHECKOUT) { alert("Bạn không có quyền thanh toán. Vui lòng nhờ Thu ngân/Quản lý xử lý."); return; }
     const t = (STORE.tables||[]).find(x=>x.id===currentOrderId);
     const o = ORDERS[currentOrderId] || { items:[] };
     const orderId = currentOrderId;
     const otype = currentOrderType;
-    const { subtotal, tax, taxRate, taxAmount, total } = cartTotals(o);
-    const bill = getBilliardChargeForCurrentOrder(); // chốt thời điểm kết thúc NGAY lúc xác nhận thanh toán
-    const grandTotal = total + (bill ? bill.playAmount : 0);
+    // ►►► Dùng đúng số liệu đã đóng băng lúc DUYỆT (billSnapshot) — không tính lại — để số tiền chốt ở đây
+    //     luôn khớp 100% với hóa đơn/QR đã đưa cho khách xem, tránh lệch số vì thời gian trôi qua giữa 2 bước.
+    const b = o.billSnapshot;
+    const subtotal = b ? b.subtotal : cartTotals(o).subtotal;
+    const taxRate = b ? b.taxRate : cartTotals(o).taxRate;
+    const taxAmount = b ? b.taxAmount : cartTotals(o).taxAmount;
+    const grandTotal = b ? b.grandTotal : (cartTotals(o).total);
+    const bill = b ? (b.billiardSession ? { session: b.billiardSession, endTime: b.billiardEndTime, playAmount: b.playAmount, durationMin: b.durationMin } : null) : getBilliardChargeForCurrentOrder();
     const tableLabel = otype === "table"
       ? `${t?t.code:""}${t&&t.name?" - "+t.name:""}`
       : `${o.deliveryType==="giao"?"Giao hàng":"Mang về"} - ${o.customerName||"Khách lẻ"}`;
     const saleId = "SL" + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
     const saleRecord = {
       id: saleId, orderId, orderType: otype, tableLabel,
+      customerName: o.customerName || "", customerPhone: o.customerPhone || "",
       waiterId: o.waiterId || "", waiterName: lookup("waiters", o.waiterId, "name"),
-      items: (o.items||[]).map(l => ({ name:l.name, qty:l.qty, price:l.price, isCombo:!!l.isCombo, group:l.group||"" })),
+      cashierUsername: (window.SESSION && window.SESSION.username) || "",
+      cashierRole: (window.SESSION && window.SESSION.role) || "",
+      approvedBy: o.paymentApprovedBy || "", approvedAt: o.paymentApprovedAt || null,
+      items: (o.items||[]).map(l => ({ name:l.name, qty:l.qty, price:l.price, isCombo:!!l.isCombo, group:l.group||"", weighted:!!l.weighted, unit:l.unit||"" })),
       subtotal, taxRate, taxAmount,
       playAmount: bill ? bill.playAmount : 0,
       durationMin: bill ? Math.round(bill.durationMin) : 0,
-      hourRate: bill ? bill.session.hourRate : 0,
+      hourRate: bill ? (bill.session ? bill.session.hourRate : 0) : 0,
       total: grandTotal,
       paymentMethod: window.__selectedPaymentMethod || "cash",
       paidAt: Date.now()
@@ -1198,6 +1694,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
   setInterval(updateHHPill, 30000);
   renderTableView();
   renderWaiterSelect();
+  renderPaymentRequestBell();
   updateHHPill();
 }
 </script>

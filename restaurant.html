@@ -144,6 +144,20 @@ tr:hover td{background:#e8eeff!important;}
 @media print{
   .nav,.tabs-wrap,.toolbar,.form-card,.filter-bar,.btn,.no-print{display:none!important;}
 }
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;align-items:center;justify-content:center;}
+.modal-bg.show{display:flex;}
+.qr-modal{background:var(--white);padding:28px;border-radius:10px;width:320px;box-shadow:0 8px 32px rgba(13,34,72,.2);text-align:center;}
+.qr-modal h4{font-size:15px;margin-bottom:4px;}
+.qr-modal .qr-table-name{font-size:13px;color:var(--muted);margin-bottom:16px;}
+.qr-box{display:flex;justify-content:center;margin-bottom:16px;padding:12px;background:#fff;border:1px solid var(--border);border-radius:8px;}
+.qr-modal .qr-actions{display:flex;gap:8px;}
+.qr-modal .qr-actions button{flex:1;}
+.btn-qr{background:#eef4ff;color:var(--accent);border:1px solid #cfe0ff;}
+@media print{
+  body *{visibility:hidden;}
+  #qrPrintArea, #qrPrintArea *{visibility:visible;}
+  #qrPrintArea{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+}
 </style>
 <!-- Firebase SDK -->
 <script type="module">
@@ -152,15 +166,19 @@ tr:hover td{background:#e8eeff!important;}
     from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
   import { getDatabase, ref, onValue, get }
     from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
   window.__fbApp  = { initializeApp };
   window.__fbFS   = { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy, where, limit, getDocs, writeBatch, getDoc };
   window.__fbRTDB = { getDatabase, ref, onValue, get };
+  window.__fbAuth = { getAuth, signInAnonymously, onAuthStateChanged };
   window.__fbReady = true;
   if (window.__fbReadyCb) window.__fbReadyCb();
 </script>
 <script src="app-config.js?v=4"></script>
 <script src="nav-menu.js?v=1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -320,12 +338,28 @@ tr:hover td{background:#e8eeff!important;}
   🍽️ Restaurant Management · Danh mục nghiệp vụ v1.0
 </footer>
 
+<!-- MODAL QR BÀN — QR tĩnh (mã hoá app + mã bàn), in 1 lần dán lên bàn dùng lâu dài -->
+<div class="modal-bg" id="qrModalBg" onclick="if(event.target===this) closeTableQR()">
+  <div class="qr-modal">
+    <div id="qrPrintArea">
+      <h4 id="qrTableName">—</h4>
+      <div class="qr-table-name" id="qrTableCode">—</div>
+      <div class="qr-box" id="qrBox"></div>
+    </div>
+    <div class="qr-actions">
+      <button class="btn btn-qr btn-sm" onclick="printTableQR()">🖨️ In</button>
+      <button class="btn btn-sm" onclick="closeTableQR()">Đóng</button>
+    </div>
+  </div>
+</div>
+
 <script type="module">
 let w=0; while(!window.__fbReady && w<4000){await new Promise(r=>setTimeout(r,30));w+=30;}
 await new Promise(r=>document.readyState==="loading"?document.addEventListener("DOMContentLoaded",r):r());
 {
   const { initializeApp } = window.__fbApp;
   const { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, writeBatch, getDocs } = window.__fbFS;
+  const { getAuth, signInAnonymously, onAuthStateChanged } = window.__fbAuth;
   const APP_ID = window.APP_ID || new URLSearchParams(location.search).get("app") || "";
 
   const _fbapp = initializeApp({
@@ -338,6 +372,15 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
     appId: "1:1097685849973:web:79ad636e3dfd0b12f7653c"
   });
   const db = getFirestore(_fbapp);
+  // Đăng nhập ẩn danh — bắt buộc từ khi Rules yêu cầu request.auth != null.
+  const _auth = getAuth(_fbapp);
+  const authReady = new Promise(resolve => {
+    onAuthStateChanged(_auth, user => {
+      if (user) resolve(user);
+      else signInAnonymously(_auth).catch(err => console.error("[restaurant] Lỗi đăng nhập ẩn danh:", err));
+    });
+  });
+  await authReady;
 
   /* ══════════ HELPERS ══════════ */
   function fmt(n){ return Number(n||0).toLocaleString("vi-VN"); }
@@ -643,7 +686,8 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
         { id:"name", label:"Tên món", required:true, ph:"VD: Phở bò tái" },
         { id:"group", label:"Nhóm món", type:"select-dynamic", source:"categories", required:true },
         { id:"unit", label:"Đơn vị tính", ph:"phần / tô / ly...", default:"phần" },
-        { id:"price", label:"Giá bán (₫)", type:"number", required:true },
+        { id:"weighted", label:"⚖️ Bán theo cân (kg)?", type:"checkbox", default:false },
+        { id:"price", label:"Giá bán (₫ / đơn vị — nếu bán theo cân thì là giá mỗi kg)", type:"number", required:true },
         { id:"cost", label:"Giá vốn (₫)", type:"number" },
         { id:"station", label:"Trạm chế biến", type:"select", options:[["bep","Bếp"],["bar","Bar / Pha chế"],["khac","Khác"]], default:"bep" },
         { id:"printKitchen", label:"In phiếu bếp", type:"checkbox", default:true },
@@ -655,8 +699,8 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
         { h:"Mã món", cls:"tl", v:r=>`<b>${esc(r.code)}</b>` },
         { h:"Tên món", cls:"tl", v:r=>esc(r.name) },
         { h:"Nhóm", cls:"tl", v:r=>esc(lookup("categories",r.group)) },
-        { h:"ĐVT", v:r=>esc(r.unit) },
-        { h:"Giá bán", v:r=>fmt(r.price) },
+        { h:"ĐVT", v:r=>esc(r.unit)+(r.weighted?' <span style="color:#92400e;font-weight:700">⚖️kg</span>':'') },
+        { h:"Giá bán", v:r=>fmt(r.price)+(r.weighted?'/kg':'') },
         { h:"Trạm", v:r=>({bep:"🔥 Bếp",bar:"🍹 Bar",khac:"Khác"}[r.station]||"") },
         { h:"In bếp", v:r=>r.printKitchen?"✅":"—" },
         { h:"Trạng thái", v:r=>statusBadge(r.status) },
@@ -769,6 +813,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
       fields:[
         { id:"code", label:"Mã nhân viên", required:true, ph:"VD: PV01" },
         { id:"name", label:"Họ tên", required:true, ph:"VD: Nguyễn Văn A" },
+        { id:"username", label:"Tài khoản đăng nhập (username)", ph:"VD: hongloan — phải trùng username đăng nhập ở trang Nhân sự" },
         { id:"phone", label:"Số điện thoại", ph:"09xxxxxxxx" },
         { id:"zone", label:"Khu vực phụ trách", type:"select-dynamic", source:"zones" },
         { id:"pin", label:"Mã PIN đăng nhập POS", ph:"4 số" },
@@ -777,6 +822,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
       columns:[
         { h:"Mã NV", cls:"tl", v:r=>`<b>${esc(r.code)}</b>` },
         { h:"Họ tên", cls:"tl", v:r=>esc(r.name) },
+        { h:"Username", cls:"tl", v:r=>esc(r.username||"—") },
         { h:"SĐT", v:r=>esc(r.phone) },
         { h:"Khu vực", cls:"tl", v:r=>esc(lookup("zones",r.zone)) },
         { h:"Trạng thái", v:r=>statusBadge(r.status) },
@@ -987,6 +1033,26 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
       closeForm();
     } catch(e) { alert("Lỗi lưu dữ liệu: " + e.message); }
   };
+  window.showTableQR = function(id) {
+    const row = (STORE.tables||[]).find(r=>r.id===id);
+    if (!row) return;
+    document.getElementById("qrTableName").textContent = row.name || row.code || "Bàn";
+    document.getElementById("qrTableCode").textContent = "Mã bàn: " + (row.code || "—");
+    const box = document.getElementById("qrBox");
+    box.innerHTML = "";
+    // QR tĩnh: chỉ mã hoá app + mã bàn — không đổi theo từng lượt khách, in 1 lần dùng mãi.
+    // track.html tự tra "đơn đang mở" của đúng mã bàn này khi khách quét, khách không cần biết orderId.
+    const trackUrl = `${location.origin}${location.pathname.replace(/restaurant\.html$/, "")}track.html?app=${encodeURIComponent(APP_ID)}&table=${encodeURIComponent(row.code || row.id)}`;
+    new QRCode(box, { text: trackUrl, width:180, height:180, correctLevel: QRCode.CorrectLevel.M });
+    document.getElementById("qrModalBg").classList.add("show");
+  };
+  window.closeTableQR = function() {
+    document.getElementById("qrModalBg").classList.remove("show");
+  };
+  window.printTableQR = function() {
+    window.print();
+  };
+
   window.deleteRow = async function(id) {
     const mod = MODULES.find(m=>m.key===activeKey);
     if (mod.key === "tables") {
@@ -1081,15 +1147,16 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
     const mod = MODULES.find(m=>m.key===activeKey);
     const rows = getFiltered(mod);
     document.getElementById("shownCount").textContent = rows.length;
-    const thead = `<tr><th>#</th>${mod.columns.map(c=>`<th class="${c.cls||''}">${esc(c.h)}</th>`).join("")}<th>Sửa</th><th>Xóa</th></tr>`;
+    const thead = `<tr><th>#</th>${mod.columns.map(c=>`<th class="${c.cls||''}">${esc(c.h)}</th>`).join("")}${mod.key==="tables"?'<th>QR</th>':''}<th>Sửa</th><th>Xóa</th></tr>`;
     document.getElementById("tblHead").innerHTML = thead;
     document.getElementById("tblBody").innerHTML = rows.length ? rows.map((r,i)=>`
       <tr>
         <td>${i+1}</td>
         ${mod.columns.map(c=>`<td class="${c.cls||''}">${c.v(r)}</td>`).join("")}
+        ${mod.key==="tables" ? `<td><button class="btn btn-qr btn-sm" onclick="showTableQR('${r.id}')">🔳 QR</button></td>` : ""}
         <td><button class="btn btn-edit btn-sm" onclick="openForm('${r.id}')">✏️</button></td>
         <td><button class="btn btn-del btn-sm" onclick="deleteRow('${r.id}')">🗑️</button></td>
-      </tr>`).join("") : `<tr><td colspan="${mod.columns.length+3}" class="loading">Chưa có dữ liệu — bấm "Thêm mới" để bắt đầu</td></tr>`;
+      </tr>`).join("") : `<tr><td colspan="${mod.columns.length+3+(mod.key==="tables"?1:0)}" class="loading">Chưa có dữ liệu — bấm "Thêm mới" để bắt đầu</td></tr>`;
   }
 
   window.exportModule = function() {

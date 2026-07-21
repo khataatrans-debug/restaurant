@@ -104,9 +104,9 @@ tr:last-child td{border-bottom:none}
       <h2>SuperAdmin</h2>
       <p>Quản trị hệ thống tổng</p>
     </div>
-    <div class="login-field"><label>Username</label><input id="saUser" type="text" placeholder="superadmin" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <div class="login-field"><label>Email</label><input id="saUser" type="email" placeholder="superadmin@yourdomain.com" onkeydown="if(event.key==='Enter')doLogin()"></div>
     <div class="login-field"><label>Password</label><input id="saPass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
-    <button class="btn-login" onclick="doLogin()">🔐 Đăng nhập</button>
+    <button class="btn-login" id="btnDoLogin" onclick="doLogin()">🔐 Đăng nhập</button>
     <div class="login-err" id="loginErr"></div>
   </div>
 </div>
@@ -304,6 +304,7 @@ tr:last-child td{border-bottom:none}
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script>
@@ -318,29 +319,41 @@ firebase.initializeApp({
   appId:"1:1097685849973:web:79ad636e3dfd0b12f7653c"
 });
 const db = firebase.firestore();
-// Ghi chú: Firestore Rules của project này là "allow read, write: if true;"
-// (mở hoàn toàn) nên KHÔNG cần đăng nhập (kể cả Anonymous Auth) trước khi
-// đọc/ghi. Đã bỏ bước Anonymous Auth vì nó gây lỗi admin-restricted-operation
-// mà không mang lại lợi ích gì (Rules không kiểm tra request.auth).
-// Dùng REST API thay SDK để tránh lỗi region
+const auth = firebase.auth();
+// ⚠️ ĐÃ ĐỔI: Firestore/RTDB Rules PHẢI được siết lại để chỉ cho phép user đã
+// đăng nhập bằng Firebase Auth và có email nằm trong SUPERADMIN_EMAILS bên dưới
+// mới được đọc/ghi collection "companies" và "admin_logs". Xem file firestore.rules
+// và rtdb.rules.json đi kèm để paste vào Firebase Console → Rules.
+// Dùng REST API thay SDK cho RTDB để tránh lỗi region
 const RTDB_BASE = "https://transportation-6d6f5-default-rtdb.asia-southeast1.firebasedatabase.app";
+// ⚠️ RTDB Rules giờ yêu cầu auth != null (và email cụ thể cho vài node), nên
+// MỌI request REST tới RTDB phải đính kèm ?auth=<ID_TOKEN> của user đang đăng
+// nhập, nếu không sẽ bị 401. Hàm này lấy token hiện tại từ Firebase Auth.
+async function getIdToken(){
+  const u = auth.currentUser;
+  if(!u) throw new Error("Chưa đăng nhập");
+  return await u.getIdToken();
+}
 const rtdb = {
   ref: function(path) {
     const _path = path;
     return {
       set: async function(data) {
-        const res = await fetch(RTDB_BASE+"/"+_path+".json", {method:"PUT",body:JSON.stringify(data)});
+        const token = await getIdToken();
+        const res = await fetch(RTDB_BASE+"/"+_path+".json?auth="+token, {method:"PUT",body:JSON.stringify(data)});
         if(!res.ok) throw new Error("RTDB error: "+res.status);
       },
       once: async function() {
-        const res = await fetch(RTDB_BASE+"/"+_path+".json");
+        const token = await getIdToken();
+        const res = await fetch(RTDB_BASE+"/"+_path+".json?auth="+token);
         const val = await res.json();
         return { exists:()=>val!==null, val:()=>val,
           forEach:(cb)=>{ if(val&&typeof val==="object") Object.entries(val).forEach(([k,v])=>cb({key:k,val:()=>v})); }
         };
       },
       remove: async function() {
-        await fetch(RTDB_BASE+"/"+_path+".json", {method:"DELETE"});
+        const token = await getIdToken();
+        await fetch(RTDB_BASE+"/"+_path+".json?auth="+token, {method:"DELETE"});
       },
       limitToLast: function(n){ return this; },
       orderByChild: function(){ return this; }
@@ -348,8 +361,14 @@ const rtdb = {
   }
 };
 
-// ── SUPERADMIN CREDENTIALS (có thể đổi) ──
-const SA_USERS = { "superadmin": "Admin@2025!", "admin": "Admin@2025!" };
+// ── SUPERADMIN: danh sách email được phép vào Console ──
+// ⚠️ Mật khẩu KHÔNG còn nằm trong code. Tạo tài khoản thật ở Firebase Console
+// → Authentication → Users → Add user (email/password), rồi thêm email đó
+// vào mảng dưới đây. Rules Firestore/RTDB cũng phải kiểm tra đúng các email
+// này (xem firestore.rules / rtdb.rules.json) — đổi ở CẢ 2 nơi khi thêm/bớt người.
+const SUPERADMIN_EMAILS = [
+  "khat.vantage@gmail.com"
+];
 
 // ── MODULES LIST ──
 const ALL_MODULES = [
@@ -357,31 +376,67 @@ const ALL_MODULES = [
   {id:"users",       icon:"👑", name:"Users & Phân quyền", desc:"Quản lý tài khoản"},
 ];
 
+// ── HASH PASSWORD (SHA-256, cùng format với login.html) ──
+async function hashPass(str){
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+
 // ── STATE ──
 let _companies = [];
 let _editId    = null;
 let _mods      = new Set();
 
-// ── LOGIN ──
-function doLogin(){
+// ── LOGIN (Firebase Auth thật — không còn so sánh password trong JS) ──
+async function doLogin(){
   const u=document.getElementById("saUser").value.trim();
   const p=document.getElementById("saPass").value;
-  if(SA_USERS[u]===p){
-    document.getElementById("loginScreen").style.display="none";
-    document.getElementById("mainScreen").style.display="block";
-    document.getElementById("topbarSub").textContent="Đăng nhập: "+u+" — "+new Date().toLocaleString("vi-VN");
-    loadAll();
-  } else {
-    document.getElementById("loginErr").textContent="❌ Sai tài khoản hoặc mật khẩu";
+  const err=document.getElementById("loginErr");
+  const btn=document.getElementById("btnDoLogin");
+  err.textContent="";
+  if(!u||!p){ err.textContent="Vui lòng nhập email và mật khẩu!"; return; }
+  btn.disabled=true; btn.textContent="⏳ Đang xác thực...";
+  try{
+    const cred = await auth.signInWithEmailAndPassword(u, p);
+    if(!SUPERADMIN_EMAILS.includes(cred.user.email)){
+      await auth.signOut();
+      err.textContent="❌ Tài khoản này không có quyền SuperAdmin";
+      return;
+    }
+    // đăng nhập OK — showMain() sẽ được onAuthStateChanged gọi tự động
+  }catch(e){
+    const map = {
+      "auth/wrong-password":"❌ Sai mật khẩu",
+      "auth/user-not-found":"❌ Không tìm thấy tài khoản này",
+      "auth/invalid-email":"❌ Email không hợp lệ",
+      "auth/too-many-requests":"⛔ Thử sai quá nhiều lần — Firebase tạm khoá, thử lại sau"
+    };
+    err.textContent = map[e.code] || ("❌ Lỗi: "+e.message);
+  }finally{
+    btn.disabled=false; btn.textContent="🔐 Đăng nhập";
   }
 }
 function doLogout(){
+  auth.signOut();
+}
+function showMain(user){
+  document.getElementById("loginScreen").style.display="none";
+  document.getElementById("mainScreen").style.display="block";
+  document.getElementById("topbarSub").textContent="Đăng nhập: "+user.email+" — "+new Date().toLocaleString("vi-VN");
+  loadAll();
+}
+function showLogin(){
   document.getElementById("mainScreen").style.display="none";
   document.getElementById("loginScreen").style.display="flex";
   document.getElementById("saUser").value="";
   document.getElementById("saPass").value="";
   document.getElementById("loginErr").textContent="";
 }
+// Giữ phiên đăng nhập qua các lần mở lại trang (Firebase Auth tự lưu phiên)
+auth.onAuthStateChanged(user=>{
+  if(user && SUPERADMIN_EMAILS.includes(user.email)) showMain(user);
+  else showLogin();
+});
 
 // ── LOAD DATA ──
 async function loadAll(){
@@ -590,8 +645,12 @@ async function saveCompany(){
     expiryDate: expiryDate, // "" = vĩnh viễn, "YYYY-MM-DD" = có hạn
     updatedAt: new Date().toISOString(),
   };
-  if(!_editId){ data.createdAt=new Date().toISOString(); data.adminPass=pass; }
-  else if(pass){ data.adminPass=pass; }
+  // ⚠️ Không bao giờ lưu mật khẩu dạng plaintext — hash SHA-256 trước khi ghi
+  // xuống Firestore. login.html đã hỗ trợ so sánh cả hash lẫn plaintext cũ,
+  // nên các tài khoản tạo mới/đổi mật khẩu từ đây sẽ luôn ở dạng hash.
+  const passHash = pass ? await hashPass(pass) : "";
+  if(!_editId){ data.createdAt=new Date().toISOString(); data.adminPass=passHash; }
+  else if(pass){ data.adminPass=passHash; }
 
   try{
     const isNew = !_editId;
@@ -638,7 +697,7 @@ async function saveCompany(){
       const idx = existingUsers.findIndex(u => u.username === admin);
       const adminRecord = {
         username: admin,
-        password: pass || (idx > -1 ? existingUsers[idx].password : ""),
+        password: passHash || (idx > -1 ? existingUsers[idx].password : ""),
         role: "admin",
         pages: (idx > -1 ? existingUsers[idx].pages : []) || []
       };
@@ -651,7 +710,7 @@ async function saveCompany(){
     await db.collection("admin_logs").add({
       action: _editId?"EDIT":"CREATE", appId,
       detail: `Modules: ${[..._mods].join(",")}${rtdbSyncFailed?" (⚠ RTDB sync lỗi)":""}`,
-      by:"superadmin", at:new Date().toISOString()
+      by:(auth.currentUser&&auth.currentUser.email)||"superadmin", at:new Date().toISOString()
     });
 
     if(rtdbSyncFailed){
@@ -714,7 +773,7 @@ async function syncAdminToUsers(id){
     await db.collection("admin_logs").add({
       action:"SYNC_ADMIN_USER", appId,
       detail:`Đồng bộ lại tài khoản admin "${c.adminUser}" sang app_users_${appId}`,
-      by:"superadmin", at:new Date().toISOString()
+      by:(auth.currentUser&&auth.currentUser.email)||"superadmin", at:new Date().toISOString()
     });
     showToast(`✅ Đã đồng bộ admin "${c.adminUser}" cho ${appId} — thử đăng nhập lại!`);
   }catch(e){
@@ -769,8 +828,8 @@ async function loadAuditLog(){
 
   try{
     // Dùng REST API thay vì SDK để tránh lỗi region
-    const RTDB_URL = "https://transportation-6d6f5-default-rtdb.asia-southeast1.firebasedatabase.app";
-    const url = `${RTDB_URL}/audit_log_${appFilter}.json?orderBy="$key"&limitToLast=500`;
+    const token = await getIdToken();
+    const url = `${RTDB_BASE}/audit_log_${appFilter}.json?orderBy="$key"&limitToLast=500&auth=${token}`;
     const res = await fetch(url);
     if(!res.ok) throw new Error("HTTP "+res.status);
     const data = await res.json();
@@ -846,15 +905,15 @@ async function clearAuditLog(){
   const n = _auditRows.length;
   if(!confirm(`Xóa toàn bộ ${n} bản ghi audit log của ${appFilter}?\nHành động này KHÔNG thể hoàn tác!`)) return;
   try{
-    const RTDB_URL2 = "https://transportation-6d6f5-default-rtdb.asia-southeast1.firebasedatabase.app";
-    await fetch(`${RTDB_URL2}/audit_log_${appFilter}.json`, {method:"DELETE"});
+    const token = await getIdToken();
+    await fetch(`${RTDB_BASE}/audit_log_${appFilter}.json?auth=${token}`, {method:"DELETE"});
     _auditRows = [];
     document.getElementById("auditTbody").innerHTML = '<tr><td colspan="5" style="text-align:center;padding:28px;color:#64748b">Đã xóa log</td></tr>';
     document.getElementById("auditStats").style.display = "none";
     document.getElementById("btnClearLog").style.display = "none";
     showToast("✅ Đã xóa "+n+" bản ghi audit log của "+appFilter);
     // ghi admin_log
-    await db.collection("admin_logs").add({action:"CLEAR_AUDIT_LOG", appId:appFilter, detail:"Xóa "+n+" bản ghi", by:"superadmin", at:new Date().toISOString()});
+    await db.collection("admin_logs").add({action:"CLEAR_AUDIT_LOG", appId:appFilter, detail:"Xóa "+n+" bản ghi", by:(auth.currentUser&&auth.currentUser.email)||"superadmin", at:new Date().toISOString()});
   }catch(e){ showToast("Lỗi: "+e.message, true); }
 }
 
@@ -887,7 +946,8 @@ async function doBackup(){
       const snap = await db.collection("companies").where("appId","==",appId).get();
       backup.data.company = snap.docs.map(d=>({id:d.id,...d.data()}))[0]||{};
       // Export audit log
-      const _aRes = await fetch(RTDB_BASE+"/audit_log_"+appId+".json");
+      const _bToken = await getIdToken();
+      const _aRes = await fetch(RTDB_BASE+"/audit_log_"+appId+".json?auth="+_bToken);
       const _aVal = await _aRes.json();
       const aSnap = { exists:()=>_aVal!==null, val:()=>_aVal,
         forEach:(cb)=>{ if(_aVal&&typeof _aVal==="object") Object.entries(_aVal).forEach(([k,v])=>cb({key:k,val:()=>v})); }

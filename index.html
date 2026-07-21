@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>🏠 Dashboard | Hệ thống Quản lý</title>
+<title>🏠 Dashboard | Phần mềm Quản lý</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
@@ -12,8 +12,11 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
   import { getFirestore, collection, doc, onSnapshot, deleteDoc }
     from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
   window.__fbApp  = { initializeApp };
   window.__fbFS   = { getFirestore, collection, doc, onSnapshot, deleteDoc };
+  window.__fbAuth = { getAuth, signInAnonymously, onAuthStateChanged };
   window.__fbReady = true;
   if (window.__fbReadyCb) window.__fbReadyCb();
 </script>
@@ -194,12 +197,11 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:6px 0 26px;}
 .activity-time{font-size:10px;color:var(--muted);font-weight:600;margin-top:2px;}
 .activity-empty{color:var(--muted);font-size:12px;text-align:center;padding:26px 10px;}
 
-/* -- Dải hoạ tiết thương hiệu (ảnh thật + overlay gradient) -- */
+/* -- Dải hoạ tiết thương hiệu (gradient, không dùng ảnh nền ngoài) -- */
 .brand-panel{
   position:relative;overflow:hidden;border-radius:var(--r-lg);
   background:
     linear-gradient(165deg, rgba(10,26,61,.94) 0%, rgba(18,39,92,.86) 45%, rgba(26,58,143,.62) 100%),
-    url('brand-truck.png') center 62% / cover no-repeat,
     linear-gradient(155deg,var(--navy) 0%,var(--navy-2) 65%,var(--blue) 130%);
   box-shadow:var(--shadow-lg);padding:22px 20px;display:flex;flex-direction:column;
   justify-content:space-between;color:#fff;
@@ -419,10 +421,10 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:6px 0 26px;}
 
 <aside class="sidebar" id="sidebar">
   <a href="index.html" class="side-brand">
-    <div class="side-brand-mark">LO</div>
+    <div class="side-brand-mark">K</div>
     <div class="side-brand-text">
-      <div class="side-brand-title">A·AU Nhà hàng</div>
-      <div class="side-brand-sub">Hệ thống quản lý nhà hàng</div>
+      <div class="side-brand-title">Kovenso</div>
+      <div class="side-brand-sub">Phần mềm quản lý nhà hàng</div>
     </div>
   </a>
   <nav class="side-nav" id="sideNav"></nav>
@@ -524,7 +526,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:6px 0 26px;}
 
       <div class="brand-panel" id="brandPanel">
         <div>
-          <div class="brand-eyebrow">A·AU Nhà hàng</div>
+          <div class="brand-eyebrow">Kovenso Solution</div>
           <div class="brand-tagline">Vận hành liền mạch</div>
         </div>
       </div>
@@ -566,6 +568,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:6px 0 26px;}
 
   const { initializeApp } = window.__fbApp;
   const { getFirestore, collection, doc, onSnapshot, deleteDoc } = window.__fbFS;
+  const { getAuth, signInAnonymously, onAuthStateChanged } = window.__fbAuth;
 
   const _fbapp = initializeApp({
     apiKey: "AIzaSyAPmHlNgx-w5KfK4LF490pvdYA_mGgcX_k",
@@ -577,6 +580,16 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:6px 0 26px;}
     appId: "1:1097685849973:web:79ad636e3dfd0b12f7653c"
   }, "dashboard-modules");
   const db = getFirestore(_fbapp);
+  // Đăng nhập ẩn danh — bắt buộc từ khi Rules yêu cầu request.auth != null.
+  // Đợi xong bước này (await authReady) rồi mới subscribe dữ liệu bên dưới.
+  const _auth = getAuth(_fbapp);
+  const authReady = new Promise(resolve => {
+    onAuthStateChanged(_auth, user => {
+      if (user) resolve(user);
+      else signInAnonymously(_auth).catch(err => console.error("[index] Lỗi đăng nhập ẩn danh:", err));
+    });
+  });
+  await authReady;
 
   /* ── Dashboard nhà hàng: chỉ còn đúng 1 module nghiệp vụ (restaurant/pos/kitchen/report) ── */
   const primaryModule = "restaurant";

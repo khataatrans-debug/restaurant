@@ -1,7 +1,7 @@
 {
   "hosting": [
     {
-      "target": "phanmenquanly",
+      "target": "phan-mem-nha-hang",
       "public": ".",
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
       "headers": [

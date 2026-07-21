@@ -135,8 +135,9 @@
     Promise.all([
       import("https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js"),
       import("https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js"),
-      import("https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js")
-    ]).then(function([appMod, fsMod, rtdbMod]) {
+      import("https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js"),
+      import("https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js")
+    ]).then(function([appMod, fsMod, rtdbMod, authMod]) {
       const cfgApp = appMod.initializeApp({
         apiKey: "AIzaSyAPmHlNgx-w5KfK4LF490pvdYA_mGgcX_k",
         authDomain: "transportation-6d6f5.firebaseapp.com",
@@ -150,8 +151,21 @@
       const fs   = fsMod.getFirestore(cfgApp);
       const rtdb = rtdbMod.getDatabase(cfgApp);
 
+      // Đăng nhập ẩn danh riêng cho kết nối này — vì đây là app Firebase độc lập với
+      // app chính của từng trang (đặt tên khác), signInAnonymously() ở trang chính
+      // KHÔNG tự động áp dụng cho kết nối này. Bắt buộc từ khi Rules yêu cầu
+      // request.auth != null. Có timeout dự phòng 5s để không treo mãi nếu lỗi mạng.
+      const cfgAuth = authMod.getAuth(cfgApp);
+      const cfgAuthReady = new Promise(function(resolve){
+        authMod.onAuthStateChanged(cfgAuth, function(user){
+          if (user) resolve(user);
+          else authMod.signInAnonymously(cfgAuth).catch(function(err){ console.error("[app-config] Lỗi đăng nhập ẩn danh:", err); });
+        });
+        setTimeout(function(){ console.warn("[app-config] Đăng nhập ẩn danh quá thời gian chờ, tiếp tục không có auth"); resolve(null); }, 8000);
+      });
+
       const q = fsMod.query(fsMod.collection(fs,"companies"), fsMod.where("appId","==",APP_ID), fsMod.limit(1));
-      fsMod.getDocs(q).then(function(snap) {
+      cfgAuthReady.then(function(){ return fsMod.getDocs(q); }).then(function(snap) {
         if (!snap.empty) {
           const cfg = snap.docs[0].data();
           // Nếu bị khóa → đăng xuất

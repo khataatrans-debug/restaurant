@@ -85,6 +85,8 @@ body{font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif;background:var(--b
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
   import { getFirestore, doc, onSnapshot, collection, query, where }
     from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
 
   const params = new URLSearchParams(location.search);
   const APP_ID = params.get("app") || "";
@@ -109,23 +111,51 @@ body{font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif;background:var(--b
     appId: "1:1097685849973:web:79ad636e3dfd0b12f7653c"
   });
   const db = getFirestore(_fbapp);
+  const _auth = getAuth(_fbapp);
 
   let ORDER = null;
   let ORDER_LOADED = false;
   let TICKETS = [];
   let TICKETS_LOADED = false;
+  let LISTENERS_STARTED = false;
 
-  onSnapshot(doc(db, `pos_orders_${APP_ID}`, ORDER_ID), snap => {
-    ORDER = snap.exists() ? snap.data() : null;
-    ORDER_LOADED = true;
-    render();
-  }, err => { app.innerHTML = errorBox("Không thể kết nối tới hệ thống. Vui lòng thử lại."); });
+  // Theo dõi trạng thái đăng nhập ẩn danh. Firestore Security Rules thường
+  // yêu cầu request.auth != null, nên khách quét QR (chưa đăng nhập) cần
+  // được đăng nhập ẩn danh trước khi mở các onSnapshot, nếu không sẽ gặp
+  // lỗi permission-denied -> hiển thị "Không thể kết nối tới hệ thống".
+  const authTimeout = setTimeout(() => { startListeners(); }, 5000);
 
-  onSnapshot(query(collection(db, `pos_kitchen_tickets_${APP_ID}`), where("orderId","==",ORDER_ID)), snap => {
-    TICKETS = snap.docs.map(d => d.data());
-    TICKETS_LOADED = true;
-    render();
-  }, err => {});
+  onAuthStateChanged(_auth, user => {
+    if (user) { clearTimeout(authTimeout); startListeners(); }
+    else signInAnonymously(_auth).catch(err => {
+      console.error("[track] Lỗi đăng nhập ẩn danh:", err);
+      if (!LISTENERS_STARTED) { clearTimeout(authTimeout); startListeners(); }
+    });
+  });
+
+  function startListeners(){
+    if (LISTENERS_STARTED) return;
+    LISTENERS_STARTED = true;
+
+    onSnapshot(doc(db, `pos_orders_${APP_ID}`, ORDER_ID), snap => {
+      ORDER = snap.exists() ? snap.data() : null;
+      ORDER_LOADED = true;
+      render();
+    }, err => {
+      console.error("[track] onSnapshot order error:", err);
+      app.innerHTML = errorBox(
+        err && err.code === "permission-denied"
+          ? "Không có quyền truy cập đơn hàng này. Vui lòng liên hệ nhân viên tại quầy."
+          : "Không thể kết nối tới hệ thống. Vui lòng thử lại."
+      );
+    });
+
+    onSnapshot(query(collection(db, `pos_kitchen_tickets_${APP_ID}`), where("orderId","==",ORDER_ID)), snap => {
+      TICKETS = snap.docs.map(d => d.data());
+      TICKETS_LOADED = true;
+      render();
+    }, err => { console.error("[track] onSnapshot tickets error:", err); });
+  }
 
   function errorBox(msg){
     return `<div class="center-box"><div class="big">⚠️</div>${esc(msg)}</div>`;

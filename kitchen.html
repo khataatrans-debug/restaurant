@@ -92,9 +92,12 @@ body{font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif;background:var(--b
     from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
   import { getDatabase, ref, onValue, get }
     from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
   window.__fbApp  = { initializeApp };
   window.__fbFS   = { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy, where, limit, getDocs, writeBatch, getDoc };
   window.__fbRTDB = { getDatabase, ref, onValue, get };
+  window.__fbAuth = { getAuth, signInAnonymously, onAuthStateChanged };
   window.__fbReady = true;
   if (window.__fbReadyCb) window.__fbReadyCb();
 </script>
@@ -171,6 +174,7 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
 {
   const { initializeApp } = window.__fbApp;
   const { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } = window.__fbFS;
+  const { getAuth, signInAnonymously, onAuthStateChanged } = window.__fbAuth;
   const APP_ID = window.APP_ID || new URLSearchParams(location.search).get("app") || "";
 
   const _fbapp = initializeApp({
@@ -183,6 +187,15 @@ await new Promise(r=>document.readyState==="loading"?document.addEventListener("
     appId: "1:1097685849973:web:79ad636e3dfd0b12f7653c"
   });
   const db = getFirestore(_fbapp);
+  // Đăng nhập ẩn danh — bắt buộc từ khi Rules yêu cầu request.auth != null.
+  const _auth = getAuth(_fbapp);
+  const authReady = new Promise(resolve => {
+    onAuthStateChanged(_auth, user => {
+      if (user) resolve(user);
+      else signInAnonymously(_auth).catch(err => console.error("[kitchen] Lỗi đăng nhập ẩn danh:", err));
+    });
+  });
+  await authReady;
 
   function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 

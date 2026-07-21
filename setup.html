@@ -273,6 +273,7 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script>
 /* ── FIREBASE ── */
@@ -286,6 +287,13 @@ firebase.initializeApp({
   appId:            "1:1097685849973:web:79ad636e3dfd0b12f7653c"
 });
 const db = firebase.database();
+// Đăng nhập ẩn danh — bắt buộc từ khi Rules yêu cầu request.auth != null.
+let _authReadyResolve;
+const authReady = new Promise(res => { _authReadyResolve = res; });
+firebase.auth().onAuthStateChanged(user => {
+  if (user) { _authReadyResolve(user); }
+  else { firebase.auth().signInAnonymously().catch(err => console.error("[setup] Lỗi đăng nhập ẩn danh:", err)); }
+});
 
 const ALL_PAGES = ["index.html","restaurant.html","pos.html","kitchen.html","report.html","users.html"];
 
@@ -323,7 +331,7 @@ function checkCompany(){
   document.getElementById("btnNext1").disabled = true;
 
   // Kiểm tra xem app_users_CODE đã có data chưa
-  db.ref(`app_users_${code}`).once("value").then(snap => {
+  authReady.then(() => db.ref(`app_users_${code}`).once("value")).then(snap => {
     if(snap.exists() && snap.val() && Object.keys(snap.val()).length > 0){
       // Đã có data → chặn
       setStatus("taken",`⛔ Mã <strong>${code}</strong> đã được sử dụng. Hãy đăng nhập hoặc chọn mã khác.`);
@@ -397,7 +405,7 @@ function doCreate(){
   }];
 
   // Ghi vào Firebase: app_users_CODE
-  db.ref(`app_users_${currentCode}`).set(adminUser)
+  authReady.then(() => db.ref(`app_users_${currentCode}`).set(adminUser))
     .then(() => {
       sb2.className="status-box free";
       sb2.innerHTML="✅ Tạo thành công!";
@@ -443,6 +451,7 @@ function toggleModule(key, el){
 }
 
 async function doSaveModules(){
+  await authReady;
   // Lưu config modules vào Firebase
   const modules = {...selectedModules};
   const pages = ["index.html", ...Object.entries(MODULE_PAGES)
